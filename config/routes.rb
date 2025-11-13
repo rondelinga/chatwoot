@@ -147,6 +147,7 @@ Rails.application.routes.draw do
               get :attachments
               get :inbox_assistant
               patch :change_inbox
+              get :reporting_events if ChatwootApp.enterprise?
             end
           end
 
@@ -192,6 +193,7 @@ Rails.application.routes.draw do
               get :download
             end
           end
+          resources :reporting_events, only: [:index] if ChatwootApp.enterprise?
           resources :custom_attribute_definitions, only: [:index, :show, :create, :update, :destroy]
           resources :custom_filters, only: [:index, :show, :create, :update, :destroy]
           resources :inboxes, only: [:index, :show, :create, :update, :destroy] do
