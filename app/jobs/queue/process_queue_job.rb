@@ -61,4 +61,13 @@ class Queue::ProcessQueueJob < ApplicationJob
 
     User.where(id: online_ids)
   end
+
+  def find_unassigned_conversation_for(_agent, account)
+    Conversation
+      .open
+      .unassigned
+      .where(account_id: account.id)
+      .where.not(id: ConversationQueue.select(:conversation_id))
+      .order(:created_at).first
+  end
 end
