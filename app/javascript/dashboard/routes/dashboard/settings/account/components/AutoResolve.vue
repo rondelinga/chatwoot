@@ -20,6 +20,10 @@ const labelToApply = ref({});
 const ignoreWaiting = ref(false);
 const isEnabled = ref(false);
 const isSubmitting = ref(false);
+const splitReasons = ref(false);
+const messageAgent = ref('');
+const messageClient = ref('');
+const isInitialized = ref(false);
 
 const { currentAccount, updateAccount } = useAccount();
 
@@ -50,19 +54,31 @@ watch(
       auto_resolve_message,
       auto_resolve_ignore_waiting,
       auto_resolve_label,
+      auto_resolve_split_reasons,
+      auto_resolve_message_agent,
+      auto_resolve_message_client,
     } = currentAccount.value?.settings || {};
 
     duration.value = auto_resolve_after;
-    message.value = auto_resolve_message;
     ignoreWaiting.value = auto_resolve_ignore_waiting;
-    // find the correct label option from the list
-    // the single select component expects the full label object
-    // in our case, the label id and name are both the same
+
+    if (!isInitialized.value) {
+      splitReasons.value = auto_resolve_split_reasons || false;
+
+      if (splitReasons.value) {
+        messageAgent.value = auto_resolve_message_agent || '';
+        messageClient.value = auto_resolve_message_client || '';
+      } else {
+        message.value = auto_resolve_message || '';
+      }
+
+      isInitialized.value = true;
+    }
+
     labelToApply.value = labelOptions.value.find(
       option => option.name === auto_resolve_label
     );
 
-    // Set unit based on duration and its divisibility
     if (duration.value) {
       if (duration.value % (24 * 60) === 0) {
         unit.value = DURATION_UNITS.DAYS;
@@ -95,26 +111,44 @@ const updateAccountSettings = async settings => {
 const handleSubmit = async () => {
   if (duration.value < 10) {
     useAlert(t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.ERROR'));
-    return Promise.resolve();
+    return;
   }
 
-  return updateAccountSettings({
+  const settings = {
     auto_resolve_after: duration.value,
-    auto_resolve_message: message.value,
     auto_resolve_ignore_waiting: ignoreWaiting.value,
     auto_resolve_label: selectedLabelName.value,
-  });
+    auto_resolve_split_reasons: splitReasons.value,
+  };
+
+  if (splitReasons.value) {
+    settings.auto_resolve_message_agent = messageAgent.value;
+    settings.auto_resolve_message_client = messageClient.value;
+    settings.auto_resolve_message = null;
+  } else {
+    settings.auto_resolve_message = message.value;
+    settings.auto_resolve_message_agent = null;
+    settings.auto_resolve_message_client = null;
+  }
+
+  await updateAccountSettings(settings);
 };
 
 const handleDisable = async () => {
   duration.value = null;
   message.value = '';
+  splitReasons.value = false;
+  messageAgent.value = '';
+  messageClient.value = '';
 
   return updateAccountSettings({
     auto_resolve_after: null,
     auto_resolve_message: '',
     auto_resolve_ignore_waiting: false,
     auto_resolve_label: null,
+    auto_resolve_split_reasons: false,
+    auto_resolve_message_agent: null,
+    auto_resolve_message_client: null,
   });
 };
 
@@ -148,7 +182,6 @@ const toggleAutoResolve = async () => {
           :help-message="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.HELP')"
         >
           <div class="gap-2 w-full grid grid-cols-[3fr_1fr]">
-            <!-- allow 10 mins to 999 days -->
             <DurationInput
               v-model="duration"
               v-model:unit="unit"
@@ -158,7 +191,14 @@ const toggleAutoResolve = async () => {
             />
           </div>
         </WithLabel>
+        <div class="flex items-center justify-between text-sm">
+          <span>
+            {{ t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.SPLIT_REASONS') }}
+          </span>
+          <Switch v-model="splitReasons" />
+        </div>
         <WithLabel
+          v-if="!splitReasons"
           :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.LABEL')"
           :help-message="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.HELP')"
         >
@@ -174,6 +214,44 @@ const toggleAutoResolve = async () => {
             "
           />
         </WithLabel>
+        <template v-else>
+          <WithLabel
+            :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.AGENT_LABEL')"
+          >
+            <Editor
+              v-model="messageAgent"
+              class="w-full"
+              channel-type="Context::NoToolbar"
+              enable-variables
+              :enable-canned-responses="false"
+              :show-character-count="false"
+              :placeholder="
+                t(
+                  'GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.AGENT.PLACEHOLDER'
+                )
+              "
+            />
+          </WithLabel>
+          <WithLabel
+            :label="
+              t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.CLIENT_LABEL')
+            "
+          >
+            <Editor
+              v-model="messageClient"
+              class="w-full"
+              channel-type="Context::NoToolbar"
+              enable-variables
+              :enable-canned-responses="false"
+              :show-character-count="false"
+              :placeholder="
+                t(
+                  'GENERAL_SETTINGS.FORM.AUTO_RESOLVE.MESSAGE.CLIENT.PLACEHOLDER'
+                )
+              "
+            />
+          </WithLabel>
+        </template>
         <WithLabel :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.PREFERENCES')">
           <div
             class="rounded-xl border border-n-weak bg-n-solid-1 w-full text-sm text-n-slate-12 divide-y divide-n-weak"
