@@ -209,6 +209,14 @@ ru:
   reports:
     period: Отчётный период с %{since} по %{until}
     utc_warning: Отчёт создан в часовом поясе UTC
+    agent_activity_csv:
+      agent_name: Имя оператора
+      email: Email
+      total_active_hours: Всего активных часов
+      online_hours: Онлайн (часы)
+      busy_hours: Занят (часы)
+      offline_hours: Оффлайн (часы)
+      current_status: Текущий статус
     agent_csv:
       agent_name: Имя оператора
       conversations_count: Назначенные диалоги
@@ -216,6 +224,7 @@ ru:
       avg_resolution_time: Среднее время завершения
       resolution_count: Количество завершенных
       avg_customer_waiting_time: Среднее время ожидания клиента
+      agent_chat_duration: Среднее время длительности чатов
     inbox_csv:
       inbox_name: Имя источника
       inbox_type: Тип входящего сообщения
