@@ -5,6 +5,7 @@ import { frontendURL } from '../../../../helper/URLHelper';
 import ReportsWrapper from './components/ReportsWrapper.vue';
 import Index from './Index.vue';
 
+import AgentActivityIndex from './AgentActivityIndex.vue';
 import AgentReportsIndex from './AgentReportsIndex.vue';
 import InboxReportsIndex from './InboxReportsIndex.vue';
 import LabelReportsIndex from './LabelReportsIndex.vue';
@@ -67,6 +68,14 @@ const oldReportRoutes = [
 ];
 
 const revisedReportRoutes = [
+  {
+    path: 'agent_activity',
+    name: 'agent_activity',
+    meta: {
+      permissions: ['administrator', 'report_manage'],
+    },
+    component: AgentActivityIndex,
+  },
   {
     path: 'agents_overview',
     name: 'agent_reports_index',
