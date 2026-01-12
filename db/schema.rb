@@ -1809,6 +1809,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
   add_foreign_key "inbox_teams", "teams"
   add_foreign_key "agent_activity_logs", "accounts"
   add_foreign_key "agent_activity_logs", "users"
+  add_foreign_key "conversation_queues", "accounts"
+  add_foreign_key "conversation_queues", "conversations"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "priority_groups"
   add_foreign_key "priority_groups", "accounts"
