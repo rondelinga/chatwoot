@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import DatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
@@ -20,6 +20,45 @@ const hideInactive = ref(false);
 const selectedAgents = ref([]);
 const selectedInbox = ref([]);
 const selectedTeam = ref([]);
+
+const props = defineProps({
+  initialSince: {
+    type: Number,
+    default: null,
+  },
+  initialUntil: {
+    type: Number,
+    default: null,
+  },
+  initialHideInactive: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+watch(
+  () => props.initialSince,
+  v => {
+    since.value = v;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.initialUntil,
+  v => {
+    until.value = v;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.initialHideInactive,
+  v => {
+    hideInactive.value = v;
+  },
+  { immediate: true }
+);
 
 const applyTime = (timestamp, time) => {
   if (timestamp == null) return null;

@@ -90,6 +90,7 @@ watch(filters, fetch, { deep: true, immediate: true });
     <AgentActivityFilters
       :initial-since="filters.since"
       :initial-until="filters.until"
+			:initial-hide-inactive="filters.hideInactive"
       @filters-change="onFiltersChange"
     />
 
