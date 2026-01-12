@@ -5,6 +5,7 @@ import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import subDays from 'date-fns/subDays';
 import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
+import ReportsFiltersTimeRange from './Filters/TimeRange.vue';
 import {
   generateReportURLParams,
   parseReportURLParams,
@@ -26,6 +27,7 @@ const router = useRouter();
 const customDateRange = ref([subDays(new Date(), 6), new Date()]);
 const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
 const businessHoursSelected = ref(false);
+const timeRange = ref({ since: '00:00', until: '23:59' });
 
 const updateURLParams = () => {
   const params = generateReportURLParams({
@@ -44,7 +46,13 @@ const emitChange = () => {
     from: getUnixStartOfDay(customDateRange.value[0]),
     to: getUnixEndOfDay(customDateRange.value[1]),
     businessHours: businessHoursSelected.value,
+    timeRange: timeRange.value,
   });
+};
+
+const onTimeRangeChange = range => {
+  timeRange.value = range;
+  emitChange();
 };
 
 const onDateRangeChange = value => {
@@ -97,6 +105,7 @@ onMounted(() => {
         @date-range-changed="onDateRangeChange"
       />
     </div>
+    <ReportsFiltersTimeRange @time-range-changed="onTimeRangeChange" />
     <div class="flex items-center">
       <span class="mx-2 text-sm whitespace-nowrap">
         {{ $t('REPORT.BUSINESS_HOURS') }}

@@ -2,9 +2,6 @@
 import { computed } from 'vue';
 import { HeatmapChart } from '@chatwoot/viz';
 
-import format from 'date-fns/format';
-import getDay from 'date-fns/getDay';
-
 import { groupHeatmapByDay } from 'helpers/ReportsDataHelper';
 import { useI18n } from 'vue-i18n';
 
@@ -38,7 +35,12 @@ const props = defineProps({
 const { t } = useI18n();
 
 function formatDate(dateString) {
-  return format(new Date(dateString), 'MMM d, yyyy');
+  const date = new Date(dateString);
+  const month = date.toLocaleString('en-US', {
+    month: 'short',
+    timeZone: 'UTC',
+  });
+  return `${month} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
 }
 
 const DAYS_OF_WEEK = [
@@ -87,7 +89,7 @@ const chartData = computed(() => {
 
     return {
       id: dateKey,
-      label: DAYS_OF_WEEK[getDay(date)],
+      label: DAYS_OF_WEEK[date.getUTCDay()],
       description: formatDate(dateKey),
       data: columns.map(({ id }) => valuesByHour.get(id) ?? null),
     };

@@ -114,6 +114,25 @@ class Conversation < ApplicationRecord
     ).sort_on_last_user_message_at
   }
 
+  scope :filter_by_label_ids, lambda { |label_ids, account_id|
+    return all if label_ids.blank?
+
+    label_ids = label_ids.reject(&:blank?)
+    return all if label_ids.empty?
+
+    tag_ids = ReportingEvent.tag_ids_for_labels(label_ids, account_id)
+    return none if tag_ids.empty?
+
+    joins(:taggings)
+      .where(
+        taggings: {
+          taggable_type: 'Conversation',
+          context: 'labels',
+          tag_id: tag_ids
+        }
+      )
+      .distinct
+  }
   belongs_to :account
   belongs_to :inbox
   belongs_to :assignee, class_name: 'User', optional: true, inverse_of: :assigned_conversations
@@ -304,6 +323,11 @@ class Conversation < ApplicationRecord
     )
   end
 
+  def operator_replied_after?(operator_id:, from_time:, to_time:)
+    messages.where(sender_type: 'User', sender_id: operator_id, message_type: :outgoing)
+            .exists?(['created_at > ? AND created_at < ?', from_time, to_time])
+  end
+
   private
 
   def leave_queue_if_assignee_present
@@ -333,15 +357,14 @@ class Conversation < ApplicationRecord
     return unless saved_change_to_assignee_id?
     return if assignee_id.nil?
 
-    participant = ConversationParticipant.find_or_initialize_by(
-      conversation_id: id,
-      user_id: assignee_id
-    )
+    participant = ConversationParticipant.find_or_initialize_by(conversation_id: id, user_id: assignee_id)
 
-    if participant.persisted? && participant.left_at.present?
-      participant.left_at = nil
-      participant.save!
-    elsif participant.new_record?
+    now = Time.current
+
+    if participant.persisted?
+      participant.update!(left_at: nil, created_at: now)
+    else
+      participant.created_at = now
       participant.save!
     end
   end
@@ -566,9 +589,9 @@ class Conversation < ApplicationRecord
 
   def remove_from_queue_if_status_changed
     return unless saved_change_to_status?
-
+  
     old_status, new_status = saved_change_to_status
-
+  
     return unless old_status == 'queued' && new_status != 'queued'
 
     reason = new_status == 'resolved' ? :resolved : :other
