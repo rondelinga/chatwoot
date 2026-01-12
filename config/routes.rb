@@ -425,6 +425,7 @@ Rails.application.routes.draw do
         scope module: :accounts do
           resources :summary_reports, only: [] do
             collection do
+              get :agent_activity
               get :agent
               get :team
               get :inbox
@@ -436,6 +437,7 @@ Rails.application.routes.draw do
             collection do
               get :summary
               get :bot_summary
+              get :agent_activity
               get :agents
               get :inboxes
               get :labels
