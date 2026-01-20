@@ -32,8 +32,18 @@ json.meta do
 end
 
 json.id conversation.display_id
-message_summary = conversation.message_summary
-json.messages [message_summary.last_message_data].compact
+if params[:include_messages] == 'true'
+  messages = conversation.messages.where(account_id: conversation.account_id)
+                         .includes(attachments: { file_attachment: :blob }, sender: { avatar_attachment: [:blob] })
+                         .reorder(created_at: :asc, id: :asc)
+  json.messages do
+    json.array! messages do |message|
+      json.partial!('api/v1/models/message', formats: [:json], message: message)
+    end
+  end
+else
+  json.messages [conversation.message_summary.last_message_data].compact
+end
 
 json.account_id conversation.account_id
 json.uuid conversation.uuid
@@ -53,8 +63,8 @@ json.created_at conversation.created_at.to_i
 json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
-json.unread_count message_summary.unread_count
-json.last_non_activity_message message_summary.last_non_activity_message_data
+json.unread_count conversation.message_summary.unread_count
+json.last_non_activity_message conversation.message_summary.last_non_activity_message_data
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i
