@@ -38,6 +38,15 @@ last_message = conversation.messages.where(account_id: conversation.account_id)
                            .reorder(created_at: :desc, id: :desc).first
 if last_message.blank?
   json.messages []
+elsif params[:include_messages] == 'true'
+  messages = conversation.messages.where(account_id: conversation.account_id)
+                         .includes(attachments: { file_attachment: :blob }, sender: { avatar_attachment: [:blob] })
+                         .reorder(created_at: :asc, id: :asc)
+  json.messages do
+    json.array! messages do |message|
+      json.partial!('api/v1/models/message', formats: [:json], message: message)
+    end
+  end
 else
   json.messages [last_message.try(:push_event_data)]
 end
