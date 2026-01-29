@@ -50,18 +50,70 @@ export default {
       const reportKeys = Object.keys(this.reportKeys);
       const infoText = {
         FIRST_RESPONSE_TIME: this.$t(
-          `REPORT.METRICS.FIRST_RESPONSE_TIME.INFO_TEXT`
+          'REPORT.METRICS.FIRST_RESPONSE_TIME.INFO_TEXT'
         ),
-        RESOLUTION_TIME: this.$t(`REPORT.METRICS.RESOLUTION_TIME.INFO_TEXT`),
+        RESOLUTION_TIME: this.$t('REPORT.METRICS.RESOLUTION_TIME.INFO_TEXT'),
       };
-      return reportKeys.map(key => ({
-        NAME: this.$t(`REPORT.METRICS.${key}.NAME`),
-        KEY: this.reportKeys[key],
-        DESC: this.$t(`REPORT.METRICS.${key}.DESC`),
-        INFO_TEXT: infoText[key],
-        TOOLTIP_TEXT: `REPORT.METRICS.${key}.TOOLTIP_TEXT`,
-        trend: this.calculateTrend(this.reportKeys[key]),
-      }));
+
+      const metricTranslations = {
+        CONVERSATIONS: {
+          NAME: this.$t('REPORT.METRICS.CONVERSATIONS.NAME'),
+          DESC: this.$t('REPORT.METRICS.CONVERSATIONS.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.CONVERSATIONS.TOOLTIP_TEXT',
+        },
+        INCOMING_MESSAGES: {
+          NAME: this.$t('REPORT.METRICS.INCOMING_MESSAGES.NAME'),
+          DESC: this.$t('REPORT.METRICS.INCOMING_MESSAGES.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.INCOMING_MESSAGES.TOOLTIP_TEXT',
+        },
+        OUTGOING_MESSAGES: {
+          NAME: this.$t('REPORT.METRICS.OUTGOING_MESSAGES.NAME'),
+          DESC: this.$t('REPORT.METRICS.OUTGOING_MESSAGES.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.OUTGOING_MESSAGES.TOOLTIP_TEXT',
+        },
+        FIRST_RESPONSE_TIME: {
+          NAME: this.$t('REPORT.METRICS.FIRST_RESPONSE_TIME.NAME'),
+          DESC: this.$t('REPORT.METRICS.FIRST_RESPONSE_TIME.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.FIRST_RESPONSE_TIME.TOOLTIP_TEXT',
+        },
+        RESOLUTION_TIME: {
+          NAME: this.$t('REPORT.METRICS.RESOLUTION_TIME.NAME'),
+          DESC: this.$t('REPORT.METRICS.RESOLUTION_TIME.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.RESOLUTION_TIME.TOOLTIP_TEXT',
+        },
+        RESOLUTION_COUNT: {
+          NAME: this.$t('REPORT.METRICS.RESOLUTION_COUNT.NAME'),
+          DESC: this.$t('REPORT.METRICS.RESOLUTION_COUNT.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.RESOLUTION_COUNT.TOOLTIP_TEXT',
+        },
+        REPLY_TIME: {
+          NAME: this.$t('REPORT.METRICS.REPLY_TIME.NAME'),
+          DESC: this.$t('REPORT.METRICS.REPLY_TIME.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.REPLY_TIME.TOOLTIP_TEXT',
+        },
+        AGENT_CHAT_DURATION: {
+          NAME: this.$t('REPORT.METRICS.AGENT_CHAT_DURATION.NAME'),
+          DESC: this.$t('REPORT.METRICS.AGENT_CHAT_DURATION.DESC'),
+          TOOLTIP_TEXT: 'REPORT.METRICS.AGENT_CHAT_DURATION.TOOLTIP_TEXT',
+        },
+      };
+
+      return reportKeys.map(key => {
+        const translations = metricTranslations[key] || {
+          NAME: '',
+          DESC: '',
+          TOOLTIP_TEXT: '',
+        };
+
+        return {
+          NAME: translations.NAME,
+          KEY: this.reportKeys[key],
+          DESC: translations.DESC,
+          INFO_TEXT: infoText[key],
+          TOOLTIP_TEXT: translations.TOOLTIP_TEXT,
+          trend: this.calculateTrend(this.reportKeys[key]),
+        };
+      });
     },
   },
   methods: {
@@ -71,8 +123,14 @@ export default {
       }
       const data = this.accountReport.data[metric.KEY];
       const labels = data.map(element => {
+        const date = fromUnixTime(element.timestamp);
+
+        if (this.groupBy?.period === 'hour') {
+          return format(date, 'HH:mm');
+        }
+
         if (this.groupBy?.period === GROUP_BY_FILTER[2].period) {
-          let week_date = new Date(fromUnixTime(element.timestamp));
+          let week_date = new Date(date);
           const first_day = week_date.getDate() - week_date.getDay();
           const last_day = first_day + 6;
           const week_first_date = new Date(week_date.setDate(first_day));
@@ -83,13 +141,14 @@ export default {
           )}`;
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[3].period) {
-          return format(fromUnixTime(element.timestamp), 'MMM-yyyy');
+          return format(date, 'MMM-yyyy');
         }
         if (this.groupBy?.period === GROUP_BY_FILTER[4].period) {
-          return format(fromUnixTime(element.timestamp), 'yyyy');
+          return format(date, 'yyyy');
         }
-        return format(fromUnixTime(element.timestamp), 'dd-MMM');
+        return format(date, 'dd-MMM');
       });
+
       const datasets = METRIC_CHART[metric.KEY].datasets.map(dataset => {
         switch (dataset.type) {
           case 'bar':
@@ -120,7 +179,6 @@ export default {
         scales: METRIC_CHART[metric.KEY].scales,
       };
 
-      // Only add tooltip configuration for time-based metrics
       if (this.isAverageMetricType(metric.KEY)) {
         options.plugins = {
           tooltip: {

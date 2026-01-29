@@ -93,7 +93,6 @@ export default {
         4: 179,
         5: 364,
       };
-
       const diff = dateRange[this.currentDateRangeSelection.id];
       const fromDate = subDays(new Date(), diff);
       return this.fromCustomDate(fromDate);
@@ -108,23 +107,26 @@ export default {
       return typeLabels[this.type] || this.$t('FORMS.MULTISELECT.SELECT_ONE');
     },
     groupBy() {
-      if (this.currentDateRangeSelection.id === 0) {
-        return GROUP_BY_FILTER[1].period;
-      }
       if (this.isDateRangeSelected) {
-        return GROUP_BY_FILTER[4].period;
+        return GROUP_BY_FILTER[4]?.period || 'day';
       }
+
+      if (this.currentDateRangeSelection.id === 0) {
+        return GROUP_BY_FILTER[0]?.period || 'hour';
+      }
+
       const groupRange = {
-        1: GROUP_BY_FILTER[1].period,
-        2: GROUP_BY_FILTER[2].period,
-        3: GROUP_BY_FILTER[3].period,
-        4: GROUP_BY_FILTER[3].period,
-        5: GROUP_BY_FILTER[4].period,
+        1: GROUP_BY_FILTER[1]?.period,
+        2: GROUP_BY_FILTER[2]?.period,
+        3: GROUP_BY_FILTER[3]?.period,
+        4: GROUP_BY_FILTER[3]?.period,
+        5: GROUP_BY_FILTER[4]?.period,
       };
-      return groupRange[this.currentDateRangeSelection.id];
+
+      return groupRange[this.currentDateRangeSelection.id] || 'day';
     },
     notLast7Days() {
-      return this.groupBy !== GROUP_BY_FILTER[1].period;
+      return this.groupBy !== GROUP_BY_FILTER[1]?.period;
     },
   },
   watch: {
