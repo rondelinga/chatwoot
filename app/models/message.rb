@@ -80,6 +80,8 @@ class Message < ApplicationRecord
   validates :content, length: { maximum: 150_000 }
   validates :processed_message_content, length: { maximum: 150_000 }
 
+  validate :check_conversation_status, on: :create
+
   # when you have a temperory id in your frontend and want it echoed back via action cable
   attr_accessor :echo_id
   # Transient flag used to skip waiting_since clearing for specific bot/system messages.
@@ -300,6 +302,26 @@ class Message < ApplicationRecord
 
   private
 
+  def check_conversation_status
+    return unless conversation&.resolved?
+    return if conversation.inbox.allow_messages_after_resolved
+    return unless incoming?
+
+    errors.add(:base, 'Conversation is resolved. Please start a new conversation.')
+  end
+
+  def handle_incoming_waiting_since
+    if conversation.waiting_since.blank?
+      conversation.update(waiting_since: created_at)
+      return
+    end
+
+    bot_message_exists = conversation.messages.where('created_at > ?', conversation.waiting_since).where('created_at < ?', created_at)
+                                     .where(message_type: :outgoing).exists?(sender_type: ['AgentBot', 'Captain::Assistant'])
+
+    conversation.update(waiting_since: created_at) if bot_message_exists
+  end
+
   def handle_first_reply_events
     Rails.configuration.dispatcher.dispatch(FIRST_REPLY_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
 
@@ -463,6 +485,8 @@ class Message < ApplicationRecord
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
+    return unless conversation.inbox.allow_messages_after_resolved
+    
     if conversation.pending_for_bot?
       conversation.pending!
     elsif conversation.inbox.api?
