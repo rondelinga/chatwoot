@@ -30,7 +30,9 @@
     "LABELS": {
       "CONTACT": {
         "TITLE": "Contact Labels",
-        "ERROR": "Couldn't update labels"
+        "ERROR": "Couldn't update labels",
+        "PIN": "Pin",
+        "UNPIN": "Unpin"
       },
       "CONVERSATION": {
         "TITLE": "Conversation Labels",
