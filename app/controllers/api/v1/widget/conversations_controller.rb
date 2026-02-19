@@ -9,7 +9,6 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   def create
     ActiveRecord::Base.transaction do
       process_update_contact
-      @contact_inbox = @contact.contact_inboxes.find_by(source_id: @contact_inbox.source_id) || @contact_inbox
       @conversation = create_conversation
       conversation.messages.create!(message_params)
       # TODO: Temporary fix for message type cast issue, since message_type is returning as string instead of integer
@@ -20,11 +19,19 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   def process_update_contact
     @contact = ContactIdentifyAction.new(
       contact: @contact,
-      params: { email: contact_email, phone_number: contact_phone_number, name: contact_name, custom_attributes: contact_custom_attributes },
+      params: {
+        identifier: @contact.identifier,
+        email: contact_email,
+        phone_number: contact_phone_number,
+        name: contact_name,
+        custom_attributes: contact_custom_attributes
+      },
       retain_original_contact_name: true,
       discard_invalid_attrs: true,
       inbox_id: @web_widget.inbox.id
     ).perform
+
+    @contact_inbox = @contact.contact_inboxes.find_by!(source_id: @contact_inbox.source_id)
   end
 
   def update_last_seen
