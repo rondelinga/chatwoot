@@ -11,20 +11,42 @@
 #
 
 class CannedResponse < ApplicationRecord
+  enum visibility: { public_response: 0, private_response: 1 }
+
+  belongs_to :account
+  belongs_to :created_by, class_name: 'User', optional: true
+  has_many :canned_response_scopes, dependent: :destroy
+
   validates :content, presence: true
   validates :short_code, presence: true
   validates :account, presence: true
   validates :short_code, uniqueness: { scope: :account_id }
 
-  belongs_to :account
-
   scope :order_by_search, lambda { |search|
     short_code_starts_with = sanitize_sql_array(['WHEN short_code ILIKE ? THEN 1', "#{search}%"])
     short_code_like = sanitize_sql_array(['WHEN short_code ILIKE ? THEN 0.5', "%#{search}%"])
     content_like = sanitize_sql_array(['WHEN content ILIKE ? THEN 0.2', "%#{search}%"])
-
     order_clause = "CASE #{short_code_starts_with} #{short_code_like} #{content_like} ELSE 0 END"
-
     order(Arel.sql(order_clause) => :desc)
+  }
+
+  scope :accessible_to, lambda { |user|
+    team_ids = user.teams.pluck(:id).presence || [0]
+    inbox_ids = user.inboxes.pluck(:id).presence || [0]
+
+    private_scope_ids = where(visibility: :private_response)
+                        .joins(:canned_response_scopes)
+                        .where('canned_response_scopes.user_id = :user_id OR ' \
+                               'canned_response_scopes.team_id IN (:team_ids) OR ' \
+                               'canned_response_scopes.inbox_id IN (:inbox_ids)',
+                               user_id: user.id,
+                               team_ids: team_ids,
+                               inbox_ids: inbox_ids).distinct.pluck(:id)
+
+    created_by_ids = where(visibility: :private_response, created_by_id: user.id).pluck(:id)
+
+    all_private_ids = (private_scope_ids + created_by_ids).uniq
+
+    where(visibility: :public_response).or(where(id: all_private_ids))
   }
 end
