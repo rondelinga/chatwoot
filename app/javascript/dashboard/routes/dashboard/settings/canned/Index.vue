@@ -70,16 +70,8 @@ const toggleSort = () => {
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
 };
 
-const fetchCannedResponses = async () => {
-  try {
-    await store.dispatch('getCannedResponse');
-  } catch (error) {
-    // Ignore Error
-  }
-};
-
 onMounted(() => {
-  fetchCannedResponses();
+  store.dispatch('getCannedResponse', { all: true });
 });
 
 const showAlertMessage = message => {
@@ -133,6 +125,7 @@ const confirmDeletion = () => {
 const tableHeaders = computed(() => {
   return [
     t('CANNED_MGMT.LIST.TABLE_HEADER.SHORT_CODE'),
+    t('CANNED_MGMT.LIST.TABLE_HEADER.VISIBILITY'),
     t('CANNED_MGMT.LIST.TABLE_HEADER.ACTIONS'),
   ];
 });
@@ -221,6 +214,23 @@ const tableHeaders = computed(() => {
                 </div>
               </BaseTableCell>
 
+              <BaseTableCell>
+                <span
+                  class="px-2 py-0.5 rounded-full text-xs font-medium"
+                  :class="
+                    cannedItem.visibility === 'public_response'
+                      ? 'bg-n-teal-2 text-n-teal-11'
+                      : 'bg-n-amber-2 text-n-amber-11'
+                  "
+                >
+                  {{
+                    cannedItem.visibility === 'public_response'
+                      ? $t('CANNED_MGMT.VISIBILITY.PUBLIC')
+                      : $t('CANNED_MGMT.VISIBILITY.PRIVATE')
+                  }}
+                </span>
+              </BaseTableCell>
+
               <BaseTableCell align="end" class="w-24">
                 <div class="flex gap-3 justify-end flex-shrink-0">
                   <Button
@@ -256,6 +266,8 @@ const tableHeaders = computed(() => {
         :id="activeResponse.id"
         :edshort-code="activeResponse.short_code"
         :edcontent="activeResponse.content"
+        :edvisibility="activeResponse.visibility"
+        :edscopes="activeResponse.canned_response_scopes || []"
         :on-close="hideEditPopup"
       />
     </woot-modal>

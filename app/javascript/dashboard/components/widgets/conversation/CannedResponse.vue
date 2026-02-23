@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { picoSearch } from '@chatwoot/pico-search';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -40,6 +40,7 @@ const { t } = useI18n();
 const { getPlainText, formatMessage, highlightContent } = useMessageFormatter();
 
 const cannedResponses = useMapGetter('getCannedResponses');
+const currentChat = useMapGetter('getSelectedChat');
 const uiFlags = useMapGetter('getUIFlags');
 // The trigger can already be followed by text, from a draft or a caret moved back onto it
 const searchQuery = ref(props.searchKey);
@@ -107,7 +108,13 @@ const items = computed(() =>
 
 const onSelect = item => emit('replace', item.content);
 
-onMounted(() => store.dispatch('getCannedResponse'));
+watch(
+  () => currentChat.value?.inbox_id,
+  inboxId => {
+    store.dispatch('getCannedResponse', { inboxId });
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
