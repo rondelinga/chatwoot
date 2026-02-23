@@ -67,18 +67,19 @@ RSpec.describe CannedResponse, type: :model do
 
       it 'includes private response scoped to user team' do
         create(:team_member, team: team, user: user)
-        create(:canned_response_scope, canned_response: private_response, team_ids: [team.id])
+        create(:canned_response_scope, canned_response: private_response, user_ids: [user.id], team_ids: [team.id])
         expect(described_class.accessible_to(user)).to include(private_response)
       end
 
       it 'includes private response scoped to user inbox' do
         create(:inbox_member, inbox: inbox, user: user)
-        create(:canned_response_scope, canned_response: private_response, inbox_ids: [inbox.id])
+        create(:canned_response_scope, canned_response: private_response, user_ids: [user.id], inbox_ids: [inbox.id])
         expect(account.canned_responses.accessible_to(user)).to include(private_response)
       end
 
       it 'includes private response created by user' do
         owned = create(:canned_response, account: account, visibility: :private_response, created_by: user)
+        create(:canned_response_scope, canned_response: owned, user_ids: [user.id])
         expect(account.canned_responses.accessible_to(user)).to include(owned)
       end
 

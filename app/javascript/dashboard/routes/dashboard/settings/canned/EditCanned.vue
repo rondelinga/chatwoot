@@ -91,13 +91,19 @@ export default {
   methods: {
     initSelectedScope() {
       this.selectedUsers = this.agents.filter(a =>
-        this.edscopes.some(s => s.user_id === a.id)
+        this.edscopes.some(
+          s => Array.isArray(s.user_ids) && s.user_ids.includes(a.id)
+        )
       );
       this.selectedTeams = this.teams.filter(t =>
-        this.edscopes.some(s => s.team_id === t.id)
+        this.edscopes.some(
+          s => Array.isArray(s.team_ids) && s.team_ids.includes(t.id)
+        )
       );
       this.selectedInboxes = this.inboxes.filter(i =>
-        this.edscopes.some(s => s.inbox_id === i.id)
+        this.edscopes.some(
+          s => Array.isArray(s.inbox_ids) && s.inbox_ids.includes(i.id)
+        )
       );
     },
     onUpdateVisibility(value) {

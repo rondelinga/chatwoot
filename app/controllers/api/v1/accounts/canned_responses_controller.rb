@@ -82,8 +82,8 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
     return Current.account.canned_responses if current_user.administrator?
 
     Current.account.canned_responses
-           .accessible_to(current_user)
-           .or(Current.account.canned_responses.where(created_by_id: current_user.id))
+           .where(created_by_id: current_user.id)
+           .or(Current.account.canned_responses.accessible_to(current_user))
   end
 
   def filtered_scope

@@ -31,19 +31,11 @@ class CannedResponse < ApplicationRecord
   }
 
   scope :accessible_to, lambda { |user, inbox_id: nil|
-    team_ids  = user.teams.pluck(:id)
-    user_inbox_ids = user.inboxes.pluck(:id)
-
     private_accessible_ids = where(visibility: :private_response)
-                             .left_joins(:canned_response_scopes)
+                             .joins(:canned_response_scopes)
                              .where(
-                               'canned_responses.created_by_id = :user_id OR ' \
-                               'canned_response_scopes.user_ids @> ARRAY[:user_id]::integer[] OR ' \
-                               'canned_response_scopes.team_ids && ARRAY[:team_ids]::integer[] OR ' \
-                               'canned_response_scopes.inbox_ids && ARRAY[:user_inbox_ids]::integer[]',
-                               user_id: user.id,
-                               team_ids: team_ids.presence || [0],
-                               user_inbox_ids: user_inbox_ids.presence || [0]
+                               'canned_response_scopes.user_ids @> ARRAY[:user_id]::integer[]',
+                               user_id: user.id
                              )
                              .then do |scope|
                                if inbox_id.present?
