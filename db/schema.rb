@@ -287,15 +287,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_20_135139) do
 
   create_table "canned_response_scopes", force: :cascade do |t|
     t.bigint "canned_response_id", null: false
-    t.integer "user_id"
-    t.bigint "team_id"
-    t.integer "inbox_id"
+    t.integer "user_ids", default: [], array: true
+    t.integer "team_ids", default: [], array: true
+    t.integer "inbox_ids", default: [], array: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["canned_response_id"], name: "index_canned_response_scopes_on_canned_response_id"
-    t.index ["inbox_id"], name: "index_canned_response_scopes_on_inbox_id"
-    t.index ["team_id"], name: "index_canned_response_scopes_on_team_id"
-    t.index ["user_id"], name: "index_canned_response_scopes_on_user_id"
   end
 
   create_table "canned_responses", id: :serial, force: :cascade do |t|

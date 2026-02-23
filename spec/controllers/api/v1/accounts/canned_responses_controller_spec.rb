@@ -36,10 +36,8 @@ RSpec.describe 'Canned Responses API', type: :request do
         cr2 = create(:canned_response, account: account, content: 'Thanks for reaching out', short_code: 'content-with-thanks')
         cr3 = create(:canned_response, account: account, content: 'Thanks for reaching out', short_code: 'Thanks')
 
-        params = { search: 'thanks' }
-
         get "/api/v1/accounts/#{account.id}/canned_responses",
-            params: params,
+            params: { search: 'thanks' },
             headers: agent.create_new_auth_token,
             as: :json
 

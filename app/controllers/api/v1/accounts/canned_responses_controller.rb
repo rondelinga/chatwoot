@@ -51,20 +51,15 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
   def build_scopes(canned_response)
     return unless canned_response.private_response?
 
-    if current_user.administrator?
-      Array(params[:user_ids]).each do |id|
-        canned_response.canned_response_scopes.create!(user_id: id)
-      end
-      Array(params[:team_ids]).each do |id|
-        canned_response.canned_response_scopes.create!(team_id: id)
-      end
-    else
-      canned_response.canned_response_scopes.create!(user_id: current_user.id)
-    end
+    user_ids  = current_user.administrator? ? Array(params[:user_ids]).map(&:to_i) : [current_user.id]
+    team_ids  = current_user.administrator? ? Array(params[:team_ids]).map(&:to_i) : []
+    inbox_ids = Array(params[:inbox_ids]).map(&:to_i)
 
-    Array(params[:inbox_ids]).each do |id|
-      canned_response.canned_response_scopes.create!(inbox_id: id)
-    end
+    canned_response.canned_response_scopes.create!(
+      user_ids: user_ids,
+      team_ids: team_ids,
+      inbox_ids: inbox_ids
+    )
   end
 
   def no_scopes_provided?
@@ -76,17 +71,31 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
   end
 
   def canned_responses
-    scope = if params[:all] && current_user.administrator?
-              Current.account.canned_responses.includes(:canned_response_scopes)
-            else
-              Current.account.canned_responses.accessible_to(current_user).includes(:canned_response_scopes)
-            end
+    apply_search(base_scope)
+  end
 
-    if params[:search]
-      scope.where('short_code ILIKE :search OR content ILIKE :search', search: "%#{params[:search]}%")
-           .order_by_search(params[:search])
-    else
-      scope
-    end
+  def base_scope
+    params[:all] ? all_responses_scope : filtered_scope
+  end
+
+  def all_responses_scope
+    return Current.account.canned_responses if current_user.administrator?
+
+    Current.account.canned_responses
+           .accessible_to(current_user)
+           .or(Current.account.canned_responses.where(created_by_id: current_user.id))
+  end
+
+  def filtered_scope
+    Current.account.canned_responses
+           .accessible_to(current_user, inbox_id: params[:inbox_id])
+  end
+
+  def apply_search(scope)
+    scope = scope.includes(:canned_response_scopes)
+    return scope unless params[:search]
+
+    scope.where('short_code ILIKE :search OR content ILIKE :search', search: "%#{params[:search]}%")
+         .order_by_search(params[:search])
   end
 end

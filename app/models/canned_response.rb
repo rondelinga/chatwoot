@@ -30,23 +30,34 @@ class CannedResponse < ApplicationRecord
     order(Arel.sql(order_clause) => :desc)
   }
 
-  scope :accessible_to, lambda { |user|
-    team_ids = user.teams.pluck(:id).presence || [0]
-    inbox_ids = user.inboxes.pluck(:id).presence || [0]
+  scope :accessible_to, lambda { |user, inbox_id: nil|
+    team_ids  = user.teams.pluck(:id)
+    user_inbox_ids = user.inboxes.pluck(:id)
 
-    private_scope_ids = where(visibility: :private_response)
-                        .joins(:canned_response_scopes)
-                        .where('canned_response_scopes.user_id = :user_id OR ' \
-                               'canned_response_scopes.team_id IN (:team_ids) OR ' \
-                               'canned_response_scopes.inbox_id IN (:inbox_ids)',
+    private_accessible_ids = where(visibility: :private_response)
+                             .left_joins(:canned_response_scopes)
+                             .where(
+                               'canned_responses.created_by_id = :user_id OR ' \
+                               'canned_response_scopes.user_ids @> ARRAY[:user_id]::integer[] OR ' \
+                               'canned_response_scopes.team_ids && ARRAY[:team_ids]::integer[] OR ' \
+                               'canned_response_scopes.inbox_ids && ARRAY[:user_inbox_ids]::integer[]',
                                user_id: user.id,
-                               team_ids: team_ids,
-                               inbox_ids: inbox_ids).distinct.pluck(:id)
+                               team_ids: team_ids.presence || [0],
+                               user_inbox_ids: user_inbox_ids.presence || [0]
+                             )
+                             .then do |scope|
+                               if inbox_id.present?
+                                 scope.where(
+                                   "canned_response_scopes.inbox_ids = '{}' OR " \
+                                   'canned_response_scopes.inbox_ids @> ARRAY[:inbox_id]::integer[]',
+                                   inbox_id: inbox_id
+                                 )
+                               else
+                                 scope
+                               end
+                             end
+                             .distinct.pluck(:id)
 
-    created_by_ids = where(visibility: :private_response, created_by_id: user.id).pluck(:id)
-
-    all_private_ids = (private_scope_ids + created_by_ids).uniq
-
-    where(visibility: :public_response).or(where(id: all_private_ids))
+    where(visibility: :public_response).or(where(id: private_accessible_ids))
   }
 end

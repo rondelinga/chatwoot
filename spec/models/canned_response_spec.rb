@@ -49,7 +49,7 @@ RSpec.describe CannedResponse, type: :model do
       let(:team)    { create(:team, account: account) }
       let(:inbox)   { create(:inbox, account: account) }
 
-      let!(:public_response) { create(:canned_response, account: account, visibility: :public_response) }
+      let!(:public_response)  { create(:canned_response, account: account, visibility: :public_response) }
       let!(:private_response) { create(:canned_response, account: account, visibility: :private_response) }
 
       it 'includes public responses' do
@@ -61,29 +61,29 @@ RSpec.describe CannedResponse, type: :model do
       end
 
       it 'includes private response scoped to user' do
-        create(:canned_response_scope, canned_response: private_response, user: user)
+        create(:canned_response_scope, canned_response: private_response, user_ids: [user.id])
         expect(described_class.accessible_to(user)).to include(private_response)
       end
 
       it 'includes private response scoped to user team' do
         create(:team_member, team: team, user: user)
-        create(:canned_response_scope, canned_response: private_response, team: team)
+        create(:canned_response_scope, canned_response: private_response, team_ids: [team.id])
         expect(described_class.accessible_to(user)).to include(private_response)
       end
 
       it 'includes private response scoped to user inbox' do
         create(:inbox_member, inbox: inbox, user: user)
-        create(:canned_response_scope, canned_response: private_response, inbox: inbox)
-        expect(described_class.accessible_to(user)).to include(private_response)
+        create(:canned_response_scope, canned_response: private_response, inbox_ids: [inbox.id])
+        expect(account.canned_responses.accessible_to(user)).to include(private_response)
       end
 
       it 'includes private response created by user' do
         owned = create(:canned_response, account: account, visibility: :private_response, created_by: user)
-        expect(described_class.accessible_to(user)).to include(owned)
+        expect(account.canned_responses.accessible_to(user)).to include(owned)
       end
 
       it 'does not duplicate results' do
-        create(:canned_response_scope, canned_response: private_response, user: user)
+        create(:canned_response_scope, canned_response: private_response, user_ids: [user.id])
         results = described_class.accessible_to(user)
         expect(results.to_a.count(private_response)).to eq(1)
       end
