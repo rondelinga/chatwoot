@@ -28,6 +28,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachments
     @attachments_count = @conversation.attachments.count
+
     @attachments = @conversation.attachments
                                 .includes({ file_attachment: :blob }, message: [:inbox, { sender: { avatar_attachment: :blob } }])
                                 .order(created_at: :desc)
@@ -60,7 +61,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def mute
-    @conversation.mute!
+    @conversation.mute!(banned_until: parse_banned_until_param, timezone: params[:timezone])
     head :ok
   end
 
@@ -137,6 +138,19 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  def parse_banned_until_param
+    raw = params[:banned_until]
+    return nil if raw.blank?
+
+    if ConversationMuteHelpers::BAN_DURATIONS.key?(raw.to_s)
+      Time.current + ConversationMuteHelpers::BAN_DURATIONS[raw.to_s]
+    else
+      Time.zone.parse(raw.to_s)
+    end
+  rescue ArgumentError, TypeError
+    nil
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
