@@ -1554,6 +1554,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_142055) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.integer "push_flags", default: 0, null: false
+    t.integer "notification_display_duration", default: 6
     t.index ["account_id", "user_id"], name: "by_account_user", unique: true
   end
 
