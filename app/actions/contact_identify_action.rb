@@ -7,7 +7,7 @@
 
 class ContactIdentifyAction
   include UrlHelper
-  pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false, inbox_id: nil  }]
+  pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false }]
 
   def perform
     @attributes_to_update = [:identifier, :name, :email, :phone_number]
@@ -60,14 +60,7 @@ class ContactIdentifyAction
   def existing_email_contact
     return if params[:email].blank?
 
-    @existing_email_contact ||= if inbox_id.present?
-                                  account.contacts
-                                         .in_inbox(inbox_id)
-                                         .from_email(params[:email])
-                                else
-                                  account.contacts
-                                         .from_email(params[:email])
-                                end
+    @existing_email_contact ||= account.contacts.from_email(params[:email])
   end
 
   def existing_phone_number_contact
@@ -111,7 +104,7 @@ class ContactIdentifyAction
     # blank identifier or email will throw unique index error
     # TODO: replace reject { |_k, v| v.blank? } with compact_blank when rails is upgraded
     @contact.discard_invalid_attrs if discard_invalid_attrs
-    @contact.save!
+    @contact.save! if @contact.changed?
     enqueue_avatar_job
   end
 
@@ -141,16 +134,6 @@ class ContactIdentifyAction
   def additional_attributes
     return @contact.additional_attributes if params[:additional_attributes].blank?
 
-    deep_merge_hashes(@contact.additional_attributes || {}, params[:additional_attributes].stringify_keys)
-  end
-
-  def deep_merge_hashes(hash1, hash2)
-    hash1.merge(hash2) do |_key, oldval, newval|
-      if oldval.is_a?(Hash) && newval.is_a?(Hash)
-        deep_merge_hashes(oldval, newval)
-      else
-        newval
-      end
-    end
+    (@contact.additional_attributes || {}).deep_merge(params[:additional_attributes].stringify_keys)
   end
 end

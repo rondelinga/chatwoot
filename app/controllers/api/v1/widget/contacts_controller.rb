@@ -19,7 +19,7 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
       contact = @contact
     end
 
-    @contact_inbox.update(hmac_verified: true) if should_verify_hmac? && valid_hmac?
+    @contact_inbox.update(hmac_verified: true) if should_verify_hmac?
 
     identify_contact(contact)
   end
@@ -37,8 +37,7 @@ class Api::V1::Widget::ContactsController < Api::V1::Widget::BaseController
     contact_identify_action = ContactIdentifyAction.new(
       contact: contact,
       params: permitted_params.to_h.deep_symbolize_keys,
-      discard_invalid_attrs: true,
-      inbox_id: @web_widget.inbox.id
+      discard_invalid_attrs: true
     )
     @contact = contact_identify_action.perform
   end
