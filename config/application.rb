@@ -39,6 +39,9 @@ module Chatwoot
     config.load_defaults 7.0
 
     config.autoload_paths += %W[#{config.root}/app/overrides]
+    config.to_prepare do
+      Dir[Rails.root.join('app/overrides/**/*.rb')].each { |f| require_dependency f }
+    end
     
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')

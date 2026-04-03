@@ -9,98 +9,39 @@ module AutoAssignmentHandler
   private
 
   def run_auto_assignment
-    # Round robin kicks in on conversation create & update
-    # run it only when conversation status changes to open
-    return if skip_due_to_queue_status_change?
-    return unless conversation_status_changed_to_open?
+    # Assignment V2: Also trigger assignment when conversation is resolved or snoozed,
+    # bypassing the open-only condition so the AssignmentJob can redistribute capacity.
+    return unless conversation_status_changed_to_open? || conversation_status_changed_to_resolved_or_snoozed?
     return unless should_run_auto_assignment?
 
-    if account.queue_enabled?
-      handle_queue_assignment
+    if inbox.auto_assignment_v2_enabled?
+      # Use new assignment system
+      AutoAssignment::AssignmentJob.perform_later(inbox_id: inbox.id)
     else
-      return unless should_run_auto_assignment?
-
-      handle_standard_assignment
+      # Use legacy assignment system
+      # If conversation has a team, only consider team members for assignment
+      allowed_agent_ids = team_id.present? ? team_member_ids_with_capacity : inbox.member_ids_with_assignment_capacity
+      AutoAssignment::AgentAssignmentService.new(conversation: self, allowed_agent_ids: allowed_agent_ids).perform
     end
   end
 
-  def skip_due_to_queue_status_change?
-    saved_change_to_status? && status == 'open' && status_before_last_save == 'queued'
+  def conversation_status_changed_to_resolved_or_snoozed?
+    inbox.auto_assignment_v2_enabled? && saved_change_to_status? && (resolved? || snoozed?)
   end
 
-  def find_available_agent_for(conversation)
-    selector = ChatQueue::Agents::SelectorService.new(account: account)
-    permissions = ChatQueue::Agents::PermissionsService.new(account: account)
-    availability = ChatQueue::Agents::AvailabilityService.new(account: account)
+  def team_member_ids_with_capacity
+    return [] if team.blank? || team.allow_auto_assign.blank?
 
-    selector.online_agents.each do |agent|
-      next unless permissions.allowed?(conversation, agent)
-      next unless availability.available?(agent)
-
-      return agent
-    end
-
-    nil
+    inbox.member_ids_with_assignment_capacity & team.members.ids
   end
 
   def should_run_auto_assignment?
-    if account.queue_enabled?
-      return false if status == 'queued'
-
-      return true
-    end
-
     return false unless inbox.enable_auto_assignment?
-    return true if assignee.blank? || inbox.members.exclude?(assignee)
+    # Assignment V2: Resolved/snoozed conversations still have an assignee, so bypass the
+    # assignee-blank check below. The AssignmentJob needs to run to rebalance assignments.
+    return true if conversation_status_changed_to_resolved_or_snoozed?
 
-    false
-  end
-
-  def handle_queue_assignment
-    queue_service = ChatQueue::QueueService.new(account: account)
-
-    return if queued_or_assigned?
-
-    clear_assignee_if_present
-
-    if queue_empty?(queue_service)
-      handle_direct_or_queued_assignment(queue_service)
-    else
-      queue_service.add_to_queue(self)
-    end
-  end
-
-  def queued_or_assigned?
-    queued? || assignee.present?
-  end
-
-  # rubocop:disable Rails/SkipsModelValidations
-  def clear_assignee_if_present
-    update_columns(assignee_id: nil) if assignee_id.present?
-  end
-  # rubocop:enable Rails/SkipsModelValidations
-
-  def queue_empty?(_queue_service)
-    fetcher = ChatQueue::Queue::FetchService.new(account: account)
-    fetcher.queue_size(inbox_id).zero?
-  end
-
-  def handle_direct_or_queued_assignment(queue_service)
-    assignee = find_available_agent_for(self)
-
-    if assignee && assignee_id.nil?
-      update!(assignee: assignee, status: :open)
-    else
-      queue_service.add_to_queue(self)
-    end
-  end
-
-  def handle_standard_assignment
-    assignee = ::AutoAssignment::AgentAssignmentService.new(
-      conversation: self,
-      allowed_agent_ids: inbox.member_ids_with_assignment_capacity
-    ).find_assignee
-
-    update!(assignee: assignee) if assignee
+    # run only if assignee is blank or doesn't have access to inbox
+    assignee.blank? || inbox.members.exclude?(assignee)
   end
 end

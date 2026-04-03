@@ -1,9 +1,7 @@
-module Overrides
-  module Notification::EmailNotificationServicePatch
-    def perform
-      return
-    end
+module Notification::EmailNotificationServicePatch
+  def perform
+    return
   end
 end
 
-Notification::EmailNotificationService.prepend(Overrides::Notification::EmailNotificationServicePatch)
+Notification::EmailNotificationService.prepend(Notification::EmailNotificationServicePatch)
