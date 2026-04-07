@@ -9,6 +9,7 @@ import Editor from 'next/Editor/Editor.vue';
 import Switch from 'next/switch/Switch.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import DurationInput from 'next/input/DurationInput.vue';
+import TextArea from 'next/textarea/TextArea.vue';
 import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.vue';
 import { DURATION_UNITS } from 'dashboard/components-next/input/constants';
 
@@ -24,6 +25,13 @@ const splitReasons = ref(false);
 const messageAgent = ref('');
 const messageClient = ref('');
 const isInitialized = ref(false);
+
+const pendingDuration = ref(0);
+const pendingUnit = ref(DURATION_UNITS.MINUTES);
+const pendingMessage = ref('');
+const isEnabledPending = ref(false);
+const isPendingSubmitting = ref(false);
+const isPendingInitialized = ref(false);
 
 const { currentAccount, updateAccount } = useAccount();
 
@@ -57,6 +65,8 @@ watch(
       auto_resolve_split_reasons,
       auto_resolve_message_agent,
       auto_resolve_message_client,
+      auto_resolve_pending_after,
+      auto_resolve_pending_message,
     } = currentAccount.value?.settings || {};
 
     duration.value = auto_resolve_after;
@@ -87,24 +97,42 @@ watch(
       } else {
         unit.value = DURATION_UNITS.MINUTES;
       }
+
+      isEnabled.value = true;
     }
 
-    if (duration.value) {
-      isEnabled.value = true;
+    pendingDuration.value = auto_resolve_pending_after;
+
+    if (!isPendingInitialized.value) {
+      pendingMessage.value = auto_resolve_pending_message || '';
+      isPendingInitialized.value = true;
+    }
+
+    if (pendingDuration.value) {
+      if (pendingDuration.value % (24 * 60) === 0) {
+        pendingUnit.value = DURATION_UNITS.DAYS;
+      } else if (pendingDuration.value % 60 === 0) {
+        pendingUnit.value = DURATION_UNITS.HOURS;
+      } else {
+        pendingUnit.value = DURATION_UNITS.MINUTES;
+      }
+
+      isEnabledPending.value = true;
     }
   },
   { deep: true, immediate: true }
 );
 
-const updateAccountSettings = async settings => {
+const updateAccountSettings = async (settings, { isPending = false } = {}) => {
+  const submittingRef = isPending ? isPendingSubmitting : isSubmitting;
   try {
-    isSubmitting.value = true;
+    submittingRef.value = true;
     await updateAccount(settings, { silent: true });
     useAlert(t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.API.SUCCESS'));
   } catch (error) {
     useAlert(t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.API.ERROR'));
   } finally {
-    isSubmitting.value = false;
+    submittingRef.value = false;
   }
 };
 
@@ -154,6 +182,38 @@ const handleDisable = async () => {
 
 const toggleAutoResolve = async () => {
   if (!isEnabled.value) handleDisable();
+};
+
+const handlePendingSubmit = async () => {
+  if (pendingDuration.value < 10) {
+    useAlert(t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.DURATION.ERROR'));
+    return;
+  }
+
+  await updateAccountSettings(
+    {
+      auto_resolve_pending_after: pendingDuration.value,
+      auto_resolve_pending_message: pendingMessage.value,
+    },
+    { isPending: true }
+  );
+};
+
+const handlePendingDisable = async () => {
+  pendingDuration.value = null;
+  pendingMessage.value = '';
+
+  return updateAccountSettings(
+    {
+      auto_resolve_pending_after: null,
+      auto_resolve_pending_message: '',
+    },
+    { isPending: true }
+  );
+};
+
+const togglePendingAutoResolve = async () => {
+  if (!isEnabledPending.value) handlePendingDisable();
 };
 </script>
 
@@ -287,6 +347,78 @@ const toggleAutoResolve = async () => {
             type="submit"
             :is-loading="isSubmitting"
             :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.UPDATE_BUTTON')"
+          />
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div
+    class="flex flex-col w-full outline-1 outline outline-n-container rounded-xl bg-n-solid-2 divide-y divide-n-weak"
+  >
+    <div class="flex flex-col gap-2 items-start px-5 py-4">
+      <div class="flex justify-between items-center w-full">
+        <h3 class="text-heading-2 text-n-slate-12">
+          {{ t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.TITLE') }}
+        </h3>
+        <div class="flex justify-end">
+          <Switch
+            v-model="isEnabledPending"
+            @change="togglePendingAutoResolve"
+          />
+        </div>
+      </div>
+      <p class="mb-0 text-body-para text-n-slate-11">
+        {{ t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.NOTE') }}
+      </p>
+    </div>
+
+    <div v-if="isEnabledPending" class="px-5 py-4">
+      <form class="grid gap-5" @submit.prevent="handlePendingSubmit">
+        <WithLabel
+          :label="
+            t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.DURATION.LABEL')
+          "
+          :help-message="
+            t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.DURATION.HELP')
+          "
+        >
+          <div class="gap-2 w-full grid grid-cols-[3fr_1fr]">
+            <DurationInput
+              v-model="pendingDuration"
+              v-model:unit="pendingUnit"
+              min="0"
+              max="1438560"
+              class="w-full"
+            />
+          </div>
+        </WithLabel>
+
+        <WithLabel
+          :label="t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.MESSAGE.LABEL')"
+          :help-message="
+            t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.MESSAGE.HELP')
+          "
+        >
+          <TextArea
+            v-model="pendingMessage"
+            class="w-full"
+            :placeholder="
+              t(
+                'GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.MESSAGE.PLACEHOLDER'
+              )
+            "
+          />
+        </WithLabel>
+
+        <div class="flex gap-2">
+          <NextButton
+            blue
+            type="submit"
+            :is-loading="isPendingSubmitting"
+            :label="
+              t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE_PENDING.UPDATE_BUTTON')
+            "
           />
         </div>
       </form>

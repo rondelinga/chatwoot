@@ -81,6 +81,22 @@
         },
         "UPDATE_BUTTON": "Save Changes"
       },
+      "AUTO_RESOLVE_PENDING": {
+        "TITLE": "Auto-resolve pending conversations",
+        "NOTE": "This configuration would allow you to automatically resolve pending conversations after a certain period of inactivity.",
+        "DURATION": {
+          "LABEL": "Inactivity duration for pending resolution",
+          "HELP": "Duration after a conversation should auto resolve if there is no activity",
+          "PLACEHOLDER": "30",
+          "ERROR": "Auto resolve duration should be between 10 minutes and 999 days"
+        },
+        "MESSAGE": {
+          "LABEL": "Custom pending resolution message",
+          "HELP": "Message sent to the customer if conversation is in pending",
+          "PLACEHOLDER": "All agents are currently busy. We will connect you to a free agent as soon as one is available."
+        },
+        "UPDATE_BUTTON": "Save Changes"
+      },
       "QUEUE_MESSAGE": {
         "LABEL": "Custom queue message",
         "HELP": "Message sent to the customer if conversation is in queue",
@@ -140,6 +156,20 @@
         },
         "UPDATE_BUTTON": "Update",
         "MESSAGE_LABEL": "Custom resolution message",
+        "MESSAGE_PLACEHOLDER": "Conversation was marked resolved by system due to 15 days of inactivity",
+        "MESSAGE_HELP": "This message is sent to the customer when a conversation is automatically resolved by the system due to inactivity."
+      },
+      "AUTO_RESOLVE_PENDING_DURATION": {
+        "LABEL": "Inactivity duration for pending resolution",
+        "HELP": "Duration after a conversation should auto resolve if there is no activity",
+        "PLACEHOLDER": "30",
+        "ERROR": "Auto resolve duration should be between 10 minutes and 999 days",
+        "API": {
+          "SUCCESS": "Auto resolve settings updated successfully",
+          "ERROR": "Failed to update auto resolve settings"
+        },
+        "UPDATE_BUTTON": "Update",
+        "MESSAGE_LABEL": "Custom pending resolution message",
         "MESSAGE_PLACEHOLDER": "Conversation was marked resolved by system due to 15 days of inactivity",
         "MESSAGE_HELP": "This message is sent to the customer when a conversation is automatically resolved by the system due to inactivity."
       },

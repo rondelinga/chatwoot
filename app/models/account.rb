@@ -58,7 +58,8 @@ class Account < ApplicationRecord
   validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting,
-                 :auto_resolve_message_agent, :auto_resolve_message_client, :auto_resolve_split_reasons
+                 :auto_resolve_message_agent, :auto_resolve_message_client, :auto_resolve_split_reasons,
+                 :auto_resolve_pending_after, :auto_resolve_pending_message
 
   store_accessor :settings, :audio_transcriptions, :auto_resolve_label
   store_accessor :settings, :captain_models, :captain_features
@@ -122,6 +123,7 @@ class Account < ApplicationRecord
   enum :status, { active: 0, suspended: 1 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :with_auto_resolve_pending, -> { where("(settings ->> 'auto_resolve_pending_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation

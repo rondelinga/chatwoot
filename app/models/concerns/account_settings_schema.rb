@@ -14,6 +14,8 @@ module AccountSettingsSchema
         'auto_resolve_message_client': { 'type': %w[string null] },
         'auto_resolve_split_reasons': { 'type': %w[boolean null] },
         'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
+        'auto_resolve_pending_after': { 'type': %w[integer null], 'minimum': 10, 'maximum': 1_439_856 },
+        'auto_resolve_pending_message': { 'type': %w[string null] },
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
         'enforce_mfa': { 'type': %w[boolean null] },
