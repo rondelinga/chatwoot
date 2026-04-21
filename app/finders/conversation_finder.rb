@@ -30,12 +30,7 @@ class ConversationFinder
 
     {
       conversations: conversations,
-      count: {
-        mine_count: mine_count,
-        assigned_count: assigned_count,
-        unassigned_count: unassigned_count,
-        all_count: all_count
-      }
+      count: { mine_count: mine_count, assigned_count: assigned_count, unassigned_count: unassigned_count, all_count: all_count }
     }
   end
 
@@ -69,6 +64,7 @@ class ConversationFinder
     filter_by_labels
     filter_by_query
     filter_by_source_id
+    filter_by_agent
   end
 
   def set_inboxes
@@ -117,6 +113,18 @@ class ConversationFinder
       @conversations = @conversations.assigned
     end
     @conversations
+  end
+
+  def filter_by_agent
+    return unless params[:agent_id]
+
+    @conversations = @conversations.where(assignee_id: params[:agent_id])
+
+    return if params[:q].blank?
+
+    allowed_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
+    @conversations = @conversations.joins(:messages).where('messages.content ILIKE :q',
+                                                           q: "%#{params[:q]}%").where(messages: { message_type: allowed_types })
   end
 
   def filter_by_conversation_type
