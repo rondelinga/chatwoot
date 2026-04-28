@@ -23,24 +23,40 @@ export default {
       type: Number,
       default: null,
     },
+    requireFeedback: {
+      type: Boolean,
+      default: true,
+    },
+    initialFeedback: {
+      type: String,
+      default: '',
+    },
+    placeholder: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['sendFeedback'],
+  emits: ['sendFeedback', 'updateFeedback'],
   data() {
     return {
-      feedback: '',
+      feedback: this.initialFeedback,
     };
   },
   computed: {
     isSubmitDisabled() {
-      return (
-        this.isButtonDisabled || !this.selectedRating || !this.feedback.trim()
-      );
+      if (this.isUpdating || this.isButtonDisabled || !this.selectedRating) {
+        return true;
+      }
+      return this.requireFeedback && !this.feedback.trim();
     },
   },
   methods: {
     onClick() {
       if (this.isSubmitDisabled) return;
       this.$emit('sendFeedback', this.feedback);
+    },
+    onInput(value) {
+      this.$emit('updateFeedback', value);
     },
   },
 };
@@ -54,7 +70,8 @@ export default {
     <TextArea
       v-model="feedback"
       class="my-5"
-      :placeholder="$t('SURVEY.FEEDBACK.PLACEHOLDER')"
+      :placeholder="placeholder || $t('SURVEY.FEEDBACK.PLACEHOLDER')"
+      @update:model-value="onInput"
     />
     <div class="flex items-center float-right font-medium">
       <CustomButton :disabled="isSubmitDisabled" @click="onClick">

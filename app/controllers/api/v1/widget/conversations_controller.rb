@@ -1,6 +1,6 @@
 class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   include Events::Types
-  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes]
+  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes, :request_csat]
 
   def index
     @conversation = conversation
@@ -75,6 +75,13 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     render json: conversation
   end
 
+  def request_csat
+    return head :unprocessable_entity unless like_dislike_csat_enabled?
+
+    create_csat_prompt
+    head :ok
+  end
+
   private
 
   def send_transcript_email
@@ -93,6 +100,15 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
   def render_not_found_if_empty
     return head :not_found if conversation.nil?
+  end
+
+  def like_dislike_csat_enabled?
+    conversation.inbox.csat_survey_enabled? && conversation.inbox.csat_config&.dig('display_type') == 'like_dislike'
+  end
+
+  def create_csat_prompt
+    latest_response = CsatSurveyResponse.where(conversation_id: conversation.id).order(updated_at: :desc).last
+    ::MessageTemplates::Template::CsatSurvey.new(conversation: conversation, existing_response: latest_response).perform
   end
 
   def permitted_params

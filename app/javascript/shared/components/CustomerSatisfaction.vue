@@ -30,6 +30,10 @@ export default {
       type: String,
       default: '',
     },
+    allowUpdate: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup() {
     const { formatMessage } = useMessageFormatter();
@@ -42,6 +46,8 @@ export default {
       selectedRating: null,
       isUpdating: false,
       feedback: '',
+      likeIcon: '👍',
+      dislikeIcon: '👎',
     };
   },
   computed: {
@@ -54,14 +60,22 @@ export default {
         ?.feedback_message;
     },
     isButtonDisabled() {
-      if (!(this.selectedRating && this.feedback)) return true;
       if (this.isUpdating) return true;
-      return false;
+      if (
+        this.isLikeDislikeType &&
+        this.selectedRating === this.badRatingValue
+      ) {
+        return !this.feedback?.trim();
+      }
+      return !(this.selectedRating && this.feedback);
     },
     textColor() {
       return getContrastingTextColor(this.widgetColor);
     },
     title() {
+      if (this.isLikeDislikeType) {
+        return this.message || this.$t('CSAT.TITLE');
+      }
       return this.isRatingSubmitted
         ? this.$t('CSAT.SUBMITTED_TITLE')
         : this.message || this.$t('CSAT.TITLE');
@@ -74,6 +88,37 @@ export default {
     },
     isStarType() {
       return this.displayType === CSAT_DISPLAY_TYPES.STAR;
+    },
+    isLikeDislikeType() {
+      return this.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE;
+    },
+    goodRatingValue() {
+      return 5;
+    },
+    badRatingValue() {
+      return 1;
+    },
+    isFeedbackRequired() {
+      return (
+        this.isLikeDislikeType && this.selectedRating === this.badRatingValue
+      );
+    },
+    shouldShowFeedbackInput() {
+      if (this.isLikeDislikeType) {
+        return this.selectedRating === this.badRatingValue;
+      }
+      return !this.isFeedbackSubmitted;
+    },
+    feedbackPlaceholder() {
+      if (!this.isLikeDislikeType) {
+        return this.$t('CSAT.PLACEHOLDER');
+      }
+      return this.isFeedbackRequired
+        ? this.$t('CSAT.DISLIKE_PLACEHOLDER')
+        : this.$t('CSAT.PLACEHOLDER');
+    },
+    shouldShowChangeHint() {
+      return this.allowUpdate && this.isLikeDislikeType;
     },
   },
 
@@ -127,6 +172,19 @@ export default {
       this.selectedRating = value;
       this.onSubmit();
     },
+    selectLikeDislike(value) {
+      const isChangingFromBadToGood =
+        this.selectedRating === this.badRatingValue &&
+        value === this.goodRatingValue;
+
+      this.selectedRating = value;
+      if (isChangingFromBadToGood) {
+        this.feedback = '';
+      }
+      if (value === this.goodRatingValue) {
+        this.onSubmit();
+      }
+    },
   },
 };
 </script>
@@ -140,6 +198,12 @@ export default {
       v-dompurify-html="formattedTitle"
       class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center prose prose-bubble"
     />
+    <p
+      v-if="shouldShowChangeHint"
+      class="text-n-slate-11 text-xs px-4 pt-1 text-center"
+    >
+      {{ $t('CSAT.CHANGE_RATING_HINT') }}
+    </p>
     <div v-if="isEmojiType" class="ratings flex justify-around py-5 px-4">
       <button
         v-for="rating in ratings"
@@ -156,19 +220,38 @@ export default {
       :is-disabled="isFeedbackSubmitted || isUpdating"
       @select-rating="selectStarRating"
     />
+    <div
+      v-else-if="isLikeDislikeType"
+      class="ratings flex justify-center gap-6 py-5 px-4"
+    >
+      <button
+        class="emoji-button"
+        :class="{ selected: selectedRating === goodRatingValue }"
+        @click="selectLikeDislike(goodRatingValue)"
+      >
+        {{ likeIcon }}
+      </button>
+      <button
+        class="emoji-button"
+        :class="{ selected: selectedRating === badRatingValue }"
+        @click="selectLikeDislike(badRatingValue)"
+      >
+        {{ dislikeIcon }}
+      </button>
+    </div>
     <form
-      v-if="!isFeedbackSubmitted"
+      v-if="shouldShowFeedbackInput"
       class="feedback-form flex"
       @submit.prevent="onSubmit()"
     >
       <input
         v-model="feedback"
-        :placeholder="$t('CSAT.PLACEHOLDER')"
+        :placeholder="feedbackPlaceholder"
         @keydown.enter="onSubmit"
       />
       <button
         class="button small"
-        :disabled="isButtonDisabled"
+        :disabled="isButtonDisabled || isUpdating"
         :style="{
           background: widgetColor,
           borderColor: widgetColor,

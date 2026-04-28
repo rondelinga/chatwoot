@@ -57,6 +57,10 @@ ru:
   profile_settings:
     sessions:
       cannot_revoke_current: Вы не можете отменить текущую сессию.
+  queue:
+    notifications:
+      queue_message: 'Все операторы сейчас заняты. Мы подключим вас к свободному оператору, как только он освободится.'
+      assigned_message: 'Оператор подключился к диалогу.'
   errors:
     account:
       not_authorized: Вы не авторизованы для доступа к этой учетной записи
@@ -225,7 +229,7 @@ ru:
       contact_email: 'Почта клиента'
       agent_nick: 'Ник оператора %{index}'
       duration: 'Длительность диалога'
-      chat_resolution: "Общее время до решения"
+      chat_resolution: 'Общее время до решения'
       first_response_time: 'Время первого ответа'
       avg_response_time: 'Среднее время ответа'
       csat_score: 'Оценка чата (CSAT)'
@@ -296,7 +300,7 @@ ru:
       conversations_count: Количество диалогов
       avg_first_response_time: Среднее время первого ответа
       avg_reply_time: Среднее время ожидания клиента
-      avg_resolution_time: Среднее время завершения    
+      avg_resolution_time: Среднее время завершения
     team_csv:
       team_name: Название команды
       conversations_count: Количество бесед
@@ -334,7 +338,7 @@ ru:
         agent_name: Имя оператора
         rating: Оценка
         feedback: Комментарий к отзыву
-        chat_created_at: Дата создания чата       
+        chat_created_at: Дата создания чата
         recorded_at: Дата записи
         review_notes: Просмотреть заметки
   notifications:
@@ -419,6 +423,7 @@ ru:
         permission_granted: '%{contact_name} принял запрос на разрешение звонка.'
       csat:
         not_sent_due_to_messaging_window: 'Опрос CSAT не отправлен из-за ограничений исходящих сообщений'
+        rated: 'Чат оценён %{rating}'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Сообщение автозавершения не отправлено из-за ограничений исходящих сообщений'
       muted: '%{user_name} заглушил(а) этот разговор'
@@ -429,6 +434,7 @@ ru:
       ways_to_reach_you_message_body: 'Оставьте ваш email для связи'
       email_input_box_message_body: 'Получать уведомления по email'
       csat_input_message_body: 'Пожалуйста, оцените разговор'
+      csat_like_dislike_hint: 'Вы можете оценить этот разговор в любое время. Нажмите кнопку "Оценить разговор" рядом с иконкой вложения.'
     reply:
       email:
         header:
@@ -461,7 +467,7 @@ ru:
     slack:
       name: 'Slack'
       short_description: 'Получать уведомления и отвечать на разговоры прямо в Slack.'
-      description: "Интегрируйте Chatwoot с Slack для синхронизации команды. Эта интеграция позволяет получать уведомления о новых разговорах и отвечать на них непосредственно в интерфейсе Slack."
+      description: 'Интегрируйте Chatwoot с Slack для синхронизации команды. Эта интеграция позволяет получать уведомления о новых разговорах и отвечать на них непосредственно в интерфейсе Slack.'
     webhooks:
       name: 'Webhooks'
       description: 'События Webhook предоставляют обновления об активности в вашем аккаунте Chatwoot в режиме реального времени. Вы можете подписаться на ваши предпочтительные события, и Chatwoot будет отправлять вам HTTP-ответы с обновлениями.'
@@ -472,7 +478,7 @@ ru:
     google_translate:
       name: 'Google Перевод'
       short_description: 'Автоматически переводить сообщения клиентов для агентов.'
-      description: "Интегрируйте Google Translate, чтобы помочь агентам легко переводить сообщения клиентов. Эта интеграция автоматически определяет язык и преобразует его в язык, предпочтительный для агента или администратора."
+      description: 'Интегрируйте Google Translate, чтобы помочь агентам легко переводить сообщения клиентов. Эта интеграция автоматически определяет язык и преобразует его в язык, предпочтительный для агента или администратора.'
     openai:
       name: 'OpenAI'
       short_description: 'Предложение ответов, краткое изложение и повышение эффективности сообщений с помощью ИИ.'

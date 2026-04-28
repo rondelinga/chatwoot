@@ -542,6 +542,7 @@ Rails.application.routes.draw do
             post :update_last_seen
             post :toggle_typing
             post :transcript
+            post :request_csat
             get  :toggle_status
           end
         end

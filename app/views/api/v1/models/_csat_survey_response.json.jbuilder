@@ -1,5 +1,6 @@
 json.id resource.id
 json.rating resource.rating
+json.display_type resource.message&.content_attributes&.dig('display_type') || 'emoji'
 json.feedback_message resource.feedback_message
 json.csat_review_notes resource.csat_review_notes
 json.review_notes_updated_at resource.review_notes_updated_at&.to_i

@@ -270,7 +270,7 @@ en:
       contact_email: 'Contact email'
       agent_nick: 'Operator name %{index}'
       duration: 'Duration'
-      chat_resolution: "Chat Resolution"
+      chat_resolution: 'Chat Resolution'
       first_response_time: 'First Response Time'
       avg_response_time: 'AVG Response Time'
       csat_score: 'Conv Score (CSAT)'
@@ -465,6 +465,7 @@ en:
         permission_granted: '%{contact_name} accepted the call permission request.'
       csat:
         not_sent_due_to_messaging_window: 'CSAT survey not sent due to outgoing message restrictions'
+        rated: 'Chat rated %{rating}'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Auto-resolve message not sent due to outgoing message restrictions'
       muted: '%{user_name} has muted the conversation'
@@ -475,6 +476,7 @@ en:
       ways_to_reach_you_message_body: 'Give the team a way to reach you.'
       email_input_box_message_body: 'Get notified by email'
       csat_input_message_body: 'Please rate the conversation'
+      csat_like_dislike_hint: 'You can rate this chat at any time. Click the "Rate chat" button near the attachment icon.'
     reply:
       email:
         header:
