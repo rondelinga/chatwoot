@@ -27,7 +27,7 @@ wb.add_worksheet(name: 'CSAT Report') do |sheet|
 
     row = [
       assigned_agent ? "#{assigned_agent.name} (#{assigned_agent.email})" : nil,
-      csat_response.rating,
+      csat_response.report_rating,
       csat_response.feedback_message.presence,
       contact&.name.presence,
       contact&.email.presence,

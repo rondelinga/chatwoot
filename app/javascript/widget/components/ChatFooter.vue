@@ -66,7 +66,11 @@ export default {
     clearTimeout(this.transcriptCooldownTimer);
   },
   methods: {
-    ...mapActions('conversation', ['sendMessage', 'sendAttachment']),
+    ...mapActions('conversation', [
+      'sendMessage',
+      'sendAttachment',
+      'requestCSAT',
+    ]),
     ...mapActions('conversationAttributes', ['getAttributes']),
     async handleSendMessage(content) {
       await this.sendMessage({
@@ -86,6 +90,9 @@ export default {
         replyTo: this.inReplyTo ? this.inReplyTo.id : null,
       });
       this.inReplyTo = null;
+    },
+    async handleRequestCSAT() {
+      await this.requestCSAT();
     },
     startNewConversation() {
       this.router.replace({ name: 'prechat-form' });
@@ -152,6 +159,7 @@ export default {
       class="shadow-sm"
       :on-send-message="handleSendMessage"
       :on-send-attachment="handleSendAttachment"
+      :on-request-csat="handleRequestCSAT"
     />
   </footer>
   <div v-else>
