@@ -65,6 +65,7 @@ const tableData = computed(() => {
     assignedAgent: response.assigned_agent,
     rating: response.rating,
     feedbackText: response.feedback_message || '',
+    displayType: response.display_type,
     conversationId: response.conversation_id,
     csatReviewNotes: response.csat_review_notes,
     createdAgo: dynamicTime(response.created_at),
@@ -79,6 +80,13 @@ const tableData = computed(() => {
 
 const getRatingData = rating => {
   return CSAT_RATINGS.find(r => r.value === rating) || {};
+};
+
+const getRatingText = row => {
+  if (row.displayType === 'like_dislike') {
+    return row.rating === 5 ? 'good' : 'bad';
+  }
+  return t(getRatingData(row.rating).translationKey);
 };
 
 const columnHelper = createColumnHelper();
@@ -271,7 +279,7 @@ const getSortIcon = header => {
                   }"
                 >
                   <span class="text-sm font-medium text-n-slate-12 truncate">
-                    {{ $t(getRatingData(row.original.rating).translationKey) }}
+                    {{ getRatingText(row.original) }}
                   </span>
                 </div>
               </td>

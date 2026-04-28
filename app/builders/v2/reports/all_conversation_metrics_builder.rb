@@ -14,7 +14,7 @@ class V2::Reports::AllConversationMetricsBuilder
     result = []
 
     conversations_scope
-      .includes(:inbox, :contact, :team, :csat_survey_response, :conversation_queue)
+      .includes(:inbox, :contact, :team, { csat_survey_response: :message }, :conversation_queue)
       .find_in_batches(batch_size: BATCH_SIZE) do |batch|
         @preloader.preload_batch_data(batch.map(&:id))
         batch.each { |conversation| result << @row_builder.build_row(conversation) }
@@ -25,7 +25,7 @@ class V2::Reports::AllConversationMetricsBuilder
 
   def build_streaming
     conversations_scope
-      .includes(:inbox, :contact, :team, :csat_survey_response, :conversation_queue)
+      .includes(:inbox, :contact, :team, { csat_survey_response: :message }, :conversation_queue)
       .find_in_batches(batch_size: BATCH_SIZE) do |batch|
         @preloader.preload_batch_data(batch.map(&:id))
         batch.each { |conversation| yield @row_builder.build_row(conversation) }

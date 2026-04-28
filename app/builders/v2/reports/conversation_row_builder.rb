@@ -36,7 +36,7 @@ class V2::Reports::ConversationRowBuilder
       first_response_time: first_response_time(conversation),
       avg_response_time: avg_response_time(conversation),
       agent_chat_duration: total_agent_chat_duration(conversation),
-      csat_score: csat&.rating,
+      csat_score: csat_score(csat),
       csat_feedback: csat ? clean(csat.feedback_message) : nil,
       queue_entered_at: queue&.queued_at,
       queue_accepted_at: queue&.assigned_at,
@@ -47,6 +47,12 @@ class V2::Reports::ConversationRowBuilder
       contact_additional_attributes: clean_hash(conversation.contact.additional_attributes || {}),
       contact_custom_attributes: clean_hash(conversation.contact.custom_attributes || {})
     }
+  end
+
+  def csat_score(csat)
+    return nil if csat.blank?
+
+    csat.report_rating
   end
 
   def queue_exit_reason(queue)

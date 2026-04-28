@@ -47,4 +47,15 @@ class CsatSurveyResponse < ApplicationRecord
   scope :filter_by_team_id, ->(team_id) { joins(:conversation).where(conversations: { team_id: team_id }) if team_id.present? }
   # filter by rating value
   scope :filter_by_rating, ->(rating) { where(rating: rating) if rating.present? }
+
+  def display_type
+    message&.content_attributes&.dig('display_type') || 'emoji'
+  end
+
+  def report_rating
+    return rating if display_type != 'like_dislike'
+    return 'not rate' if rating.blank?
+
+    rating == 5 ? 'good' : 'bad'
+  end
 end
