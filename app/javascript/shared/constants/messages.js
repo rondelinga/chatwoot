@@ -90,6 +90,7 @@ export const CSAT_RATINGS = [
 export const CSAT_DISPLAY_TYPES = {
   EMOJI: 'emoji',
   STAR: 'star',
+  LIKE_DISLIKE: 'like_dislike',
 };
 
 export const AUDIO_FORMATS = {
