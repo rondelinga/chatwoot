@@ -61,13 +61,8 @@ export default {
     },
     isButtonDisabled() {
       if (this.isUpdating) return true;
-      if (
-        this.isLikeDislikeType &&
-        this.selectedRating === this.badRatingValue
-      ) {
-        return !this.feedback?.trim();
-      }
-      return !(this.selectedRating && this.feedback);
+
+      return !this.selectedRating;
     },
     textColor() {
       return getContrastingTextColor(this.widgetColor);
@@ -98,24 +93,20 @@ export default {
     badRatingValue() {
       return 1;
     },
-    isFeedbackRequired() {
-      return (
-        this.isLikeDislikeType && this.selectedRating === this.badRatingValue
-      );
-    },
     shouldShowFeedbackInput() {
       if (this.isLikeDislikeType) {
-        return this.selectedRating === this.badRatingValue;
+        return !!this.selectedRating;
       }
       return !this.isFeedbackSubmitted;
     },
     feedbackPlaceholder() {
-      if (!this.isLikeDislikeType) {
-        return this.$t('CSAT.PLACEHOLDER');
+      if (
+        this.isLikeDislikeType &&
+        this.selectedRating === this.badRatingValue
+      ) {
+        return this.$t('CSAT.DISLIKE_PLACEHOLDER');
       }
-      return this.isFeedbackRequired
-        ? this.$t('CSAT.DISLIKE_PLACEHOLDER')
-        : this.$t('CSAT.PLACEHOLDER');
+      return this.$t('CSAT.PLACEHOLDER');
     },
     shouldShowChangeHint() {
       return this.allowUpdate && this.isLikeDislikeType;
@@ -161,7 +152,6 @@ export default {
         this.isUpdating = false;
       }
     },
-
     selectRating(rating) {
       if (this.isFeedbackSubmitted || this.isUpdating) return;
       this.selectedRating = rating.value;
@@ -181,9 +171,7 @@ export default {
       if (isChangingFromBadToGood) {
         this.feedback = '';
       }
-      if (value === this.goodRatingValue) {
-        this.onSubmit();
-      }
+      this.onSubmit();
     },
   },
 };
