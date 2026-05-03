@@ -15,18 +15,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    isButtonDisabled: {
-      type: Boolean,
-      default: false,
-    },
-    selectedRating: {
-      type: Number,
-      default: null,
-    },
-    requireFeedback: {
-      type: Boolean,
-      default: true,
-    },
     initialFeedback: {
       type: String,
       default: '',
@@ -42,17 +30,8 @@ export default {
       feedback: this.initialFeedback,
     };
   },
-  computed: {
-    isSubmitDisabled() {
-      if (this.isUpdating || this.isButtonDisabled || !this.selectedRating) {
-        return true;
-      }
-      return this.requireFeedback && !this.feedback.trim();
-    },
-  },
   methods: {
     onClick() {
-      if (this.isSubmitDisabled) return;
       this.$emit('sendFeedback', this.feedback);
     },
     onInput(value) {
@@ -74,7 +53,7 @@ export default {
       @update:model-value="onInput"
     />
     <div class="flex items-center float-right font-medium">
-      <CustomButton :disabled="isSubmitDisabled" @click="onClick">
+      <CustomButton :disabled="isUpdating" @click="onClick">
         <Spinner v-if="isUpdating" class="p-0" />
         {{ $t('SURVEY.FEEDBACK.BUTTON_TEXT') }}
       </CustomButton>

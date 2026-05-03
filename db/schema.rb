@@ -1214,7 +1214,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_11_03_142055) do
     t.index ["account_id"], name: "index_csat_survey_responses_on_account_id"
     t.index ["assigned_agent_id"], name: "index_csat_survey_responses_on_assigned_agent_id"
     t.index ["contact_id"], name: "index_csat_survey_responses_on_contact_id"
-    t.index ["conversation_id"], name: "index_csat_survey_responses_on_conversation_id"
+    t.index ["conversation_id"], name: "index_csat_survey_responses_on_conversation_id", unique: true
     t.index ["message_id"], name: "index_csat_survey_responses_on_message_id", unique: true
     t.index ["review_notes_updated_by_id"], name: "index_csat_survey_responses_on_review_notes_updated_by_id"
   end

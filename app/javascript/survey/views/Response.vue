@@ -56,11 +56,7 @@ export default {
       );
     },
     isButtonDisabled() {
-      return !this.selectedRating || this.isUpdating;
-    },
-    requireFeedback() {
-      if (!this.isLikeDislikeType) return true;
-      return this.selectedRating === this.badRatingValue;
+      return !this.selectedRating;
     },
     isEmojiType() {
       return this.displayType === CSAT_DISPLAY_TYPES.EMOJI;
@@ -105,12 +101,6 @@ export default {
       return this.isRatingSubmitted && !this.isLikeDislikeType;
     },
     feedbackPlaceholder() {
-      if (
-        this.isLikeDislikeType &&
-        this.selectedRating === this.badRatingValue
-      ) {
-        return this.$t('SURVEY.FEEDBACK.DISLIKE_PLACEHOLDER');
-      }
       return this.$t('SURVEY.FEEDBACK.PLACEHOLDER');
     },
   },
@@ -122,9 +112,7 @@ export default {
       if (this.isFeedbackSubmitted || this.isUpdating) return;
       this.selectedRating = rating;
       this.feedbackMessage = '';
-      if (!this.isLikeDislikeType || rating === this.goodRatingValue) {
-        this.updateSurveyDetails();
-      }
+      this.updateSurveyDetails();
     },
     sendFeedback(message) {
       this.feedbackMessage = message;
@@ -266,9 +254,6 @@ export default {
           v-if="enableFeedbackForm"
           :key="`feedback-${selectedRating}`"
           :is-updating="isUpdating"
-          :is-button-disabled="isButtonDisabled"
-          :selected-rating="selectedRating"
-          :require-feedback="requireFeedback"
           :initial-feedback="feedbackMessage"
           :placeholder="feedbackPlaceholder"
           @send-feedback="sendFeedback"
