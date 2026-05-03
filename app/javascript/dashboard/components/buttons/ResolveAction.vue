@@ -47,13 +47,16 @@ const isResolved = computed(
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
 );
+const isQueued = computed(
+  () => currentChat.value.status === wootConstants.STATUS_TYPE.QUEUED
+);
 
 const showAdditionalActions = computed(
   () => !isPending.value && !isSnoozed.value
 );
 
 const showOpenButton = computed(() => {
-  return isPending.value || isSnoozed.value;
+  return isPending.value || isSnoozed.value || isQueued.value;
 });
 
 const getConversationParams = () => {
@@ -251,6 +254,18 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
             icon="i-lucide-circle-dot-dashed"
             class="w-full"
             @click="() => toggleStatus(wootConstants.STATUS_TYPE.PENDING)"
+          />
+        </WootDropdownItem>
+        <WootDropdownItem v-if="isQueued">
+          <Button
+            :label="t('CONVERSATION.HEADER.RESOLVE_ACTION')"
+            ghost
+            slate
+            sm
+            start
+            icon="i-lucide-check"
+            class="w-full"
+            @click="onCmdResolveConversation"
           />
         </WootDropdownItem>
       </WootDropdownMenu>

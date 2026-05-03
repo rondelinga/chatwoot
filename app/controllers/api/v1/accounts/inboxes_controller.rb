@@ -53,7 +53,9 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       raise ActiveRecord::Rollback unless continue_update
 
       inbox_params = permitted_params.except(:channel, :csat_config)
-      inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
+      if permitted_params[:csat_config].present?
+        inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config].to_unsafe_h)
+      end
       @inbox.update!(inbox_params)
       update_inbox_working_hours
       update_channel if channel_update_required?
@@ -146,12 +148,14 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       'message' => config['message'] || '',
       'message_enabled' => config.key?('message_enabled') ? config['message_enabled'] : true,
       'csat_on_resolve_enabled' => config.key?('csat_on_resolve_enabled') ? config['csat_on_resolve_enabled'] : true,
+      'like_dislike_hint_message' => config['like_dislike_hint_message'] || '',
+      'like_dislike_hint_enabled' => config.key?('like_dislike_hint_enabled') ? config['like_dislike_hint_enabled'] : true,
       :survey_rules => {
         'operator' => config.dig('survey_rules', 'operator') || 'contains',
-        'values' => config.dig('survey_rules', 'values') || []
+        'values'   => config.dig('survey_rules', 'values') || []
       },
       'button_text' => config['button_text'] || 'Please rate us',
-      'language' => config['language'] || 'en'
+      'language'    => config['language'] || 'en'
     }
     format_template_config(config, formatted)
     formatted
@@ -194,7 +198,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name,
      :queue_notification_enabled, :resolution_notification_enabled,
-     { csat_config: [:display_type, :message, :message_enabled, :csat_on_resolve_enabled, :button_text, :language,
+     { csat_config: [:display_type, :message, :message_enabled, :csat_on_resolve_enabled, :like_dislike_hint_message,
+                      :like_dislike_hint_enabled, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] }]
   end
