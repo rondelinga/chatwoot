@@ -21,7 +21,7 @@
 #  index_csat_survey_responses_on_account_id                  (account_id)
 #  index_csat_survey_responses_on_assigned_agent_id           (assigned_agent_id)
 #  index_csat_survey_responses_on_contact_id                  (contact_id)
-#  index_csat_survey_responses_on_conversation_id             (conversation_id)
+#  index_csat_survey_responses_on_conversation_id             (conversation_id) UNIQUE
 #  index_csat_survey_responses_on_message_id                  (message_id) UNIQUE
 #  index_csat_survey_responses_on_review_notes_updated_by_id  (review_notes_updated_by_id)
 #
@@ -32,8 +32,6 @@ class CsatSurveyResponse < ApplicationRecord
   belongs_to :message
   belongs_to :assigned_agent, class_name: 'User', optional: true, inverse_of: :csat_survey_responses
   belongs_to :review_notes_updated_by, class_name: 'User', optional: true
-
-  after_commit :notify_conversation_updated
 
   validates :rating, presence: true, inclusion: { in: [1, 2, 3, 4, 5] }
   validates :account_id, presence: true
@@ -58,20 +56,5 @@ class CsatSurveyResponse < ApplicationRecord
     return 'not rate' if rating.blank?
 
     rating == 5 ? 'good' : 'bad'
-  end
-
-  def csat_status
-    return 'negative' if rating <= 2
-    return 'positive' if rating >= 4
-
-    'neutral'
-  end
-
-  private
-
-  def notify_conversation_updated
-    conversation.dispatch_conversation_updated_event(
-      { 'csat_response' => [nil, csat_status] }
-    )
   end
 end
