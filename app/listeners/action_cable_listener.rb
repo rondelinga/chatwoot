@@ -189,6 +189,14 @@ class ActionCableListener < BaseListener
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
+  def agent_updated(event)
+    user = event.data[:user]
+    account = Account.find_by(id: event.data[:account_id])
+    return if user.blank? || account.blank?
+
+    broadcast(account, [user.pubsub_token], AGENT_UPDATED, { id: user.id })
+  end
+
   private
 
   def broadcast_to_inbox_members(event, event_name, **metadata)

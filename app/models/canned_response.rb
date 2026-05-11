@@ -2,12 +2,14 @@
 #
 # Table name: canned_responses
 #
-#  id         :integer          not null, primary key
-#  content    :text
-#  short_code :string
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  account_id :integer          not null
+#  id            :integer          not null, primary key
+#  content       :text
+#  short_code    :string
+#  visibility    :integer          default(0), not null
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  account_id    :integer          not null
+#  created_by_id :integer
 #
 
 class CannedResponse < ApplicationRecord
@@ -22,7 +24,6 @@ class CannedResponse < ApplicationRecord
   validates :content, presence: true
   validates :short_code, presence: true
   validates :account, presence: true
-  validates :short_code, uniqueness: { scope: :account_id }
 
   scope :order_by_search, lambda { |search|
     short_code_starts_with = sanitize_sql_array(['WHEN short_code ILIKE ? THEN 1', "#{search}%"])
