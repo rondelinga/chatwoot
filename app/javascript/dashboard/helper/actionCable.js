@@ -158,6 +158,7 @@ class ActionCableConnector extends BaseActionCableConnector {
           seedMessages,
         });
       }
+      DashboardAudioNotificationHelper.onAssigneeChanged(payload);
     }
     this.fetchConversationStats();
   };
