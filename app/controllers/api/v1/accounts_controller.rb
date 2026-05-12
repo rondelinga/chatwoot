@@ -135,7 +135,7 @@ class Api::V1::AccountsController < Api::BaseController
       :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting,
       :audio_transcriptions, :auto_resolve_label, :auto_resolve_message_agent,
       :auto_resolve_message_client, :auto_resolve_split_reasons,
-      :auto_resolve_pending_after, :auto_resolve_pending_message, :agent_history_days
+      :auto_resolve_pending_after, :auto_resolve_pending_message, :agent_history_days, :busy_to_offline_timeout
     ]
     attributes << :enforce_mfa if Chatwoot.mfa_enabled?
     attributes

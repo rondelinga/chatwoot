@@ -19,6 +19,7 @@ module AccountSettingsSchema
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
         'agent_history_days': { 'type': %w[integer null], 'minimum': 0, 'maximum': 365 },
+        'busy_to_offline_timeout': { 'type': %w[integer null], 'minimum': 1 },
         'enforce_mfa': { 'type': %w[boolean null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
