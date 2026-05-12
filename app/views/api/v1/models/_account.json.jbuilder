@@ -41,3 +41,4 @@ json.queue_message @account.queue_message
 json.active_chat_limit_enabled @account.active_chat_limit_enabled
 json.active_chat_limit_value @account.active_chat_limit_value
 json.agent_history_days @account.agent_history_days
+json.busy_to_offline_timeout @account.busy_to_offline_timeout
