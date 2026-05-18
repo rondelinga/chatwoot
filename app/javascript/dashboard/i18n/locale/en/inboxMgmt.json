@@ -32,6 +32,10 @@
       }
     },
     "ADD": {
+      "PUBLIC_NAME": {
+        "LABEL": "Public name (shown to customers)",
+        "PLACEHOLDER": "Enter public name or leave blank to use internal name"
+      },
       "CHANNEL_NAME": {
         "LABEL": "Inbox Name",
         "PLACEHOLDER": "Enter your inbox name (eg: Acme Inc)",

@@ -19,6 +19,7 @@
 #  lock_to_single_conversation   :boolean          default(FALSE), not null
 #  name                          :string           not null
 #  out_of_office_message         :string
+#  public_name                   :string
 #  queue_notification_enabled    :boolean          default(TRUE), not null
 #  resolution_notification_enabled :boolean        default(TRUE), not null
 #  sender_name_type              :integer          default("friendly"), not null
@@ -56,6 +57,7 @@ class Inbox < ApplicationRecord
   validates :timezone, inclusion: { in: TZInfo::Timezone.all_identifiers }
   validates :out_of_office_message, length: { maximum: Limits::OUT_OF_OFFICE_MESSAGE_MAX_LENGTH }
   validates :greeting_message, length: { maximum: Limits::GREETING_MESSAGE_MAX_LENGTH }
+  validates :public_name, length: { maximum: 255 }, allow_blank: true
   validate :ensure_valid_max_assignment_limit
 
   belongs_to :account
@@ -238,6 +240,10 @@ class Inbox < ApplicationRecord
 
     changed_attributes = { reauthorization_required: [!reauthorization_required, reauthorization_required] }
     Rails.configuration.dispatcher.dispatch(INBOX_UPDATED, Time.zone.now, inbox: self, changed_attributes: changed_attributes)
+  end
+
+  def display_name
+    public_name.presence || name
   end
 
   private
