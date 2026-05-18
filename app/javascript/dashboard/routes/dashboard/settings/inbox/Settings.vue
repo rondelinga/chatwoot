@@ -103,6 +103,7 @@ export default {
   },
   data() {
     return {
+      selectedPublicName: '',
       avatarFile: null,
       avatarUrl: '',
       greetingEnabled: true,
@@ -567,6 +568,7 @@ export default {
 
       this.avatarUrl = this.inbox.avatar_url;
       this.selectedInboxName = this.inbox.name;
+      this.selectedPublicName = this.inbox.public_name || '';
       this.webhookUrl = this.inbox.webhook_url;
       this.greetingEnabled = this.inbox.greeting_enabled || false;
       this.greetingMessage = this.inbox.greeting_message || '';
@@ -707,6 +709,7 @@ export default {
         const payload = {
           id: this.currentInboxId,
           name: this.selectedInboxName?.trim(),
+          public_name: this.selectedPublicName || null,
           enable_email_collect: this.emailCollectEnabled,
           allow_messages_after_resolved: this.allowMessagesAfterResolved,
           greeting_enabled: this.greetingEnabled,
@@ -975,6 +978,15 @@ export default {
                     : ''
                 "
                 @blur="v$.selectedInboxName.$touch"
+              />
+            </SettingsFieldSection>
+            <SettingsFieldSection
+              :label="$t('INBOX_MGMT.ADD.PUBLIC_NAME.LABEL')"
+            >
+              <woot-input
+                v-model="selectedPublicName"
+                class="[&>input]:!mb-0"
+                :placeholder="$t('INBOX_MGMT.ADD.PUBLIC_NAME.PLACEHOLDER')"
               />
             </SettingsFieldSection>
             <SettingsFieldSection
