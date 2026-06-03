@@ -110,12 +110,15 @@ export default {
       return this.whatsappUsername ? `@${this.whatsappUsername}` : '';
     },
     isAuthorized() {
-      return Boolean(this.conversation?.meta?.hmac_verified);
+      return Boolean(this.currentChat?.meta?.hmac_verified);
     },
     authorizationStatus() {
-      return this.isAuthorized
+      const label = this.isAuthorized
         ? this.$t('CONTACT_PANEL.AUTHORIZATION.AUTHORIZED')
         : this.$t('CONTACT_PANEL.AUTHORIZATION.NOT_AUTHORIZED');
+      const color = this.isAuthorized ? 'text-n-teal-11' : 'text-n-ruby-11';
+
+      return `<span class="${color}">${label}</span>`;
     },
     blockedUntilText() {
       if (!this.contact.blocked_until) {
@@ -351,10 +354,9 @@ export default {
           <ContactInfoRow
             :key="`auth-${contact.id}`"
             :value="authorizationStatus"
-            icon="lock-closed"
-            emoji="🔓"
+            :icon="isAuthorized ? 'lock-closed' : 'lock-shield'"
+            :emoji="isAuthorized ? '🔒' : '🔓'"
             :title="$t('CONTACT_PANEL.AUTHORIZATION.LABEL')"
-            :class="isAuthorized ? 'text-green-500' : 'text-red-500'"
           />
           <ContactInfoRow
             v-if="contact.blocked"
