@@ -42,8 +42,12 @@ export const findPendingMessageIndex = (chat, message) => {
   return { index: pendingIndex, staleIndex: -1 };
 };
 
-export const filterByStatus = (chatStatus, filterStatus) =>
-  filterStatus === 'all' ? true : chatStatus === filterStatus;
+export const filterByStatus = (chatStatus, filterStatus) => {
+  if (filterStatus === 'all') return true;
+  if (filterStatus === 'open')
+    return chatStatus === 'open' || chatStatus === 'resolved';
+  return chatStatus === filterStatus;
+};
 
 export const filterByInbox = (shouldFilter, inboxId, chatInboxId) => {
   const isOnInbox = Number(inboxId) === chatInboxId;

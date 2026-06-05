@@ -61,6 +61,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
     unless conversation.resolved?
       conversation.status = :resolved
+      conversation.resolved_by_contact = true
       conversation.save!
     end
     head :ok

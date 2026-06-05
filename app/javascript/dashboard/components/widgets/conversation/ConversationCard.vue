@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -25,6 +25,7 @@ const props = defineProps({
   showInboxName: { type: Boolean, default: false },
   hideThumbnail: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
+  isOpenFilter: { type: Boolean, default: true },
 });
 
 const emit = defineEmits([
@@ -32,6 +33,7 @@ const emit = defineEmits([
   'contextmenu',
   'selectConversation',
   'deSelectConversation',
+  'hideConversation',
 ]);
 
 const hovered = ref(false);
@@ -41,6 +43,12 @@ const isChatMuted = computed(() => isMuted(props.chat.id));
 const unreadCount = computed(() => props.chat.unread_count);
 const hasUnread = computed(() => unreadCount.value > 0);
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
+
+const isResolved = computed(() => props.chat.status === 'resolved');
+
+const isResolvedInOpenList = computed(
+  () => props.isOpenFilter && isResolved.value
+);
 
 const voiceCallData = computed(() => {
   const last = lastMessageInChat.value;
@@ -97,6 +105,11 @@ const onSelectConversation = checked => {
   }
 };
 
+const onHideConversation = event => {
+  event.stopPropagation();
+  emit('hideConversation', props.chat.id);
+};
+
 const selectedModel = computed({
   get: () => props.selected,
   set: value => onSelectConversation(value),
@@ -119,6 +132,7 @@ watch(
       'selected bg-n-slate-2 !border-n-surface-1': selected,
       'px-0': compact,
       'px-3': !compact,
+      'opacity-75': isResolvedInOpenList,
     }"
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
@@ -139,7 +153,7 @@ watch(
       >
         <template #overlay="{ size }">
           <label
-            v-if="hovered || selected"
+            v-if="(hovered || selected) && !isResolvedInOpenList"
             class="flex items-center justify-center rounded-full cursor-pointer absolute inset-0 z-10 backdrop-blur-[2px]"
             :style="{ width: `${size}px`, height: `${size}px` }"
             @click.stop
@@ -194,7 +208,7 @@ watch(
         />
         <span
           v-if="isResolvedInOpenList"
-          class="ml-1.5 text-[10px] font-medium normal-case text-n-slate-9 bg-n-slate-2 border border-n-slate-4 rounded px-1.5 py-px align-middle"
+          class="ms-1.5 text-[10px] font-medium normal-case text-n-slate-9 bg-n-slate-2 border border-n-slate-4 rounded px-1.5 py-px align-middle"
         >
           {{ $t('CHAT_LIST.CLOSED_LABEL') }}
         </span>
@@ -229,20 +243,25 @@ watch(
         </span>
       </p>
       <div
-        class="absolute flex flex-col ltr:right-3 rtl:left-3"
+        class="absolute flex flex-col items-end ltr:right-3 rtl:left-3"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span class="ml-auto font-normal leading-4 text-xs">
-          <TimeAgo
-            :last-activity-timestamp="
-              chat.last_non_activity_message?.created_at
-            "
-            :created-at-timestamp="chat.created_at"
-            :conversation-id="chat.id"
-          />
-        </span>
+        <TimeAgo
+          :last-activity-timestamp="chat.last_non_activity_message?.created_at"
+          :created-at-timestamp="chat.created_at"
+          :conversation-id="chat.id"
+        />
+        <button
+          v-if="isResolvedInOpenList"
+          class="mt-1 flex items-center justify-center w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+          :title="$t('CHAT_LIST.HIDE_CHAT')"
+          :aria-label="$t('CHAT_LIST.HIDE_CHAT')"
+          @click.stop="onHideConversation"
+        >
+          {{ $t('CHAT_LIST.DISMISS_ICON') }}
+        </button>
         <UnreadBadge
-          v-if="hasUnread"
+          v-else-if="hasUnread"
           :count="unreadCount"
           class="ltr:ml-auto rtl:mr-auto mt-1"
         />
