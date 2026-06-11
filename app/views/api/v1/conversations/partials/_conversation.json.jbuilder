@@ -45,6 +45,13 @@ else
   json.messages [conversation.message_summary.last_message_data].compact
 end
 
+json.csat_response do
+  if conversation.csat_survey_response.present?
+    json.rating conversation.csat_survey_response.rating
+    json.status conversation.csat_response_status
+  end
+end
+
 json.account_id conversation.account_id
 json.uuid conversation.uuid
 json.additional_attributes conversation.additional_attributes

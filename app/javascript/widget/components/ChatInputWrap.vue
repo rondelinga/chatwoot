@@ -5,6 +5,7 @@ import { mapGetters } from 'vuex';
 import ChatAttachmentButton from 'widget/components/ChatAttachment.vue';
 import ChatSendButton from 'widget/components/ChatSendButton.vue';
 import { useAttachments } from '../composables/useAttachments';
+import { useCsatRequest } from '../composables/useCsatRequest';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import ResizableTextArea from 'shared/components/ResizableTextArea.vue';
 
@@ -41,10 +42,12 @@ export default {
       shouldShowEmojiPicker,
       hasEmojiPickerEnabled,
     } = useAttachments();
+    const { canRequestCsat } = useCsatRequest();
     return {
       canHandleAttachments,
       shouldShowEmojiPicker,
       hasEmojiPickerEnabled,
+      canRequestCsat,
     };
   },
   data() {
@@ -60,20 +63,12 @@ export default {
       widgetColor: 'appConfig/getWidgetColor',
       isWidgetOpen: 'appConfig/getIsWidgetOpen',
       shouldShowEmojiPicker: 'appConfig/getShouldShowEmojiPicker',
-      conversationSize: 'conversation/getConversationSize',
     }),
     showAttachment() {
       return this.canHandleAttachments && this.userInput.length === 0;
     },
     showSendButton() {
       return this.userInput.length > 0;
-    },
-    canRequestCsat() {
-      return (
-        this.conversationSize > 0 &&
-        window.chatwootWebChannel?.csatSurveyEnabled &&
-        window.chatwootWebChannel?.csatDisplayType === 'like_dislike'
-      );
     },
   },
   watch: {
@@ -179,7 +174,7 @@ export default {
         :title="$t('CSAT.RATE_CHAT_BUTTON')"
         @click="onRequestCsat"
       >
-        <FluentIcon icon="thumbs-rating" view-box="148 148 516 516" />
+        <FluentIcon icon="thumb-up" icon-lib="lucide" class="text-n-slate-12" />
       </button>
       <button
         v-if="shouldShowEmojiPicker && hasEmojiPickerEnabled"
