@@ -51,6 +51,13 @@ else
   json.messages [last_message.try(:push_event_data)]
 end
 
+json.csat_response do
+  if conversation.csat_survey_response.present?
+    json.rating conversation.csat_survey_response.rating
+    json.status conversation.csat_response_status
+  end
+end
+
 json.account_id conversation.account_id
 json.uuid conversation.uuid
 json.additional_attributes conversation.additional_attributes

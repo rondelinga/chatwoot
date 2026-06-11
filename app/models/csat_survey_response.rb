@@ -33,6 +33,8 @@ class CsatSurveyResponse < ApplicationRecord
   belongs_to :assigned_agent, class_name: 'User', optional: true, inverse_of: :csat_survey_responses
   belongs_to :review_notes_updated_by, class_name: 'User', optional: true
 
+  after_commit :notify_conversation_updated
+
   validates :rating, presence: true, inclusion: { in: [1, 2, 3, 4, 5] }
   validates :account_id, presence: true
   validates :contact_id, presence: true
@@ -45,7 +47,6 @@ class CsatSurveyResponse < ApplicationRecord
   scope :filter_by_assigned_agent_id, ->(user_ids) { where(assigned_agent_id: user_ids) if user_ids.present? }
   scope :filter_by_inbox_id, ->(inbox_id) { joins(:conversation).where(conversations: { inbox_id: inbox_id }) if inbox_id.present? }
   scope :filter_by_team_id, ->(team_id) { joins(:conversation).where(conversations: { team_id: team_id }) if team_id.present? }
-  # filter by rating value
   scope :filter_by_rating, ->(rating) { where(rating: rating) if rating.present? }
 
   def display_type
@@ -57,5 +58,20 @@ class CsatSurveyResponse < ApplicationRecord
     return 'not rate' if rating.blank?
 
     rating == 5 ? 'good' : 'bad'
+  end
+
+  def csat_status
+    return 'negative' if rating <= 2
+    return 'positive' if rating >= 4
+
+    'neutral'
+  end
+
+  private
+
+  def notify_conversation_updated
+    conversation.dispatch_conversation_updated_event(
+      { 'csat_response' => [nil, csat_status] }
+    )
   end
 end

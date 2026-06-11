@@ -12,7 +12,7 @@ class MessageTemplates::Template::CsatSurvey
   delegate :contact, :account, :inbox, to: :conversation
 
   def message_content
-    return I18n.t('conversations.templates.csat_input_message_body') if csat_config.blank? || csat_config['message'].blank?
+    return ' ' if csat_config.blank? || csat_config['message'].blank? || csat_config['message_enabled'] == false
 
     csat_config['message']
   end

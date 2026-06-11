@@ -248,6 +248,12 @@ class Conversation < ApplicationRecord
     (cached_label_list || '').split(',').map(&:strip)
   end
 
+  def csat_response_status
+    return nil unless csat_survey_response
+
+    csat_survey_response.csat_status
+  end
+
   def notifiable_assignee_change?
     return false unless saved_change_to_assignee_id?
     return false if assignee_id.blank?

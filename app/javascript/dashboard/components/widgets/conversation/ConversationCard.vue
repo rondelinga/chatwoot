@@ -8,6 +8,7 @@ import InboxName from '../InboxName.vue';
 import TimeAgo from 'dashboard/components/ui/TimeAgo.vue';
 import CardLabels from './conversationCardComponents/CardLabels.vue';
 import CardPriorityIcon from 'dashboard/components-next/Conversation/ConversationCard/CardPriorityIcon.vue';
+import CardRatingIcon from 'dashboard/components-next/Conversation/ConversationCard/CardRatingIcon.vue';
 import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard/UnreadBadge.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
@@ -82,11 +83,14 @@ const showLabelsSection = computed(() => {
 });
 
 const messagePreviewClass = computed(() => {
-  return [
-    hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11',
-    !props.compact && hasUnread.value ? 'ltr:pr-4 rtl:pl-4' : '',
-    props.compact && hasUnread.value ? 'ltr:pr-6 rtl:pl-6' : '',
-  ];
+  return [hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11'];
+});
+
+const messageRowClass = computed(() => {
+  if (hasUnread.value) {
+    return props.compact ? 'ltr:pr-6 rtl:pl-6' : 'ltr:pr-4 rtl:pl-4';
+  }
+  return '';
 });
 
 const onThumbnailHover = () => {
@@ -220,13 +224,19 @@ watch(
         :direction="voiceCallData.direction"
         :message-preview-class="messagePreviewClass"
       />
-      <MessagePreview
+      <div
         v-else-if="lastMessageInChat"
         key="message-preview"
-        :message="lastMessageInChat"
-        class="my-0 mx-2 leading-6 h-6 flex-1 min-w-0 text-sm"
-        :class="messagePreviewClass"
-      />
+        class="flex items-center gap-1 my-0 mx-2 h-6 min-w-0"
+        :class="messageRowClass"
+      >
+        <MessagePreview
+          :message="lastMessageInChat"
+          class="leading-6 flex-1 min-w-0 text-sm truncate"
+          :class="messagePreviewClass"
+        />
+        <CardRatingIcon :csat-response="chat.csat_response" show-label />
+      </div>
       <p
         v-else
         key="no-messages"

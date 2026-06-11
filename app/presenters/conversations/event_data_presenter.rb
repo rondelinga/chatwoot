@@ -18,6 +18,7 @@ class Conversations::EventDataPresenter < SimpleDelegator
       priority: priority,
       waiting_since: waiting_since.to_i,
       resolved_by_contact: resolved_by_contact,
+      csat_response: push_csat_response,
       **push_timestamps
     }
   end
@@ -49,6 +50,15 @@ class Conversations::EventDataPresenter < SimpleDelegator
       team: team&.push_event_data,
       team_id: team_id,
       hmac_verified: contact_inbox&.hmac_verified
+    }
+  end
+
+  def push_csat_response
+    return {} unless csat_survey_response
+
+    {
+      rating: csat_survey_response.rating,
+      status: csat_response_status
     }
   end
 

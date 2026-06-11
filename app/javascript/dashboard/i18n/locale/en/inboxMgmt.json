@@ -1398,9 +1398,15 @@
       "DISPLAY_TYPE": {
         "LABEL": "Display type"
       },
+      "CSAT_ON_RESOLVE": {
+        "TOGGLE_LABEL": "Send CSAT on resolve",
+        "TOGGLE_DESCRIPTION": "Automatically send a CSAT survey when a conversation is resolved"
+      },
       "MESSAGE": {
         "LABEL": "Message",
-        "PLACEHOLDER": "Please enter a message to show users with the form"
+        "PLACEHOLDER": "Please enter a message to show users with the form",
+        "TOGGLE_LABEL": "Custom message",
+        "TOGGLE_DESCRIPTION": "Send a custom message along with the CSAT survey"
       },
       "BUTTON_TEXT": {
         "LABEL": "Button text",
