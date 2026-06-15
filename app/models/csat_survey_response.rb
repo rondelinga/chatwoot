@@ -15,11 +15,12 @@
 #
 # Indexes
 #
-#  index_csat_survey_responses_on_account_id         (account_id)
-#  index_csat_survey_responses_on_assigned_agent_id  (assigned_agent_id)
-#  index_csat_survey_responses_on_contact_id         (contact_id)
-#  index_csat_survey_responses_on_conversation_id    (conversation_id)
-#  index_csat_survey_responses_on_message_id         (message_id) UNIQUE
+#  index_csat_survey_responses_on_account_id                  (account_id)
+#  index_csat_survey_responses_on_assigned_agent_id           (assigned_agent_id)
+#  index_csat_survey_responses_on_contact_id                  (contact_id)
+#  index_csat_survey_responses_on_conversation_id             (conversation_id) UNIQUE
+#  index_csat_survey_responses_on_message_id                  (message_id) UNIQUE
+#  index_csat_survey_responses_on_review_notes_updated_by_id  (review_notes_updated_by_id)
 #
 class CsatSurveyResponse < ApplicationRecord
   belongs_to :account

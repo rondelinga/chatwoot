@@ -16,7 +16,7 @@ class CsatSurveys::ResponseBuilder
   private
 
   def process_csat_response(conversation, rating, feedback_message)
-    csat_survey_response = existing_response_for_update || message.csat_survey_response || CsatSurveyResponse.new(
+    csat_survey_response = existing_response_for_conversation(conversation) || CsatSurveyResponse.new(
       message_id: message.id, account_id: message.account_id, conversation_id: message.conversation_id,
       contact_id: conversation.contact_id, assigned_agent: conversation.assignee
     )
@@ -28,10 +28,8 @@ class CsatSurveys::ResponseBuilder
     csat_survey_response
   end
 
-  def existing_response_for_update
-    return unless message.content_attributes['allow_update']
-
-    CsatSurveyResponse.where(conversation_id: message.conversation_id).order(updated_at: :desc).last
+  def existing_response_for_conversation(conversation)
+    CsatSurveyResponse.where(conversation_id: conversation.id).order(created_at: :asc).first
   end
 
   def create_like_dislike_activity_message(conversation, rating)
