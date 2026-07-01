@@ -1,6 +1,8 @@
 class Queue::ProcessQueueJob < ApplicationJob
   queue_as :default
 
+  STALE_QUEUE_ENTRY_MAX_AGE = 2.hours
+
   def perform(account_id, inbox_id)
     log_start(account_id)
 
@@ -12,7 +14,7 @@ class Queue::ProcessQueueJob < ApplicationJob
 
     return if queue_empty?(queue_service, account, inbox_id)
 
-    conv = fetch_conversation_or_stop(account, group)
+    conv = fetch_conversation_or_stop(account, group, queue_service)
     return unless conv
 
     log_conversation(conv)
@@ -49,21 +51,36 @@ class Queue::ProcessQueueJob < ApplicationJob
     size.zero?
   end
 
-  def fetch_conversation_or_stop(account, group)
-    conv = ConversationQueue
-           .for_account(account.id)
-           .for_priority_group(group)
-           .where(status: :waiting)
-           .order(:position, :queued_at)
-           .limit(1)
-           .first
+  def fetch_conversation_or_stop(account, group, queue_service)
+    entry = nil
 
-    unless conv
+    ActiveRecord::Base.transaction do
+      entry = ConversationQueue
+              .for_account(account.id)
+              .for_priority_group(group)
+              .where(status: :waiting)
+              .order(:position, :queued_at)
+              .lock('FOR UPDATE SKIP LOCKED')
+              .limit(1)
+              .first
+
+      next unless entry
+
+      if entry.queued_at < STALE_QUEUE_ENTRY_MAX_AGE.ago
+        Rails.logger.warn "[QUEUE][JOB] entry=#{entry.id} conv_id=#{entry.conversation_id}: " \
+                           "stuck in queue since #{entry.queued_at} " \
+                           "(older than #{STALE_QUEUE_ENTRY_MAX_AGE.inspect}), removing"
+        queue_service.remove_from_queue(entry.conversation, reason: :other)
+        entry = nil
+      end
+    end
+
+    unless entry
       Rails.logger.info '[QUEUE][JOB] No waiting conversations found'
       return nil
     end
 
-    conv
+    entry
   end
 
   def log_conversation(conv)

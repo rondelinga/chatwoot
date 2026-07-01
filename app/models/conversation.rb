@@ -158,6 +158,7 @@ class Conversation < ApplicationRecord
   before_update :close_previous_agent_on_reassign
   before_update :close_agents_on_resolve
   before_update :set_proxied_at
+  after_update :leave_queue_if_assignee_present
 
   after_update :remove_from_queue_if_status_changed
   after_update :create_participant_for_new_agent
@@ -287,6 +288,14 @@ class Conversation < ApplicationRecord
   end
 
   private
+
+  def leave_queue_if_assignee_present
+    return unless account.queue_enabled?
+    return unless saved_change_to_assignee_id?
+    return if assignee_id.blank?
+  
+    ChatQueue::QueueService.new(account: account).remove_from_queue(self, reason: :other)
+  end
 
   def set_proxied_at
     self.proxied_at = Time.current if will_save_change_to_status? && status == 'proxied'
