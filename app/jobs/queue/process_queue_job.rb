@@ -1,5 +1,5 @@
 class Queue::ProcessQueueJob < ApplicationJob
-  queue_as :default
+  queue_as :queue_processing
 
   STALE_QUEUE_ENTRY_MAX_AGE = 2.hours
 
@@ -127,7 +127,7 @@ class Queue::ProcessQueueJob < ApplicationJob
   def schedule_or_stop(queue_service, inbox_id, account_id)
     if queue_service.queue_size(inbox_id).positive?
       Rails.logger.info '[QUEUE][JOB] Queue still has items, scheduling next run'
-      Queue::ProcessQueueJob.set(wait: 1.second).perform_later(account_id, inbox_id)
+      Queue::ProcessQueueJob.set(wait: 5.second).perform_later(account_id, inbox_id)
     else
       Rails.logger.info '[QUEUE][JOB] Queue empty after assign, stopping'
     end

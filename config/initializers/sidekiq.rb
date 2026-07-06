@@ -18,6 +18,11 @@ end
 Sidekiq.configure_server do |config|
   config.redis = Redis::Config.app
 
+  config.capsule("queue_processing") do |cap|
+    cap.concurrency = ENV.fetch("SIDEKIQ_QP_CONCURRENCY", 2).to_i
+    cap.queues = %w[queue_processing]
+  end
+
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_SIDEKIQ_DEQUEUE_LOGGER', false))
     config.server_middleware do |chain|
       chain.add ChatwootDequeuedLogger
