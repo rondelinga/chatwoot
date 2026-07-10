@@ -27,6 +27,15 @@ class V2::Reports::ConversationRowBuilder
     }
   end
 
+  EXCLUDED_CONTACT_CUSTOM_ATTRIBUTES = %w[
+    duplicateLevel language lastDepositDate loyaltyLevel
+    phone project userTag userTime validationLevel
+  ].freeze
+
+  EXCLUDED_CONTACT_ADDITIONAL_ATTRIBUTES = %w[
+    deviceType avatar_url_hash language_code last_avatar_sync_at social_profiles
+  ].freeze
+
   def extra_fields(conversation)
     csat = conversation.csat_survey_response
     queue = conversation.conversation_queue
@@ -44,9 +53,17 @@ class V2::Reports::ConversationRowBuilder
       queue_exit_reason: queue_exit_reason(queue),
       labels: conversation.cached_label_list_array.map { |l| clean(l) },
       custom_attributes: clean_hash(conversation.custom_attributes || {}),
-      contact_additional_attributes: clean_hash(conversation.contact.additional_attributes || {}),
-      contact_custom_attributes: clean_hash(conversation.contact.custom_attributes || {})
+      contact_additional_attributes: clean_hash(filtered_additional_attributes(conversation.contact)),
+      contact_custom_attributes: clean_hash(filtered_custom_attributes(conversation.contact))
     }
+  end
+
+  def filtered_custom_attributes(contact)
+    (contact.custom_attributes || {}).except(*EXCLUDED_CONTACT_CUSTOM_ATTRIBUTES)
+  end
+
+  def filtered_additional_attributes(contact)
+    (contact.additional_attributes || {}).except(*EXCLUDED_CONTACT_ADDITIONAL_ATTRIBUTES)
   end
 
   def csat_score(csat)
