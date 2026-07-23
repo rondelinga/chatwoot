@@ -1,6 +1,7 @@
 class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::BaseController
   include Sift
   include DateRangeHelper
+  include CsatAgentScopeConcern
 
   RESULTS_PER_PAGE = 25
 
@@ -44,13 +45,15 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
   def set_total_sent_messages_count
     @csat_messages = Current.account.messages.input_csat
     @csat_messages = @csat_messages.joins(:conversation).where(conversations: { created_at: range }) if range.present?
+    @csat_messages = apply_agent_csat_messages_scope(@csat_messages)
     @total_sent_messages_count = @csat_messages.count
   end
 
   def set_csat_survey_responses
     base_query = Current.account.csat_survey_responses.includes([:conversation, :assigned_agent, :contact])
+    base_query = apply_agent_csat_scope(base_query)
     @csat_survey_responses = filtrate(base_query).filter_by_conversation_created_at(range)
-                                                 .filter_by_assigned_agent_id(params[:user_ids])
+                                                 .filter_by_assigned_agent_id(permitted_user_ids)
                                                  .filter_by_inbox_id(params[:inbox_id])
                                                  .filter_by_team_id(params[:team_id])
                                                  .filter_by_rating(params[:rating])
