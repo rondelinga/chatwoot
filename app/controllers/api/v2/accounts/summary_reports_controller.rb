@@ -40,7 +40,7 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
   private
 
   def check_authorization
-    authorize :report, :view?
+    authorize({ action: action_name, type: params[:type] }, :view?, policy_class: ReportPolicy)
   end
 
   def agent_activity_params

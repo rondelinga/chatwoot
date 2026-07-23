@@ -35,7 +35,7 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
   private
 
   def check_authorization
-    authorize :report, :view?
+    authorize({ action: action_name, type: params[:type] }, :view?, policy_class: ReportPolicy)
   end
 
   def set_group_scope
