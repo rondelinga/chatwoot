@@ -32,7 +32,7 @@ class Conversations::EventDataPresenter < SimpleDelegator
   private
 
   def push_messages
-    [messages.where(account_id: account_id).chat.last&.push_event_data].compact
+    [messages.where(account_id: account_id).last&.push_event_data].compact
   end
 
   def webhook_push_messages

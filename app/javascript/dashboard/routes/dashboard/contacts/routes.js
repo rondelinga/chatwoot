@@ -6,7 +6,7 @@ import { CONTACT_ACCESS_PERMISSIONS } from 'dashboard/constants/permissions.js';
 
 const commonMeta = {
   featureFlag: FEATURE_FLAGS.CRM,
-  permissions: ['administrator', 'agent', ...CONTACT_ACCESS_PERMISSIONS],
+  permissions: ['administrator', ...CONTACT_ACCESS_PERMISSIONS],
 };
 
 export const routes = [
