@@ -64,7 +64,8 @@ class Account < ApplicationRecord
                  :auto_resolve_pending_after, :auto_resolve_pending_message
 
   store_accessor :settings, :audio_transcriptions, :auto_resolve_label, :auto_translate, :translation_provider
-  store_accessor :settings, :captain_models, :captain_features, :captain_auto_resolve_mode
+  store_accessor :settings, :captain_models, :captain_features
+  store_accessor :settings, :agent_history_days
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :enforce_mfa
