@@ -1,11 +1,11 @@
 <script>
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import {
   DuplicateContactException,
   ExceptionWithMessage,
 } from 'shared/helpers/CustomErrors';
-import { computed } from 'vue';
 import { useExactTimestamp } from 'shared/composables/useExactTimestamp';
 import { useMapGetter } from 'dashboard/composables/store';
 import { CONTACT_ACCESS_PERMISSIONS } from 'dashboard/constants/permissions.js';
@@ -61,7 +61,7 @@ export default {
       );
 
       return hasPermissions(
-        ['administrator', 'agent', ...CONTACT_ACCESS_PERMISSIONS],
+        ['administrator', ...CONTACT_ACCESS_PERMISSIONS],
         permissions
       );
     });

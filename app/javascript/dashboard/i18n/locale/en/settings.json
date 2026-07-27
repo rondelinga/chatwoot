@@ -709,6 +709,17 @@
     "LINK_TEXT": "Learn more about SAML SSO",
     "SAML_DISABLED_MESSAGE": "SAML SSO is currently disabled. Please contact your administrator to enable this feature.",
     "NO_SETTINGS_AVAILABLE": "No security settings are available for this installation. Configure MFA encryption keys to enable two-factor enforcement.",
+    "AGENT_HISTORY": {
+      "TITLE": "Agent conversation history limit",
+      "DESCRIPTION": "Restrict operators to their assigned conversations and limit how far back they can view resolved conversations.",
+      "LABEL": "History limit for operators (days)",
+      "HELP": "Operators can always see open conversations assigned to them and unassigned queue items. Set to 0 to disable the history limit. Default is 30 days.",
+      "PLACEHOLDER": "30",
+      "UPDATE_BUTTON": "Update history limit",
+      "SUCCESS": "Agent history limit updated successfully",
+      "ERROR": "Failed to update agent history limit",
+      "VALIDATION_ERROR": "Enter a number between 0 and 365"
+    },
     "SAML": {
       "TITLE": "SAML SSO",
       "NOTE": "Configure SAML single sign-on for your account. Users will authenticate through your identity provider instead of using email/password.",

@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { onClickOutside } from '@vueuse/core';
 import V4Button from 'dashboard/components-next/button/Button.vue';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
 
 const props = defineProps({
   label: {
@@ -28,6 +29,8 @@ const props = defineProps({
 
 const emit = defineEmits(['select']);
 
+const { canExportData } = useRestrictedAgent();
+
 const dropdownRef = ref(null);
 const showDropdown = ref(false);
 
@@ -50,7 +53,7 @@ const handleSelect = value => {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative inline-block">
+  <div v-if="canExportData" ref="dropdownRef" class="relative inline-block">
     <V4Button
       :label="label"
       :icon="icon"

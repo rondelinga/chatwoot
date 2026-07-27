@@ -1,6 +1,7 @@
 <script>
 import V4Button from 'dashboard/components-next/button/Button.vue';
 import { useAlert, useTrack } from 'dashboard/composables';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
 import ReportFilters from './ReportFilters.vue';
 import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
@@ -63,6 +64,11 @@ export default {
       type: Object,
       default: null,
     },
+  },
+  setup() {
+    const { canExportData } = useRestrictedAgent();
+
+    return { canExportData };
   },
   data() {
     return {
@@ -237,6 +243,7 @@ export default {
 <template>
   <ReportHeader :header-title="reportTitle" :has-back-button="hasBackButton">
     <V4Button
+      v-if="canExportData"
       :label="downloadButtonLabel"
       icon="i-ph-download-simple"
       size="sm"

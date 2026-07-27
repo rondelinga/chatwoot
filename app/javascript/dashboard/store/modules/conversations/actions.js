@@ -231,13 +231,14 @@ const actions = {
     { conversationId }
   ) => {
     const { allConversations, syncConversationsMessages } = state;
-    const lastMessageId = syncConversationsMessages[conversationId];
     const selectedChat = allConversations.find(
       conversation => conversation.id === conversationId
     );
     if (!selectedChat) return;
     try {
       const { messages } = selectedChat;
+      const lastMessageId =
+        syncConversationsMessages[conversationId] ?? messages.last()?.id;
       // Fetch all the messages after the last message id
       const {
         data: { meta, payload },
@@ -290,6 +291,36 @@ const actions = {
     });
   },
 
+  reloadConversationMessages: async (
+    { commit, dispatch, state },
+    { conversationId, seedMessages }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    if (!chat) return;
+
+    let seed = [];
+    if (seedMessages?.length > 0) {
+      seed = seedMessages;
+    } else if (chat.messages?.length) {
+      seed = [chat.messages[chat.messages.length - 1]];
+    }
+    if (!seed[0]?.id) return;
+
+    chat.messages = seed;
+    delete chat.dataFetched;
+    chat.allMessagesLoaded = false;
+
+    try {
+      await dispatch('fetchPreviousMessages', {
+        conversationId,
+        before: seed[0].id,
+      });
+      commit(types.SET_CHAT_DATA_FETCHED, conversationId);
+    } catch (error) {
+      // Ignore error
+    }
+  },
+
   async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
     if (data.dataFetched === undefined) {
@@ -306,6 +337,8 @@ const actions = {
       } catch (error) {
         // Ignore error
       }
+    } else {
+      dispatch('reloadConversationMessages', { conversationId: data.id });
     }
   },
 

@@ -16,7 +16,12 @@ class SearchService
     when 'Article'
       { articles: filter_articles }
     else
-      { contacts: filter_contacts, messages: filter_messages, conversations: filter_conversations, articles: filter_articles }
+      {
+        contacts: filter_contacts,
+        messages: filter_messages,
+        conversations: filter_conversations,
+        articles: filter_articles
+      }
     end
   end
 
@@ -36,6 +41,8 @@ class SearchService
                                          .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
                             ILIKE :search OR contacts.phone_number ILIKE :search OR contacts.identifier ILIKE :search
                             OR conversations.additional_attributes->>'mail_subject' ILIKE :search", search: "%#{search_query}%")
+
+    conversations_query = Conversations::AgentAccessService.apply_scope(conversations_query, current_user, current_account)
 
     if current_account.feature_enabled?('advanced_search')
       conversations_query = apply_time_filter(conversations_query,
@@ -108,7 +115,19 @@ class SearchService
   def message_base_query
     query = current_account.messages.where('created_at >= ?', 3.months.ago)
     query = query.where(inbox_id: accessable_inbox_ids) unless should_skip_inbox_filtering?
-    query
+    apply_agent_message_scope(query)
+  end
+
+  def apply_agent_message_scope(query)
+    return query unless restricted_agent?
+
+    allowed_conversations = Conversations::AgentAccessService.apply_scope(
+      current_account.conversations.where(inbox_id: accessable_inbox_ids),
+      current_user,
+      current_account
+    )
+
+    query.where(conversation_id: allowed_conversations.select(:id))
   end
 
   def apply_message_filters(query)
@@ -163,6 +182,8 @@ class SearchService
   end
 
   def filter_contacts
+    return Contact.none.page(params[:page]).per(15) if restricted_agent?
+
     contacts_query = current_account.contacts.where(
       "name ILIKE :search OR email ILIKE :search OR phone_number
       ILIKE :search OR identifier ILIKE :search", search: "%#{search_query}%"
@@ -179,6 +200,10 @@ class SearchService
 
   def apply_contact_access_scope(contacts_query)
     contacts_query
+  end
+
+  def restricted_agent?
+    Conversations::AgentAccessService.restricted_agent?(account_user)
   end
 
   def filter_articles

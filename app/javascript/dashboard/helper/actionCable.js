@@ -94,7 +94,29 @@ class ActionCableConnector extends BaseActionCableConnector {
     return this.app.$store.getters.getCurrentAccountId === data.account_id;
   };
 
+  isRestrictedAgent = () => {
+    const user = this.app.$store.getters.getCurrentUser;
+    const accountId = this.app.$store.getters.getCurrentAccountId;
+    const account = user?.accounts?.find(
+      item => Number(item.id) === Number(accountId)
+    );
+
+    return account?.role === 'agent' && !account?.custom_role_id;
+  };
+
+  canAccessConversation = data => {
+    if (!this.isRestrictedAgent()) return true;
+
+    const assigneeId = data.meta?.assignee?.id;
+    if (!assigneeId) return true;
+
+    return assigneeId === this.app.$store.getters.getCurrentUser?.id;
+  };
+
   onMessageUpdated = data => {
+    if (data.conversation && !this.canAccessConversation(data.conversation))
+      return;
+
     this.app.$store.dispatch('updateMessage', data);
   };
 
@@ -106,6 +128,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onConversationContactChange = payload => {
+    if (!this.canAccessConversation(payload)) return;
+
     const { meta = {}, id: conversationId } = payload;
     const { sender } = meta || {};
     if (conversationId) {
@@ -117,14 +141,24 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onAssigneeChanged = payload => {
-    const { id } = payload;
+    const { id, meta, messages: seedMessages } = payload;
     if (id) {
       this.app.$store.dispatch('updateConversation', payload);
+
+      const currentUserId = this.app.$store.getters.getCurrentUser?.id;
+      if (meta?.assignee?.id && meta.assignee.id === currentUserId) {
+        this.app.$store.dispatch('reloadConversationMessages', {
+          conversationId: id,
+          seedMessages,
+        });
+      }
     }
     this.fetchConversationStats();
   };
 
   onConversationCreated = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('addConversation', data);
     this.fetchConversationStats();
   };
@@ -184,6 +218,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   }
 
   onConversationRead = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
   };
 
@@ -191,6 +227,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   onLogout = () => AuthAPI.logout();
 
   onMessageCreated = data => {
+    if (!this.canAccessConversation(data.conversation)) return;
+
     const {
       conversation: { last_activity_at: lastActivityAt },
       conversation_id: conversationId,
@@ -207,11 +245,15 @@ class ActionCableConnector extends BaseActionCableConnector {
   onReload = () => window.location.reload();
 
   onStatusChange = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
   };
 
   onConversationUpdated = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
   };
@@ -328,6 +370,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onTypingOn = ({ conversation, user }) => {
+    if (!this.canAccessConversation(conversation)) return;
+
     const conversationId = conversation.id;
 
     this.clearTimer(conversationId);
@@ -339,6 +383,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onTypingOff = ({ conversation, user }) => {
+    if (!this.canAccessConversation(conversation)) return;
+
     const conversationId = conversation.id;
 
     this.clearTimer(conversationId);
@@ -376,6 +422,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onContactDelete = data => {
+    if (this.isRestrictedAgent()) return;
+
     this.app.$store.dispatch(
       'contacts/deleteContactThroughConversations',
       data.id
@@ -384,6 +432,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onContactUpdate = data => {
+    if (this.isRestrictedAgent()) return;
+
     this.app.$store.dispatch('contacts/updateContact', data);
   };
 

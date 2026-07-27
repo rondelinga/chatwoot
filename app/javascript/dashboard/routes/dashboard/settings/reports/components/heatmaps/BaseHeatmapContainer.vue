@@ -19,6 +19,7 @@ import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.v
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useI18n } from 'vue-i18n';
 import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
 
 const props = defineProps({
   metric: {
@@ -54,6 +55,8 @@ const props = defineProps({
     default: 'blue',
   },
 });
+
+const { canExportData } = useRestrictedAgent();
 
 const store = useStore();
 const { t } = useI18n();
@@ -326,6 +329,7 @@ onMounted(() => {
           />
         </div>
         <Button
+          v-if="canExportData"
           v-tooltip="t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.DOWNLOAD_REPORT')"
           sm
           slate
