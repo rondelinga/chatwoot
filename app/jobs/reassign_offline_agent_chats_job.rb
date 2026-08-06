@@ -15,9 +15,7 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
     conversations = conversations_for(agent, account_id)
     return if conversations.none?
 
-    agent_statuses = agent_statuses_for(account)
-
-    reassign_or_unassign(conversations, account, agent_statuses)
+    reassign_or_unassign(conversations, account)
   end
 
   private
@@ -28,14 +26,12 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
     account_id.present? ? scope.where(account_id: account_id) : scope
   end
 
-  def reassign_or_unassign(conversations, account, agent_statuses)
-    online_agents = agent_statuses.select { |_, s| s.to_s == 'online' }.keys
-
-    if online_agents.empty?
+  def reassign_or_unassign(conversations, account)
+    if online_agent_ids_for(account.id).empty?
       unassign_all(conversations, account)
     else
       conversations.find_each do |conversation|
-        reassign_conversation(conversation, agent_statuses)
+        reassign_conversation(conversation)
       end
     end
   end
@@ -61,25 +57,61 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
     )
   end
 
-  def reassign_conversation(conversation, agent_statuses)
-    allowed = online_agents_for(conversation, agent_statuses)
-
+  def reassign_conversation(conversation)
+    allowed = online_agents_for(conversation)
     return unassign(conversation, 'No online agents') if allowed.empty?
 
     create_system_message(conversation)
+    previous_assignee_id = conversation.assignee_id
 
-    previous = conversation.assignee_id
+    reassigned = if conversation.account.queue_enabled?
+                   reassign_via_queue(conversation)
+                 else
+                   reassign_via_auto_assignment(conversation, allowed)
+                 end
+
+    return if reassigned
+
+    enqueue_for_reassignment(conversation) if conversation.account.queue_enabled?
+    unassign(conversation, 'All agents reached limit') if conversation.reload.assignee_id == previous_assignee_id
+
+    Rails.logger.info("Conversation #{conversation.id} reassigned") if conversation.assignee_id.present?
+  rescue StandardError => e
+    Rails.logger.error("Failed to reassign conversation #{conversation.id}: #{e.message}")
+    enqueue_for_reassignment(conversation) if conversation.account.queue_enabled?
+    unassign(conversation, 'Error')
+  end
+
+  def reassign_via_auto_assignment(conversation, allowed)
     AutoAssignment::AgentAssignmentService.new(
       conversation: conversation,
       allowed_agent_ids: allowed
     ).perform
 
-    return unassign(conversation, 'All agents reached limit') if conversation.assignee_id == previous
+    conversation.reload.assignee_id.present? && allowed.include?(conversation.assignee_id)
+  end
 
-    Rails.logger.info("Conversation #{conversation.id} reassigned")
-  rescue StandardError => e
-    Rails.logger.error("Failed to reassign conversation #{conversation.id}: #{e.message}")
-    unassign(conversation, 'Error')
+  def reassign_via_queue(conversation)
+    conversation.update!(assignee_id: nil)
+    conversation.reload
+
+    agent = ChatQueue::Agents::SelectorService.new(account: conversation.account).pick_best_agent_for(conversation)
+    if agent
+      conversation.update!(assignee: agent, status: :open)
+      Rails.logger.info("Conversation #{conversation.id} reassigned via queue to agent #{agent.id}")
+      return true
+    end
+
+    ChatQueue::QueueService.new(account: conversation.account).add_to_queue(conversation)
+    Rails.logger.info("Conversation #{conversation.id} added to queue after offline unassign")
+    true
+  end
+
+  def enqueue_for_reassignment(conversation)
+    return if conversation.queued?
+    return if conversation.assignee_id.present?
+
+    ChatQueue::QueueService.new(account: conversation.account).add_to_queue(conversation)
   end
 
   # rubocop:disable Rails/SkipsModelValidations
@@ -89,26 +121,22 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
   end
   # rubocop:enable Rails/SkipsModelValidations
 
-  def online_agents_for(conversation, agent_statuses)
+  def online_agents_for(conversation)
     inbox = conversation.inbox
     return [] unless inbox
 
+    online_ids = online_agent_ids_for(conversation.account_id)
     inbox.members
          .map(&:id)
          .uniq
          .reject { |id| id == conversation.assignee_id }
-         .select { |id| agent_statuses[id].to_s == 'online' }
+         .select { |id| online_ids.include?(id) }
   end
 
-  def agent_statuses_for(account)
-    account.users.map do |u|
-      status = OnlineStatusTracker.get_status(account.id, u.id)
-
-      if status.nil?
-        status = u.account_users.find_by(account: account)&.auto_offline? ? 'offline' : 'online'
-      end
-
-      [u.id, status]
-    end.to_h
+  def online_agent_ids_for(account_id)
+    (OnlineStatusTracker.get_available_users(account_id) || {})
+      .select { |_id, status| status == 'online' }
+      .keys
+      .map(&:to_i)
   end
 end

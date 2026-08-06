@@ -404,7 +404,7 @@ class Conversation < ApplicationRecord
     return unless saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id? || saved_change_to_status?
 
     open! if assignee_present? && queued?
-    ChatQueue::ProcessQueueJob.perform_later(account.id) if resolved? || assignee_id.blank?
+    ChatQueue::ProcessQueueJob.perform_later(account.id) if resolved? || assignee_id.blank? || saved_change_to_assignee_id?
   end
 
   def enforce_queue_status_invariants

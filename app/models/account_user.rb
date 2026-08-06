@@ -41,6 +41,7 @@ class AccountUser < ApplicationRecord
   after_create_commit :notify_creation, :create_notification_setting
   after_destroy :notify_deletion, :remove_user_from_account
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
+  after_commit :process_queue_when_limit_changed, if: :active_chat_limit_changed?
   after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
   after_update_commit :invalidate_filtered_unread_count_visibility_update, if: :filtered_unread_count_visibility_changed?
   after_commit :process_queue_when_agent_available, if: :saved_change_to_availability?
@@ -89,6 +90,16 @@ class AccountUser < ApplicationRecord
     OnlineStatusTracker.set_status(account.id, user.id, availability)
   end
 
+  def process_queue_when_limit_changed
+    return unless account.queue_enabled?
+
+    enqueue_queue_processing
+  end
+
+  def active_chat_limit_changed?
+    saved_change_to_active_chat_limit? || saved_change_to_active_chat_limit_enabled?
+  end
+
   def filtered_unread_count_visibility_changed?
     previous_changes.key?('role') || previous_changes.key?('custom_role_id')
   end
@@ -110,9 +121,11 @@ class AccountUser < ApplicationRecord
     return unless account.queue_enabled?
     return unless online?
 
-    account.inboxes.pluck(:id).each do |_inbox_id|
-      ChatQueue::ProcessQueueJob.perform_later(account.id)
-    end
+    enqueue_queue_processing
+  end
+
+  def enqueue_queue_processing
+    ChatQueue::ProcessQueueJob.perform_later(account.id)
   end
 end
 

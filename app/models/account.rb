@@ -57,6 +57,8 @@ class Account < ApplicationRecord
   validate :validate_reporting_timezone
   validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
+  after_commit :process_queue_when_limit_changed, if: :active_chat_limit_settings_changed?
+
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting,
                  :auto_resolve_message_agent, :auto_resolve_message_client, :auto_resolve_split_reasons,
                  :auto_resolve_pending_after, :auto_resolve_pending_message
@@ -196,6 +198,16 @@ class Account < ApplicationRecord
 
   def active_chat_limit
     active_chat_limit_value
+  end
+
+  def active_chat_limit_settings_changed?
+    saved_change_to_active_chat_limit_enabled? || saved_change_to_active_chat_limit_value?
+  end
+
+  def process_queue_when_limit_changed
+    return unless queue_enabled?
+
+    ChatQueue::ProcessQueueJob.perform_later(id)
   end
 
   def onboarding_step
