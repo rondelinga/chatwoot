@@ -584,12 +584,17 @@ class Conversation < ApplicationRecord
 
   def remove_from_queue_if_status_changed
     return unless saved_change_to_status?
-  
-    old_status, new_status = saved_change_to_status
-  
-    return unless old_status == 'queued' && new_status != 'queued'
+    return unless account.queue_enabled?
 
-    reason = new_status == 'resolved' ? :resolved : :other
+    old_status, new_status = saved_change_to_status
+
+    reason = if new_status == 'resolved'
+               :resolved
+             elsif old_status == 'queued' && new_status != 'queued'
+               :other
+             else
+               return
+             end
 
     ChatQueue::QueueService.new(account: account)
                            .remove_from_queue(self, reason: reason)
