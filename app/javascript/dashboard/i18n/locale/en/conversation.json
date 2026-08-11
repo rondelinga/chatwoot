@@ -486,6 +486,7 @@
     "ACCORDION": {
       "CONTACT_DETAILS": "Contact Details",
       "CONVERSATION_ACTIONS": "Conversation Actions",
+      "QUEUE_ACTIONS": "Queue Actions",
       "CONVERSATION_LABELS": "Conversation Labels",
       "CONVERSATION_INFO": "Conversation Information",
       "CONTACT_NOTES": "Contact Notes",
@@ -495,6 +496,22 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
       "SHARED_FILES": "Attachments"
+    },
+    "QUEUE_ACTIONS": {
+      "STATUS_LABEL": "Queue status",
+      "STATUS": {
+        "WAITING": "Waiting",
+        "ASSIGNED": "Assigned",
+        "LEFT": "Left",
+        "NONE": "Not in queue"
+      },
+      "LOADING": "…",
+      "POSITION": "Position",
+      "LEAVE": "Mark as left",
+      "LEAVE_SUCCESS": "Conversation removed from queue",
+      "LEAVE_ERROR": "Could not remove conversation from queue",
+      "LOAD_ERROR": "Could not load queue status",
+      "EMPTY": "No queue entry for this conversation"
     },
     "SHARED_FILES": {
       "EMPTY": "No attachments yet",
