@@ -6,6 +6,10 @@ import yaml from '@rollup/plugin-yaml';
 
 export default defineConfig({
   plugins: [ruby(), vue(vueOptions), yaml()],
+  server: {
+    // Rails proxies dev assets to the Vite container by its service name.
+    allowedHosts: ['vite'],
+  },
   css: {
     preprocessorOptions: {
       scss: {
