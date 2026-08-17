@@ -22,6 +22,14 @@ module Enterprise::Account
   # this is a temporary method since current administrate doesn't support virtual attributes
   def manually_managed_features; end
 
+  PREMIUM_FEATURE_NAMES = Featurable::FEATURE_LIST.filter_map { |feature| feature['name'] if feature['premium'] }.freeze
+
+  def feature_enabled?(name)
+    return true if PREMIUM_FEATURE_NAMES.include?(name.to_s)
+
+    super
+  end
+
   # Auto-sync advanced_assignment with assignment_v2 when features are bulk-updated via admin UI
   def selected_feature_flags=(features)
     super
