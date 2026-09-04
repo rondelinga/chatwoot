@@ -193,8 +193,8 @@ export default {
       isLoadingPrevious: true,
       heightBeforeLoad: null,
       conversationPanel: null,
-      hasUserScrolled: false,
       isProgrammaticScroll: false,
+      shouldAutoScroll: true,
     };
   },
 
@@ -392,7 +392,7 @@ export default {
       );
       this.$nextTick(() => {
         if (this.currentChat.id !== conversationId) return;
-        if (!this.hasUserScrolled && !this.$route.query.messageId) {
+        if (this.shouldAutoScroll && !this.$route.query.messageId) {
           this.scrollToBottom();
         } else {
           restoreAnchor();
@@ -405,12 +405,13 @@ export default {
       }
       this.fetchAllAttachmentsFromCurrentChat();
       this.resetReplyEditorHeight();
+      this.shouldAutoScroll = true;
     },
     // The link is appended once the neighbours arrive, below an already scrolled list.
     newerConversation(conversation) {
       if (!conversation) return;
       this.$nextTick(() => {
-        if (!this.$route.query.messageId && !this.hasUserScrolled) {
+        if (!this.$route.query.messageId && this.shouldAutoScroll) {
           this.scrollToBottom();
         }
       });
@@ -445,14 +446,17 @@ export default {
       emitter.off(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, this.showReplyBox);
       emitter.off(CMD_AI_ASSIST, this.showReplyBox);
     },
-    onScrollToMessage({ messageId = '' } = {}) {
+    onScrollToMessage({ messageId = '', force = false } = {}) {
       this.$nextTick(() => {
-        const messageElement = document.getElementById('message' + messageId);
+        const messageElement = messageId
+          ? document.getElementById('message' + messageId)
+          : null;
         if (messageElement) {
           this.isProgrammaticScroll = true;
+          this.shouldAutoScroll = false;
           messageElement.scrollIntoView({ behavior: 'smooth' });
           this.fetchPreviousMessages();
-        } else {
+        } else if (force || this.shouldAutoScroll) {
           this.scrollToBottom();
         }
       });
@@ -470,6 +474,7 @@ export default {
     },
     scrollToBottom() {
       this.isProgrammaticScroll = true;
+      this.shouldAutoScroll = true;
 
       // if there are unread messages, scroll to the first unread message
       if (this.unreadMessageCount > 0) {
@@ -526,13 +531,18 @@ export default {
       }
     },
 
+    isNearBottom() {
+      const panel = this.conversationPanel;
+      if (!panel) return true;
+
+      return panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 150;
+    },
+
     handleScroll(e) {
       if (this.isProgrammaticScroll) {
-        // Reset the flag
         this.isProgrammaticScroll = false;
-        this.hasUserScrolled = false;
       } else {
-        this.hasUserScrolled = true;
+        this.shouldAutoScroll = this.isNearBottom();
       }
       emitter.emit(BUS_EVENTS.ON_MESSAGE_LIST_SCROLL);
       this.fetchPreviousMessages(e.target.scrollTop);
