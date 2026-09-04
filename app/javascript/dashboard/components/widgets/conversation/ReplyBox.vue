@@ -1034,7 +1034,7 @@ export default {
           'createPendingMessageAndSend',
           messagePayload
         );
-        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE, { force: true });
         emitter.emit(BUS_EVENTS.MESSAGE_SENT);
         this.removeFromDraft();
         this.sendMessageAnalyticsData(messagePayload.private, {
