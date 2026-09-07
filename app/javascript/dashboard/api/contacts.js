@@ -36,6 +36,17 @@ class ContactAPI extends ApiClient {
     return axios.get(`${this.url}/${contactId}/conversations`, { params });
   }
 
+  getOutboundInboxes(contactId) {
+    return axios.get(`${this.url}/${contactId}/outbound_inboxes`);
+  }
+
+  sendOutboundMessage(contactId, { inboxId, content }) {
+    return axios.post(`${this.url}/${contactId}/outbound_message`, {
+      inbox_id: inboxId,
+      content,
+    });
+  }
+
   getAttachments(contactId, page = 1) {
     return axios.get(`${this.url}/${contactId}/attachments`, {
       params: { page },

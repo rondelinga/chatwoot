@@ -36,6 +36,8 @@ export const getters = {
   getPendingCustomAttributes: _state => _state.pendingCustomAttributes,
   getPendingLabels: _state => _state.pendingLabels,
   getIsFetchingList: _state => _state.uiFlags.isFetchingList,
+  getShowOutboundNotification: _state =>
+    _state.uiFlags.showOutboundNotification,
   getMessageCount: _state => {
     return Object.values(_state.conversations).length;
   },

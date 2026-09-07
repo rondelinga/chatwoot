@@ -20,6 +20,7 @@
 # - 'conversation_manage': Can manage all conversations.
 # - 'conversation_unassigned_manage': Can manage unassigned conversations and assign to self.
 # - 'conversation_participating_manage': Can manage conversations they are participating in (assigned to or a participant).
+# - 'conversation_outbound': Can start outbound widget conversations from a contact.
 # - 'contact_manage': Can access all contacts in the account.
 # - 'contact_inbox_manage': Can access contacts from assigned inboxes only.
 # - 'contact_edit': Can edit contacts.
@@ -40,6 +41,7 @@ class CustomRole < ApplicationRecord
     conversation_manage
     conversation_unassigned_manage
     conversation_participating_manage
+    conversation_outbound
     contact_manage
     contact_inbox_manage
     contact_edit

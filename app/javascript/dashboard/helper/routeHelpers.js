@@ -8,6 +8,7 @@ import { requiresShopifyBilling } from 'v3/helpers/AuthHelper';
 import {
   ROLES,
   CONVERSATION_PERMISSIONS,
+  CONVERSATION_OUTBOUND_PERMISSIONS,
   CONTACT_ACCESS_PERMISSIONS,
   REPORTS_PERMISSIONS,
   REPORT_PAGE_PERMISSIONS,
@@ -24,7 +25,11 @@ export const defaultRedirectPage = (to, permissions) => {
 
   const permissionRoutes = [
     {
-      permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+      permissions: [
+        ...ROLES,
+        ...CONVERSATION_PERMISSIONS,
+        CONVERSATION_OUTBOUND_PERMISSIONS,
+      ],
       path: 'dashboard',
     },
     { permissions: CONTACT_ACCESS_PERMISSIONS, path: 'contacts' },
