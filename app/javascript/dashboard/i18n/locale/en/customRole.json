@@ -36,6 +36,7 @@
       "CONVERSATION_MANAGE": "Manage all conversations",
       "CONVERSATION_UNASSIGNED_MANAGE": "Manage unassigned conversations and those assigned to them",
       "CONVERSATION_PARTICIPATING_MANAGE": "Manage participating conversations and those assigned to them",
+      "CONVERSATION_OUTBOUND": "Start outbound conversations from a contact",
       "CONTACT_MANAGE": "All contacts in the account",
       "CONTACT_INBOX_MANAGE": "Contacts from assigned inboxes only",
       "CONTACT_EDIT": "Edit contacts",

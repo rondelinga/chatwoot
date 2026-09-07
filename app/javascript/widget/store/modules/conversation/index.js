@@ -12,6 +12,7 @@ const state = {
     isFetchingList: false,
     isAgentTyping: false,
     isCreating: false,
+    showOutboundNotification: false,
   },
   lastMessageId: null,
   pendingCustomAttributes: {},

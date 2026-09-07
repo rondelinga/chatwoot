@@ -125,6 +125,10 @@ en:
       data_type:
         invalid: Invalid data type
     contacts:
+      outbound_message:
+        blank: Message cannot be empty
+        inbox_not_supported: Selected inbox does not support outbound messages
+        no_session: Contact has no previous session for this inbox
       import:
         failed: File is blank
       export:

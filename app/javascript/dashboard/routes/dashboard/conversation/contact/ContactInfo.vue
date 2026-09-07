@@ -14,13 +14,13 @@ import {
   hasPermissions,
 } from 'dashboard/helper/permissionsHelper';
 import ContactInfoRow from './ContactInfoRow.vue';
-import ViewAllConversations from './ViewAllConversations.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ContactDeleteModal from 'dashboard/modules/contact/ContactDeleteModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import OutboundMessageButton from 'dashboard/components-next/Contacts/OutboundMessageButton.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
@@ -29,10 +29,10 @@ export default {
   components: {
     NextButton,
     ContactInfoRow,
-    ViewAllConversations,
     EditContact,
     Avatar,
     ComposeConversation,
+    OutboundMessageButton,
     SocialIcons,
     ContactMergeModal,
     ContactDeleteModal,
@@ -435,7 +435,13 @@ export default {
             />
           </template>
         </ComposeConversation>
-        <ViewAllConversations />
+        <OutboundMessageButton
+          :contact="contact"
+          icon-only
+          size="sm"
+          slate
+          faded
+        />
         <VoiceCallButton
           :phone="contact.phone_number"
           :contact-id="contact.id"

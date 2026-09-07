@@ -51,6 +51,10 @@ class ContactPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def outbound_message?
+    @account_user.administrator? || @account_user.agent?
+  end
+
   private
 
   def contact_list_access?

@@ -7,6 +7,7 @@ import { vOnClickOutside } from '@vueuse/components';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Breadcrumb from 'dashboard/components-next/breadcrumb/Breadcrumb.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import OutboundMessageButton from 'dashboard/components-next/Contacts/OutboundMessageButton.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 
 const props = defineProps({
@@ -111,9 +112,11 @@ const closeMobileSidebar = () => {
                   <Button
                     :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
                     size="sm"
+                    slate
                   />
                 </template>
               </ComposeConversation>
+              <OutboundMessageButton :contact="selectedContact" />
             </div>
           </div>
         </div>

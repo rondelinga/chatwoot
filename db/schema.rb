@@ -778,7 +778,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
 
   create_table "channel_whatsapp", force: :cascade do |t|
     t.integer "account_id", null: false
-    t.text "business_management_token"
     t.string "phone_number", null: false
     t.string "provider", default: "default"
     t.jsonb "provider_config", default: {}
@@ -789,6 +788,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.jsonb "phone_number_health", default: {}, null: false
     t.datetime "phone_number_health_checked_at"
     t.string "phone_number_health_error", limit: 500
+    t.text "business_management_token"
+    t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
     t.index ["phone_number_health_checked_at"], name: "index_channel_whatsapp_on_phone_number_health_checked_at"
     t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
   end
@@ -1040,6 +1041,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.string "ai_assignee_type"
     t.datetime "status_changed_at"
     t.datetime "resolved_at"
+    t.datetime "resolved_at"
+    t.boolean "resolved_by_contact", default: false
+    t.datetime "proxied_at"
+    t.datetime "status_changed_at"
+    t.string "ai_assignee_type"
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
