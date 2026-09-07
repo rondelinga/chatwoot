@@ -91,8 +91,19 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('conversation/addOrUpdateMessage', data);
   };
 
-  onConversationCreated = () => {
-    this.app.$store.dispatch('conversationAttributes/getAttributes');
+  onConversationCreated = async () => {
+    const isWidgetOpen = this.app.$store.getters['appConfig/getIsWidgetOpen'];
+    if (!isWidgetOpen) {
+      this.app.$store.dispatch(
+        'conversation/setShowOutboundNotification',
+        true
+      );
+    }
+
+    await this.app.$store.dispatch('conversation/clearConversations');
+    await this.app.$store.dispatch('conversationAttributes/getAttributes');
+    await this.app.$store.dispatch('conversation/fetchOldConversations');
+    emitter.emit(ON_AGENT_MESSAGE_RECEIVED);
   };
 
   onPresenceUpdate = data => {

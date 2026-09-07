@@ -181,6 +181,10 @@ en:
       csv:
         blank_format_marker: 'Record %{row_number} has a blank %{column} value. Keep %{version} in this column for every row. Import new contacts in a separate CSV without this column.'
     contacts:
+      outbound_message:
+        blank: Message cannot be empty
+        inbox_not_supported: Selected inbox does not support outbound messages
+        no_session: Contact has no previous session for this inbox
       import:
         failed: File is blank
       export:

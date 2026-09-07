@@ -46,6 +46,13 @@ module Enterprise::ContactPolicy
     @account_user.custom_role_permission?('contact_manage') || super
   end
 
+  def outbound_message?
+    return true if @account_user.custom_role_permission?('conversation_outbound')
+    return false if @account_user.custom_role.present?
+
+    super
+  end
+
   private
 
   def contact_access?
