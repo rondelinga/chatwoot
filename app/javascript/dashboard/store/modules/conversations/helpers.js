@@ -172,6 +172,10 @@ export const applyRoleFilter = (
     return isAssignedToUser;
   }
 
+  if (permissions.includes('conversation_outbound')) {
+    return isAssignedToUser;
+  }
+
   return false;
 };
 

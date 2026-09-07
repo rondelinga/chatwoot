@@ -58,12 +58,28 @@ describe Contacts::ContactableInboxesService do
         expect(contactable_inboxes).to include({ source_id: contact_inbox.source_id, inbox: website_inbox })
       end
 
-      it 'does not return existing source id if contact inbox exists with conversations' do
+      it 'returns existing source id if contact inbox exists with conversations' do
         contact_inbox = create(:contact_inbox, inbox: website_inbox, contact: contact)
         create(:conversation, contact: contact, inbox: website_inbox, contact_inbox: contact_inbox)
 
         contactable_inboxes = described_class.new(contact: contact).get
-        expect(contactable_inboxes.pluck(:inbox)).not_to include(website_inbox)
+        expect(contactable_inboxes).to include({ source_id: contact_inbox.source_id, inbox: website_inbox })
+      end
+    end
+
+    context 'when telegram inbox is available' do
+      let!(:telegram_inbox) { create(:inbox, channel: create(:channel_telegram, account: account), account: account) }
+
+      it 'does not return the telegram inbox if contact has no existing session' do
+        contactable_inboxes = described_class.new(contact: contact).get
+        expect(contactable_inboxes.pluck(:inbox)).not_to include(telegram_inbox)
+      end
+
+      it 'returns existing source id if contact inbox exists' do
+        contact_inbox = create(:contact_inbox, inbox: telegram_inbox, contact: contact)
+
+        contactable_inboxes = described_class.new(contact: contact).get
+        expect(contactable_inboxes).to include({ source_id: contact_inbox.source_id, inbox: telegram_inbox })
       end
     end
   end

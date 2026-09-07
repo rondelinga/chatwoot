@@ -330,6 +330,12 @@ export default {
           this.setColorScheme(message.darkMode);
         } else if (message.event === 'toggle-open') {
           this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
+          if (message.isOpen) {
+            this.$store.dispatch(
+              'conversation/setShowOutboundNotification',
+              false
+            );
+          }
 
           const shouldShowMessageView =
             ['home'].includes(this.$route.name) &&

@@ -174,6 +174,10 @@ export const actions = {
     commit('clearConversations');
   },
 
+  setShowOutboundNotification: ({ commit }, value) => {
+    commit('setConversationUIFlag', { showOutboundNotification: value });
+  },
+
   addOrUpdateMessage: async ({ commit }, data) => {
     const { id, content_attributes } = data;
     if (content_attributes && content_attributes.deleted) {

@@ -24,6 +24,8 @@ module Enterprise::Conversations::PermissionFilterService
       filter_unassigned_and_mine
     elsif permissions.include?('conversation_participating_manage')
       filter_participating_and_mine
+    elsif permissions.include?('conversation_outbound')
+      accessible_conversations.where(assignee_id: user.id)
     else
       Conversation.none
     end

@@ -54,6 +54,11 @@
     "COMPANY_FROM": "from",
     "BOT": "Bot"
   },
+  "OUTBOUND_NOTIFICATION": {
+    "MANAGER": "Manager",
+    "REPLY": "Reply",
+    "CLOSE": "Close"
+  },
   "BUBBLE": {
     "LABEL": "Chat with us"
   },
