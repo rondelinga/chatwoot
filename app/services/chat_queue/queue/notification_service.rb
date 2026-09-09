@@ -2,6 +2,8 @@ class ChatQueue::Queue::NotificationService
   pattr_initialize [:conversation!]
 
   def send_queue_notification
+    return unless conversation.inbox.queue_notification_enabled?
+
     cid = conversation.id
     Rails.logger.info("[QUEUE][notify_queue][conv=#{cid}] Sending queue template")
 

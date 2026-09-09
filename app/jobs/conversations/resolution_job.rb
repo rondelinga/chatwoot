@@ -12,14 +12,18 @@ class Conversations::ResolutionJob < ApplicationJob
   private
 
   def resolve_conversation(conversation, account)
+    send_resolution_notification(conversation, account) if conversation.inbox.resolution_notification_enabled?
+
+    add_label_if_present(conversation, account)
+    conversation.toggle_status
+  end
+
+  def send_resolution_notification(conversation, account)
     if account.auto_resolve_split_reasons
       send_split_reason_message(conversation, account)
     else
       send_auto_resolve_template(conversation)
     end
-
-    add_label_if_present(conversation, account)
-    conversation.toggle_status
   end
 
   def send_auto_resolve_template(conversation)
