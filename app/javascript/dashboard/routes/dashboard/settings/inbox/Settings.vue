@@ -107,6 +107,8 @@ export default {
       locktoSingleConversation: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
+      queueNotificationEnabled: true,
+      resolutionNotificationEnabled: true,
       selectedInboxName: '',
       channelWebsiteUrl: '',
       webhookUrl: '',
@@ -564,6 +566,10 @@ export default {
       this.allowMessagesAfterResolved =
         this.inbox.allow_messages_after_resolved;
       this.continuityViaEmail = this.inbox.continuity_via_email;
+      this.queueNotificationEnabled =
+        this.inbox.queue_notification_enabled ?? true;
+      this.resolutionNotificationEnabled =
+        this.inbox.resolution_notification_enabled ?? true;
       this.channelWebsiteUrl = this.inbox.website_url;
       this.channelWelcomeTitle = this.inbox.welcome_title;
       this.channelWelcomeTagline = this.inbox.welcome_tagline || '';
@@ -703,6 +709,8 @@ export default {
           lock_to_single_conversation: this.locktoSingleConversation,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
+          queue_notification_enabled: this.queueNotificationEnabled,
+          resolution_notification_enabled: this.resolutionNotificationEnabled,
           channel: {
             widget_color: this.inbox.widget_color,
             website_url: this.channelWebsiteUrl,
@@ -1356,6 +1364,28 @@ export default {
                 :hide-toggle="isContinuityDisabled"
                 :class="
                   isContinuityDisabled ? 'cursor-not-allowed opacity-50' : ''
+                "
+              />
+
+              <SettingsToggleSection
+                v-if="isAnEmailChannel"
+                v-model="queueNotificationEnabled"
+                :header="$t('INBOX_MGMT.SETTINGS_POPUP.QUEUE_NOTIFICATION')"
+                :description="
+                  $t('INBOX_MGMT.SETTINGS_POPUP.QUEUE_NOTIFICATION_SUB_TEXT')
+                "
+              />
+
+              <SettingsToggleSection
+                v-if="isAnEmailChannel"
+                v-model="resolutionNotificationEnabled"
+                :header="
+                  $t('INBOX_MGMT.SETTINGS_POPUP.RESOLUTION_NOTIFICATION')
+                "
+                :description="
+                  $t(
+                    'INBOX_MGMT.SETTINGS_POPUP.RESOLUTION_NOTIFICATION_SUB_TEXT'
+                  )
                 "
               />
             </SettingsAccordion>

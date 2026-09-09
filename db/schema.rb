@@ -1331,6 +1331,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.string "business_name"
     t.jsonb "csat_config", default: {}, null: false
     t.bigint "priority_group_id"
+    t.boolean "queue_notification_enabled", default: true, null: false
+    t.boolean "resolution_notification_enabled", default: true, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
