@@ -747,8 +747,8 @@ RSpec.describe Conversation do
       expect(conversation.status).to eq('pending')
     end
 
-    it 'sets connected agent bot as the conversation owner' do
-      expect(conversation.ai_assignee).to eq(bot_inbox.agent_bot)
+    it 'does not assign the connected agent bot as conversation owner' do
+      expect(conversation.ai_assignee).to be_nil
       expect(conversation.assignee).to be_nil
     end
 
@@ -774,7 +774,7 @@ RSpec.describe Conversation do
         campaign = create(:campaign, inbox: bot_inbox.inbox, account: bot_inbox.inbox.account, sender: nil)
         conversation = create(:conversation, inbox: bot_inbox.inbox, campaign: campaign)
         expect(conversation.status).to eq('pending')
-        expect(conversation.ai_assignee).to eq(bot_inbox.agent_bot)
+        expect(conversation.ai_assignee).to be_nil
       end
     end
 
