@@ -41,6 +41,10 @@ const readableTime = computed(() =>
 
 const exactTime = computed(() => exactTimestamp(createdAt.value));
 
+const isDeletedAuditNote = computed(
+  () => contentAttributes.value?.deletedAuditNote
+);
+
 const showStatusIndicator = computed(() => {
   if (isPrivate.value) return false;
   // Don't show status for failed messages, we already show error message
@@ -150,6 +154,12 @@ const statusToShow = computed(() => {
       </time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
+    <span
+      v-if="isDeletedAuditNote"
+      class="px-1.5 rounded-md text-label-small bg-n-ruby-3 text-n-ruby-11"
+    >
+      {{ $t('CONVERSATION.DELETED_AUDIT_NOTE.BADGE') }}
+    </span>
     <MessageStatus v-if="showStatusIndicator" :status="statusToShow" />
   </div>
 </template>

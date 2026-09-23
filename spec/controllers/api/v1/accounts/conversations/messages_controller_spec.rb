@@ -288,14 +288,27 @@ RSpec.describe 'Conversation Messages API', type: :request do
       end
 
       it 'deletes the message' do
+        original_content = message.content
+
         delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
                headers: agent.create_new_auth_token,
                as: :json
 
         expect(response).to have_http_status(:success)
-        expect(message.reload.content).to eq 'This message was deleted'
-        expect(message.reload.deleted).to be true
-        expect(message.reload.content_attributes['bcc_emails']).to be_nil
+        expect(JSON.parse(response.body, symbolize_names: true)).to eq(
+          id: message.id, deleted: true, deleted_at: message.reload.deleted_at.as_json
+        )
+        expect(message.content).to be_nil
+        expect(message.deleted).to be true
+        expect(message.content_attributes['bcc_emails']).to be_nil
+        expect(message.deleted_at).to be_present
+        expect(message.deleted_by_id).to eq(agent.id)
+        expect(message.original_content).to eq(original_content)
+
+        audit_note = conversation.messages.find(message.audit_private_note_id)
+        expect(audit_note.message_type).to eq('activity')
+        expect(audit_note.private).to be true
+        expect(audit_note.content).to include(original_content)
       end
 
       it 'keeps the forward marker on a deleted forwarded email' do
