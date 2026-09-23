@@ -379,6 +379,10 @@ const isForwardedEmail = computed(
   () => !!props.contentAttributes?.forwardedMessageId && !isMessageDeleted.value
 );
 
+const isDeletedAuditNote = computed(() => {
+  return !!props.contentAttributes?.deletedAuditNote;
+});
+
 const shouldShowWhatsappReferral = computed(
   () =>
     variant.value === MESSAGE_VARIANTS.USER &&
@@ -408,7 +412,8 @@ const contextMenuEnabledOptions = computed(() => {
     delete:
       (hasText || hasAttachments) &&
       !isFailedOrProcessing &&
-      !isMessageDeleted.value,
+      !isMessageDeleted.value &&
+      !isDeletedAuditNote.value,
     cannedResponse: isOutgoing && hasText && !isMessageDeleted.value,
     copyLink: !isFailedOrProcessing,
     translate: !isFailedOrProcessing && !isMessageDeleted.value && hasText,

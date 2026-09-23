@@ -4,11 +4,15 @@
 #
 #  id                        :integer          not null, primary key
 #  additional_attributes     :jsonb
+#  audit_private_note_id     :integer
 #  content                   :text
 #  content_attributes        :json
 #  content_type              :integer          default("text"), not null
+#  deleted_at                :datetime
+#  deleted_by_id             :integer
 #  external_source_ids       :jsonb
 #  message_type              :integer          not null
+#  original_content          :text
 #  private                   :boolean          default(FALSE), not null
 #  processed_message_content :text
 #  sender_type               :string
@@ -33,6 +37,7 @@
 #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
 #  index_messages_on_conversation_id                    (conversation_id)
 #  index_messages_on_created_at                         (created_at)
+#  index_messages_on_deleted_at                         (deleted_at)
 #  index_messages_on_inbox_id                           (inbox_id)
 #  index_messages_on_sender_and_created                 (sender_type,sender_id,created_at)
 #  index_messages_on_source_id                          (source_id)
@@ -118,8 +123,9 @@ class Message < ApplicationRecord
   store :external_source_ids, accessors: [:slack], coder: JSON, prefix: :external_source_id
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }
-  scope :chat, -> { where.not(message_type: :activity).where(private: false) }
-  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc') }
+  scope :not_deleted, -> { where(deleted_at: nil) }
+  scope :chat, -> { where.not(message_type: :activity).where(private: false, deleted_at: nil) }
+  scope :non_activity_messages, -> { where.not(message_type: :activity).where(deleted_at: nil).reorder('created_at desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
   scope :not_forwarded, -> { where("(messages.content_attributes #>> '{}')::jsonb -> 'forwarded_message_id' IS NULL") }
   scope :voice_calls, -> { where(content_type: :voice_call) }
@@ -135,6 +141,8 @@ class Message < ApplicationRecord
   belongs_to :inbox
   belongs_to :conversation
   belongs_to :sender, polymorphic: true, optional: true
+  belongs_to :deleted_by, class_name: 'User', optional: true
+  belongs_to :audit_private_note, class_name: 'Message', optional: true
 
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
   has_one :csat_survey_response, dependent: :destroy_async

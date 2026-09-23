@@ -790,12 +790,15 @@ describe('#deleteMessage', () => {
   it('sends correct actions if API is success', async () => {
     const [conversationId, messageId] = [1, 1];
     axios.delete.mockResolvedValue({
-      data: { id: 1, content: 'deleted' },
+      data: { id: 1, deleted: true, deleted_at: '2026-09-23T14:32:00Z' },
     });
     await actions.deleteMessage({ commit }, { conversationId, messageId });
     expect(commit.mock.calls).toEqual([
-      [types.ADD_MESSAGE, { id: 1, content: 'deleted' }],
-      [types.DELETE_CONVERSATION_ATTACHMENTS, { id: 1, content: 'deleted' }],
+      [types.DELETE_MESSAGE, { conversationId, id: messageId }],
+      [
+        types.DELETE_CONVERSATION_ATTACHMENTS,
+        { id: messageId, conversation_id: conversationId, status: 'sent' },
+      ],
     ]);
   });
   it('sends no actions if API is error', async () => {

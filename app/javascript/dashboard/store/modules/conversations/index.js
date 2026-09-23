@@ -280,6 +280,19 @@ export const mutations = {
     }
   },
 
+  [types.DELETE_MESSAGE]({ allConversations }, { conversationId, id }) {
+    const [chat] = getSelectedChatConversation({
+      allConversations,
+      selectedChatId: conversationId,
+    });
+    if (!chat) return;
+
+    const index = chat.messages.findIndex(m => m.id === id);
+    if (index !== -1) {
+      chat.messages.splice(index, 1);
+    }
+  },
+
   [types.ADD_CONVERSATION](_state, conversation) {
     const exists = _state.allConversations.some(c => c.id === conversation.id);
     if (!exists) {
