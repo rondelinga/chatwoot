@@ -1,1 +1,3 @@
-json.partial! 'api/v1/models/message', message: @message
+json.id @message.id
+json.deleted @message.deleted_at.present?
+json.deleted_at @message.deleted_at
