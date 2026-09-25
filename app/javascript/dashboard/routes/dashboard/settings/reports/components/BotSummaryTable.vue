@@ -57,14 +57,6 @@ const defaulSpanRender = cellProps =>
     cellProps.getValue()
   );
 
-const parseFormattedValue = value => {
-  if (!value || value === '--') return 0;
-  if (typeof value === 'string') {
-    return parseFloat(value.replace(/,/g, '')) || 0;
-  }
-  return value;
-};
-
 const columns = computed(() => [
   columnHelper.accessor('name', {
     header: t('BOT_REPORTS.TABLE.BOT_NAME'),
@@ -78,8 +70,8 @@ const columns = computed(() => [
     cell: defaulSpanRender,
     enableSorting: true,
     sortingFn: (rowA, rowB) => {
-      const a = parseFormattedValue(rowA.original.conversationsCount);
-      const b = parseFormattedValue(rowB.original.conversationsCount);
+      const a = rowA.original.conversationsCountRaw || 0;
+      const b = rowB.original.conversationsCountRaw || 0;
       return a - b;
     },
   }),
@@ -144,6 +136,7 @@ const tableData = computed(() => {
       avgResolutionTime: renderAvgTime(avgResolutionTime),
       resolutionsCount: renderCount(resolvedConversationsCount),
       handoffsCount: renderCount(handoffsCount),
+      conversationsCountRaw: conversationsCount || 0,
       avgFirstResponseTimeRaw: avgFirstResponseTime || 0,
       avgReplyTimeRaw: avgReplyTime || 0,
       avgResolutionTimeRaw: avgResolutionTime || 0,

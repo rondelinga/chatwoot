@@ -96,14 +96,6 @@ const defaulSpanRender = cellProps =>
     cellProps.getValue()
   );
 
-const parseFormattedValue = value => {
-  if (!value || value === '--') return 0;
-  if (typeof value === 'string') {
-    return parseFloat(value.replace(/,/g, '')) || 0;
-  }
-  return value;
-};
-
 const columns = computed(() => {
   const baseColumns = [
     columnHelper.accessor('name', {
@@ -122,8 +114,8 @@ const columns = computed(() => {
       cell: defaulSpanRender,
       enableSorting: true,
       sortingFn: (rowA, rowB) => {
-        const a = parseFormattedValue(rowA.original.conversationsCount);
-        const b = parseFormattedValue(rowB.original.conversationsCount);
+        const a = rowA.original.conversationsCountRaw || 0;
+        const b = rowB.original.conversationsCountRaw || 0;
         return a - b;
       },
     }),
@@ -166,8 +158,8 @@ const columns = computed(() => {
       cell: defaulSpanRender,
       enableSorting: true,
       sortingFn: (rowA, rowB) => {
-        const a = parseFormattedValue(rowA.original.resolutionsCount);
-        const b = parseFormattedValue(rowB.original.resolutionsCount);
+        const a = rowA.original.resolutionsCountRaw || 0;
+        const b = rowB.original.resolutionsCountRaw || 0;
         return a - b;
       },
     }),
@@ -253,6 +245,8 @@ const tableData = computed(() => {
       avgReplyTime: renderAvgTime(avgReplyTime),
       avgResolutionTime: renderAvgTime(avgResolutionTime),
       resolutionsCount: renderCount(resolvedConversationsCount),
+      conversationsCountRaw: conversationsCount || 0,
+      resolutionsCountRaw: resolvedConversationsCount || 0,
       avgFirstResponseTimeRaw: avgFirstResponseTime || 0,
       avgReplyTimeRaw: avgReplyTime || 0,
       avgResolutionTimeRaw: avgResolutionTime || 0,
