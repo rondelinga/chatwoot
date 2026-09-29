@@ -1,5 +1,5 @@
 <script setup>
-import { computed, h } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 import {
   useVueTable,
   createColumnHelper,
@@ -13,7 +13,9 @@ import Spinner from 'shared/components/Spinner.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
 import AgentCell from './AgentCell.vue';
+import { compareOverviewAgents } from './overviewAgentSort';
 
 const { agents, agentMetrics } = defineProps({
   agents: {
@@ -45,11 +47,24 @@ const handlePageSizeChange = pageSize => {
   updateUISettings({ [AGENT_TABLE_PAGE_SIZE_KEY]: pageSize });
 };
 
+const searchQuery = ref('');
+
 const getAgentMetrics = id =>
   agentMetrics.find(metrics => metrics.assignee_id === Number(id)) || {};
 
+const filteredAgents = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return agents;
+
+  return agents.filter(agent => {
+    const name = (agent.available_name || agent.name || '').toLowerCase();
+    const email = (agent.email || '').toLowerCase();
+    return name.includes(query) || email.includes(query);
+  });
+});
+
 const tableData = computed(() =>
-  agents
+  filteredAgents.value
     .map(agent => {
       const metric = getAgentMetrics(agent.id);
       return {
@@ -61,16 +76,10 @@ const tableData = computed(() =>
         status: agent.availability_status,
       };
     })
-    .sort((a, b) => {
-      // First sort by open tickets (descending)
-      const openDiff = b.open - a.open;
-      // If open tickets are equal, sort by name (ascending)
-      if (openDiff === 0) {
-        return a.agent.localeCompare(b.agent);
-      }
-      return openDiff;
-    })
+    .sort(compareOverviewAgents)
 );
+
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0);
 
 const defaulSpanRender = cellProps =>
   h(
@@ -110,6 +119,7 @@ const table = useVueTable({
   },
   columns,
   enableSorting: false,
+  autoResetPageIndex: false,
   getCoreRowModel: getCoreRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   initialState: {
@@ -118,13 +128,38 @@ const table = useVueTable({
     },
   },
 });
+
+const clampPageIndex = rows => {
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const lastPageIndex = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+  if (pageIndex > lastPageIndex) table.setPageIndex(lastPageIndex);
+};
+
+watch(searchQuery, () => {
+  table.setPageIndex(0);
+});
+
+watch(tableData, clampPageIndex);
 </script>
 
 <template>
-  <div class="flex flex-col flex-1">
-    <Table :table="table" class="max-h-[calc(100vh-21.875rem)]" />
+  <div class="flex flex-col flex-1 min-h-0 gap-3">
+    <Input
+      v-if="agents.length"
+      v-model="searchQuery"
+      size="sm"
+      :placeholder="
+        $t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.SEARCH_PLACEHOLDER')
+      "
+    />
+    <div
+      v-if="!isLoading && agents.length"
+      class="min-h-0 max-h-[80vh] overflow-y-auto flex-1"
+    >
+      <Table :table="table" />
+    </div>
     <Pagination
-      class="mt-2"
+      v-if="!isLoading && tableData.length"
       :table="table"
       show-page-size-selector
       :default-page-size="getPageSize()"
@@ -142,6 +177,10 @@ const table = useVueTable({
     <EmptyState
       v-else-if="!isLoading && !agents.length"
       :title="$t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.NO_AGENTS')"
+    />
+    <EmptyState
+      v-else-if="!isLoading && hasSearchQuery && !tableData.length"
+      :title="$t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.NO_SEARCH_RESULTS')"
     />
   </div>
 </template>

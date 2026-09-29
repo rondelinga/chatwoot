@@ -17,6 +17,7 @@ import DeleteCustomViews from 'dashboard/routes/dashboard/customviews/DeleteCust
 import ConversationBulkActions from './widgets/conversation/conversationBulkActions/Index.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
+import AgentsOverviewModal from './widgets/conversation/AgentsOverviewModal.vue';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
@@ -91,6 +92,7 @@ const chatsOnView = ref([]);
 const foldersQuery = useMapGetter('getAppliedConversationFiltersQuery');
 const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
+const showAgentsOverviewModal = ref(false);
 const appliedFilter = ref([]);
 const advancedFilterTypes = ref(
   advancedFilterOptions.map(filter => ({
@@ -973,7 +975,10 @@ watch(appliedFilters, () => resetBulkActions());
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetFilters"
       @basic-filter-change="onBasicFilterChange"
+      @show-agents-overview="showAgentsOverviewModal = true"
     />
+
+    <AgentsOverviewModal v-model:show="showAgentsOverviewModal" />
 
     <TeleportWithDirection
       v-if="showAddFoldersModal"

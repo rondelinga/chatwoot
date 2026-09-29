@@ -11,6 +11,10 @@
     },
     "FAILED_TO_SEND": "Failed to send",
     "FETCH_ERROR": "Couldn't load conversations. Please try again.",
+    "AGENTS_OVERVIEW": {
+      "BUTTON": "Overview",
+      "TOOLTIP": "View open conversations by agent"
+    },
     "TAB_HEADING": "Conversations",
     "MENTION_HEADING": "Mentions",
     "UNATTENDED_HEADING": "Unattended",

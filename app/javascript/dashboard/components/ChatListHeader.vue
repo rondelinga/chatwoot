@@ -26,6 +26,7 @@ const emit = defineEmits([
   'resetFilters',
   'basicFilterChange',
   'filtersModal',
+  'showAgentsOverview',
 ]);
 
 const { uiSettings, updateUISettings } = useUISettings();
@@ -109,7 +110,17 @@ const toggleConversationLayout = () => {
         {{ $t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${activeStatus}.TEXT`) }}
       </span>
     </div>
-    <div class="flex items-center gap-1">
+    <NextButton
+      v-tooltip.top-end="$t('CHAT_LIST.AGENTS_OVERVIEW.TOOLTIP')"
+      :label="$t('CHAT_LIST.AGENTS_OVERVIEW.BUTTON')"
+      icon="i-lucide-users"
+      slate
+      xs
+      faded
+      class="shrink-0"
+      @click="emit('showAgentsOverview')"
+    />
+    <div class="flex items-center gap-1 shrink-0">
       <template v-if="hasAppliedFilters && !hasActiveFolders">
         <div class="relative">
           <NextButton
