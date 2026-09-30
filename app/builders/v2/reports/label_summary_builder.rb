@@ -121,23 +121,19 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_resolved_counts
-    reporting_event_filter = { name: 'conversation_resolved', account_id: account.id }
-    reporting_event_filter[:created_at] = range if range.present?
-
     scope = ReportingEvent
-      .joins(conversation: { taggings: :tag })
-      .where(
-        reporting_event_filter.merge(
-          taggings: { taggable_type: 'Conversation', context: 'labels' }
-        )
-      )
-    
-    scope = scope.where(user_id: params[:user_ids]&.reject(&:blank?)) if params[:user_ids].present?
-    scope = scope.where(inbox_id: params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids].present?
-    scope = scope.joins(:conversation).where(conversations: { team_id: params[:team_ids]&.reject(&:blank?) }) if params[:team_ids].present?
+            .joins(conversation: { taggings: :tag })
+            .where(
+              name: 'conversation_resolved',
+              conversations: build_conversation_filter,
+              taggings: { taggable_type: 'Conversation', context: 'labels' }
+            )
+
+    scope = scope.where(user_id: params[:user_ids].reject(&:blank?)) if params[:user_ids].present?
+    scope = scope.where(inbox_id: params[:inbox_ids].reject(&:blank?)) if params[:inbox_ids].present?
     scope = restrict_to_selected_labels(scope)
 
-    scope.group('tags.name').count
+    scope.group('tags.name').count('DISTINCT reporting_events.id')
   end
 
   def fetch_counts(conversation_filter)
@@ -149,7 +145,7 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
         context: 'labels',
         conversations: conversation_filter
       ).then { |scope| restrict_tag_ids(scope) }
-      .select('tags.name, COUNT(taggings.*) AS count')
+      .select('tags.name, COUNT(DISTINCT taggings.taggable_id) AS count')
       .group('tags.name')
       .each_with_object({}) { |record, hash| hash[record.name] = record.count }
   end

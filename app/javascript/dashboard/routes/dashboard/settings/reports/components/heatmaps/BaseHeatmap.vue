@@ -36,11 +36,13 @@ const { t } = useI18n();
 
 function formatDate(dateString) {
   const date = new Date(dateString);
+  const year = date.getUTCFullYear();
   const month = date.toLocaleString('en-US', {
     month: 'short',
     timeZone: 'UTC',
   });
-  return `${month} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+  const day = date.getUTCDate();
+  return `${month} ${day}, ${year}`;
 }
 
 const DAYS_OF_WEEK = [
@@ -52,6 +54,11 @@ const DAYS_OF_WEEK = [
   t('DAYS_OF_WEEK.FRIDAY'),
   t('DAYS_OF_WEEK.SATURDAY'),
 ];
+
+function getDayOfTheWeek(date) {
+  const dayIndex = date.getUTCDay();
+  return DAYS_OF_WEEK[dayIndex];
+}
 
 const columns = Array.from({ length: 24 }, (_, hour) => ({
   id: hour,
@@ -89,7 +96,7 @@ const chartData = computed(() => {
 
     return {
       id: dateKey,
-      label: DAYS_OF_WEEK[date.getUTCDay()],
+      label: getDayOfTheWeek(date),
       description: formatDate(dateKey),
       data: columns.map(({ id }) => valuesByHour.get(id) ?? null),
     };

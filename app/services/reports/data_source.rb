@@ -1,6 +1,4 @@
 class Reports::DataSource
-  include TimezoneHelper
-
   attr_reader :account, :metric, :dimension_type, :dimension_id,
               :scope, :range, :group_by, :timezone_offset,
               :business_hours, :user_ids, :inbox_ids, :team_ids, :label_ids
@@ -59,7 +57,7 @@ class Reports::DataSource
   end
 
   def timezone
-    @timezone ||= timezone_name_from_offset(timezone_offset)
+    'UTC'
   end
 
   def use_business_hours?

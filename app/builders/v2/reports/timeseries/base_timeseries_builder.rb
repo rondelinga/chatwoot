@@ -1,5 +1,4 @@
 class V2::Reports::Timeseries::BaseTimeseriesBuilder
-  include TimezoneHelper
   include DateRangeHelper
 
   DEFAULT_GROUP_BY = 'day'.freeze
@@ -31,7 +30,9 @@ class V2::Reports::Timeseries::BaseTimeseriesBuilder
       range: range,
       group_by: group_by,
       timezone_offset: params[:timezone_offset],
-      business_hours: params[:business_hours]
+      business_hours: params[:business_hours],
+      inbox_ids: params[:inbox_ids],
+      user_ids: params[:user_ids]
     )
   end
 
@@ -56,7 +57,7 @@ class V2::Reports::Timeseries::BaseTimeseriesBuilder
   end
 
   def timezone
-    @timezone ||= timezone_name_from_offset(params[:timezone_offset])
+    'UTC'
   end
 
   private

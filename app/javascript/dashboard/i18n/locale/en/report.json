@@ -823,7 +823,15 @@
   "QUEUED_CUSTOMERS_REPORTS": {
     "HEADER": "Queued customers",
     "DESCRIPTION": "Track queue load, conversion and waiting time trends.",
+    "QUEUE_FLOW_ARIA_LABEL": "Queued customers, entered chat and left queue by day",
+    "WAITING_TIME_ARIA_LABEL": "Time to enter chat and time to leave queue by day",
     "HEATMAP_TITLE": "Queue heatmap",
+    "HEATMAP_ARIA_LABEL": "Queued customers by day and hour",
+    "HEATMAP": {
+      "NO_CUSTOMERS": "No queued customers",
+      "CUSTOMER": "{count} queued customer",
+      "CUSTOMERS": "{count} queued customers"
+    },
     "FETCH_FAILED": "Failed to fetch queued customers report",
     "CARDS": {
       "QUEUED_CUSTOMERS": "Queued customers",

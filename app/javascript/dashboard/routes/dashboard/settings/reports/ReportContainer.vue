@@ -2,8 +2,7 @@
 import { mapGetters } from 'vuex';
 import { useReportMetrics } from 'dashboard/composables/useReportMetrics';
 import { GROUP_BY_FILTER } from './constants';
-import fromUnixTime from 'date-fns/fromUnixTime';
-import format from 'date-fns/format';
+import { format, fromUnixTime } from 'date-fns';
 import { formatTime } from '@chatwoot/utils';
 import { useAlert } from 'dashboard/composables';
 import ChartStats from './components/ChartElements/ChartStats.vue';
@@ -323,7 +322,7 @@ export default {
 
 <template>
   <div
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 mt-4"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
     <div
       v-for="metric in metrics"
