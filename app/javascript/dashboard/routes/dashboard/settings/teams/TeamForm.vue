@@ -46,7 +46,7 @@ export default {
     const {
       description = '',
       name: title = '',
-      allow_auto_assign: allowAutoAssign = true,
+      allow_auto_assign: allowAutoAssign = false,
       icon = '',
       icon_color: iconColor = '',
     } = formData;

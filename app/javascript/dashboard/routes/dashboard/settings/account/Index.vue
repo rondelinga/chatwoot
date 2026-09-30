@@ -16,6 +16,8 @@ import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import SectionLayout from './components/SectionLayout.vue';
+import NextSwitch from 'next/switch/Switch.vue';
+import TextArea from 'next/textarea/TextArea.vue';
 
 export default {
   components: {
@@ -28,6 +30,8 @@ export default {
     SectionLayout,
     WithLabel,
     NextInput,
+    NextSwitch,
+    TextArea,
   },
   setup() {
     const { updateUISettings, uiSettings } = useUISettings();
@@ -45,6 +49,10 @@ export default {
       domain: '',
       supportEmail: '',
       features: {},
+      activeChatLimitEnabled: false,
+      activeChatLimitValue: null,
+      queueEnabled: false,
+      queueMessage: '',
     };
   },
   validations: {
@@ -100,6 +108,11 @@ export default {
         this.initializeAccount();
       }
     },
+    activeChatLimitValue(val) {
+      if (val !== null && val < 0) {
+        this.activeChatLimitValue = 0;
+      }
+    },
   },
   mounted() {
     // Account already in the store (navigated in): seed immediately.
@@ -110,8 +123,18 @@ export default {
   methods: {
     async initializeAccount() {
       try {
-        const { name, locale, id, domain, support_email, features } =
-          this.getAccount(this.accountId);
+        const {
+          name,
+          locale,
+          id,
+          domain,
+          support_email,
+          features,
+          queue_enabled,
+          queue_message,
+          active_chat_limit_enabled,
+          active_chat_limit_value,
+        } = this.getAccount(this.accountId);
 
         const effectiveLocale = this.uiSettings?.locale || locale;
         if (effectiveLocale) {
@@ -123,8 +146,23 @@ export default {
         this.domain = domain;
         this.supportEmail = support_email;
         this.features = features;
+        this.queueEnabled = queue_enabled;
+        this.queueMessage = queue_message || '';
+        this.activeChatLimitEnabled = active_chat_limit_enabled;
+        this.activeChatLimitValue = active_chat_limit_value;
       } catch (error) {
         // Ignore error
+      }
+    },
+
+    handleLimitKeydown(event) {
+      const blockedKeys = ['-', 'e', 'E', '+'];
+      if (blockedKeys.includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key === 'ArrowDown' && (this.activeChatLimitValue ?? 0) <= 0) {
+        event.preventDefault();
       }
     },
 
@@ -140,6 +178,10 @@ export default {
           name: this.name,
           domain: this.domain,
           support_email: this.supportEmail,
+          queue_enabled: this.queueEnabled,
+          queue_message: this.queueMessage,
+          active_chat_limit_enabled: this.activeChatLimitEnabled,
+          active_chat_limit_value: this.activeChatLimitValue,
         });
         // If user locale is set, update the locale with user locale
         const updatedLocale = this.uiSettings?.locale || this.locale;
@@ -216,7 +258,6 @@ export default {
                 featureInboundEmailEnabled &&
                 $t('GENERAL_SETTINGS.FORM.FEATURES.INBOUND_EMAIL_ENABLED')
               }}
-
               {{
                 featureCustomReplyDomainEnabled &&
                 $t('GENERAL_SETTINGS.FORM.FEATURES.CUSTOM_EMAIL_DOMAIN_ENABLED')
@@ -237,6 +278,38 @@ export default {
               "
             />
           </WithLabel>
+          <div class="mb-2 text-sm font-medium leading-6 text-n-slate-12">
+            <div class="flex items-center justify-between">
+              <span>{{ $t('GENERAL_SETTINGS.FORM.LIMIT_ENABLED') }}</span>
+              <NextSwitch v-model="activeChatLimitEnabled" />
+            </div>
+            <div v-if="activeChatLimitEnabled" class="mt-2">
+              <NextInput
+                v-model.number="activeChatLimitValue"
+                type="number"
+                class="w-full"
+                :min="0"
+                :placeholder="$t('GENERAL_SETTINGS.FORM.LIMIT_VALUE')"
+                @keydown="handleLimitKeydown"
+              />
+            </div>
+          </div>
+          <div
+            class="flex items-center justify-between mb-2 text-sm font-medium leading-6 text-n-slate-12"
+          >
+            <span>{{ $t('GENERAL_SETTINGS.FORM.QUEUE_ENABLED') }}</span>
+            <NextSwitch v-model="queueEnabled" />
+          </div>
+          <TextArea
+            v-if="queueEnabled"
+            v-model="queueMessage"
+            class="mt-4"
+            :label="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.LABEL')"
+            :placeholder="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.PLACEHOLDER')"
+            :message="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.HELP')"
+            :max-length="1000"
+            resize
+          />
           <div>
             <NextButton blue :is-loading="isUpdating" type="submit">
               {{ $t('GENERAL_SETTINGS.SUBMIT') }}

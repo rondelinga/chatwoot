@@ -1,0 +1,73 @@
+{
+  "ROUTING_TYPES": {
+    "HEADER": "Routing Types",
+    "DESCRIPTION": "Automatically assign a conversation to the right team and bot based on a conversation attribute.",
+    "LEARN_MORE": "Learn more about routing types",
+    "SEARCH_PLACEHOLDER": "Search routing types",
+    "COUNT": "{n} routing types",
+    "LOADING": "Loading routing types",
+    "HEADER_BTN_TXT": "Add routing type",
+    "NO_RESULTS": "No routing types match your search",
+    "LIST": {
+      "404": "There are no routing types configured yet.",
+      "TABLE_HEADER": {
+        "NAME": "Name",
+        "ATTRIBUTE_KEY": "Contact Attribute",
+        "ATTRIBUTE_VALUE": "Value",
+        "ACTION": "Actions"
+      }
+    },
+    "ADD": {
+      "BUTTON_TEXT": "Add routing type",
+      "TITLE": "Add a new routing type",
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "FORM": {
+        "SUBMIT": "Create"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Routing type created successfully",
+        "ERROR_MESSAGE": "Could not create routing type"
+      }
+    },
+    "EDIT": {
+      "TITLE": "Edit routing type",
+      "CANCEL_BUTTON_TEXT": "Cancel",
+      "FORM": {
+        "SUBMIT": "Update"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Routing type updated successfully",
+        "ERROR_MESSAGE": "Could not update routing type"
+      }
+    },
+    "DELETE": {
+      "TITLE": "Delete routing type",
+      "CONFIRM": {
+        "TITLE": "Confirm deletion",
+        "MESSAGE": "Are you sure you want to delete",
+        "YES": "Yes, delete",
+        "NO": "No, keep it"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Routing type deleted successfully",
+        "ERROR_MESSAGE": "Could not delete routing type"
+      }
+    },
+    "FORM": {
+      "NAME": {
+        "LABEL": "Name",
+        "PLACEHOLDER": "e.g. VIP Support"
+      },
+      "ATTRIBUTE_KEY": {
+        "LABEL": "Attribute",
+        "PLACEHOLDER": "Select conversation attribute"
+      },
+      "ATTRIBUTE_VALUE": {
+        "LABEL": "Value",
+        "PLACEHOLDER": "e.g. vip"
+      },
+      "EDIT": "Edit",
+      "DELETE": "Delete"
+    }
+  }
+}

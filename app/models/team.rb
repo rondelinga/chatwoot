@@ -23,6 +23,8 @@ class Team < ApplicationRecord
   belongs_to :account
   has_many :team_members, dependent: :destroy_async
   has_many :members, through: :team_members, source: :user
+  has_many :inbox_teams, dependent: :destroy_async
+  has_many :inboxes, through: :inbox_teams
   has_many :conversations, dependent: :nullify
 
   before_destroy :capture_filtered_unread_count_member_ids, prepend: true
@@ -46,6 +48,31 @@ class Team < ApplicationRecord
 
     update_account_cache
     added_users
+  end
+
+  def sync_members(primary_user_ids:, backup_user_ids:)
+    primary_ids = Array(primary_user_ids).map(&:to_i)
+    backup_ids = Array(backup_user_ids).map(&:to_i)
+    all_user_ids = (primary_ids + backup_ids).uniq
+
+    transaction do
+      remove_members(members.pluck(:id) - all_user_ids)
+
+      primary_ids.each do |user_id|
+        member = team_members.find_or_initialize_by(user_id: user_id)
+        member.assignment_tier = :primary
+        member.save!
+      end
+
+      backup_ids.each do |user_id|
+        member = team_members.find_or_initialize_by(user_id: user_id)
+        member.assignment_tier = :backup
+        member.save!
+      end
+    end
+
+    update_account_cache
+    team_members.includes(:user)
   end
 
   # Removes multiple members from the team

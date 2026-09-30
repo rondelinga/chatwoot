@@ -64,9 +64,12 @@ class Inbox < ApplicationRecord
   has_many :campaigns, dependent: :destroy_async
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :contacts, through: :contact_inboxes
+  has_many :conversation_queues, dependent: :destroy
 
   has_many :inbox_members, dependent: :destroy_async
   has_many :members, through: :inbox_members, source: :user
+  has_many :inbox_teams, dependent: :destroy
+  has_many :teams, through: :inbox_teams
   has_many :conversations, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async
   has_many :email_templates, dependent: :destroy_async
@@ -103,6 +106,25 @@ class Inbox < ApplicationRecord
   def remove_members(user_ids)
     inbox_members.where(user_id: user_ids).destroy_all
     update_account_cache
+  end
+
+  # Updates teams linked to the inbox and syncs collaborators from team members.
+  # @param team_ids [Array<Integer>] Array of team IDs to link
+  # @return [void]
+  def update_teams(team_ids)
+    normalized_team_ids = Array(team_ids).map(&:to_i).uniq
+    valid_team_ids = account.teams.where(id: normalized_team_ids).pluck(:id)
+    current_team_ids = inbox_teams.pluck(:team_id)
+
+    to_add = valid_team_ids - current_team_ids
+    to_remove = current_team_ids - valid_team_ids
+
+    ActiveRecord::Base.transaction do
+      to_add.each { |team_id| inbox_teams.create!(team_id: team_id) }
+      inbox_teams.where(team_id: to_remove).delete_all
+    end
+
+    Inboxes::MembersSyncService.new(inbox: self).perform
   end
 
   # Sanitizes inbox name for balanced email provider compatibility

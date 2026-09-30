@@ -715,6 +715,11 @@ const menuItems = computed(() => {
           to: accountScopedRoute('csat_reports'),
         },
         {
+          name: 'Reports Queued Customers',
+          label: t('SIDEBAR.REPORTS_QUEUED_CUSTOMERS'),
+          to: accountScopedRoute('queued_customers_reports'),
+        },
+        {
           name: 'Reports SLA',
           label: t('SIDEBAR.REPORTS_SLA'),
           to: accountScopedRoute('sla_reports'),
@@ -843,6 +848,13 @@ const menuItems = computed(() => {
             'settings_teams_edit_finish',
           ],
           to: accountScopedRoute('settings_teams_list'),
+        },
+        {
+          name: 'Settings Routing Types',
+          label: t('SIDEBAR.ROUTING_TYPES'),
+          icon: 'i-lucide-route',
+          activeOn: ['routing_types_list'],
+          to: accountScopedRoute('routing_types_list'),
         },
         ...(hasAdvancedAssignment.value
           ? [

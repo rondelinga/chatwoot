@@ -10,6 +10,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     identify_action = nil
     ActiveRecord::Base.transaction do
       identify_action = process_update_contact
+      @contact_inbox = @contact.contact_inboxes.find_by(source_id: @contact_inbox.source_id) || @contact_inbox
       @conversation = create_conversation
       conversation.messages.create!(message_params)
     end

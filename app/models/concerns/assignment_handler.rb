@@ -14,6 +14,8 @@ module AssignmentHandler
     return if ai_assignee_type.present?
 
     validate_current_assignee_team
+    return if assignee_agent_bot_id.present?
+
     self.assignee ||= find_assignee_from_team
   end
 

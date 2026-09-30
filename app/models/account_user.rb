@@ -2,20 +2,22 @@
 #
 # Table name: account_users
 #
-#  id                       :bigint           not null, primary key
-#  accepts_calls            :boolean          default(TRUE), not null
-#  accepts_conversations    :boolean          default(TRUE), not null
-#  active_at                :datetime
-#  auto_offline             :boolean          default(TRUE), not null
-#  availability             :integer          default("online"), not null
-#  role                     :integer          default("agent")
-#  created_at               :datetime         not null
-#  updated_at               :datetime         not null
-#  account_id               :bigint
-#  agent_capacity_policy_id :bigint
-#  custom_role_id           :bigint
-#  inviter_id               :bigint
-#  user_id                  :bigint
+#  id                        :bigint           not null, primary key
+#  accepts_calls             :boolean          default(TRUE), not null
+#  accepts_conversations     :boolean          default(TRUE), not null
+#  active_at                 :datetime
+#  active_chat_limit         :integer
+#  active_chat_limit_enabled :boolean          default(FALSE), not null
+#  auto_offline              :boolean          default(TRUE), not null
+#  availability              :integer          default("online"), not null
+#  role                      :integer          default("agent")
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
+#  account_id                :bigint
+#  agent_capacity_policy_id  :bigint
+#  custom_role_id            :bigint
+#  inviter_id                :bigint
+#  user_id                   :bigint
 #
 # Indexes
 #
@@ -43,6 +45,7 @@ class AccountUser < ApplicationRecord
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
   after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
   after_update_commit :invalidate_filtered_unread_count_visibility_update, if: :filtered_unread_count_visibility_changed?
+  after_commit :process_queue_when_agent_available, if: :saved_change_to_availability?
 
   validates :user_id, uniqueness: { scope: :account_id }
   validate :accepts_conversations_or_calls
@@ -69,6 +72,10 @@ class AccountUser < ApplicationRecord
       role: role,
       user_id: user_id
     }
+  end
+
+  def active_chat_limit_enabled?
+    active_chat_limit_enabled
   end
 
   private
@@ -105,6 +112,16 @@ class AccountUser < ApplicationRecord
     return if accepts_conversations || accepts_calls
 
     errors.add(:base, I18n.t('errors.account_user.no_work_preference'))
+  end
+
+  def process_queue_when_agent_available
+    # When agent becomes online, process queue
+    return unless account.queue_enabled?
+    return unless online?
+
+    account.inboxes.pluck(:id).each do |_inbox_id|
+      ChatQueue::ProcessQueueJob.perform_later(account.id)
+    end
   end
 end
 

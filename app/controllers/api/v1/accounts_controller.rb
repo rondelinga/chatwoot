@@ -53,7 +53,14 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def update
-    @account.assign_attributes(account_params.slice(:name, :locale, :domain, :support_email))
+    @account.assign_attributes(
+      account_params.slice(
+        :name, :locale, :domain, :support_email,
+        :queue_enabled, :queue_message,
+        :active_chat_limit_enabled, :active_chat_limit_value
+      )
+    )
+    @account.queue_enabled = params[:queue_enabled] if params.key?(:queue_enabled)
     @account.custom_attributes.merge!(custom_attributes_params)
     @account.settings.merge!(settings_params)
     @account.custom_attributes['onboarding_step'] = 'invite_team' if @account.custom_attributes['onboarding_step'] == 'account_update'
@@ -120,17 +127,9 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def account_params
-    params.permit(
-      :account_name,
-      :email,
-      :name,
-      :password,
-      :locale,
-      :domain,
-      :support_email,
-      :user_full_name,
-      :shopify_pending_install_token
-    )
+    params.permit(:account_name, :email, :name, :password, :locale, :domain, :support_email, :user_full_name,
+                  :queue_enabled, :queue_message, :active_chat_limit_enabled, :active_chat_limit_value,
+                  :shopify_pending_install_token)
   end
 
   def render_shopify_signup_error(exception)

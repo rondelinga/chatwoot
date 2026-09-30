@@ -36,12 +36,14 @@ import globalConfig from 'shared/store/globalConfig';
 import inboxAssignableAgents from './modules/inboxAssignableAgents';
 import inboxes from './modules/inboxes';
 import inboxMembers from './modules/inboxMembers';
+import inboxTeams from './modules/inboxTeams';
 import integrations from './modules/integrations';
 import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
 import reports from './modules/reports';
+import routingTypes from './modules/routingTypes';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
 import sidebarSortPreferences from './modules/sidebarSortPreferences';
@@ -103,12 +105,14 @@ export default createStore({
     inboxAssignableAgents,
     inboxes,
     inboxMembers,
+    inboxTeams,
     integrations,
     labels,
     macros,
     notifications,
     portals,
     reports,
+    routingTypes,
     sla,
     slaReports,
     sidebarSortPreferences,
