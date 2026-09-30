@@ -103,12 +103,10 @@ export default {
             },
             {
               path: 'finish',
-              name: 'settings_teams_edit_finish',
-              meta: {
-                featureFlag: FEATURE_FLAGS.TEAM_MANAGEMENT,
-                permissions: ['administrator'],
-              },
-              component: FinishSetup,
+              redirect: to => ({
+                name: 'settings_teams_edit',
+                params: to.params,
+              }),
             },
           ],
         },

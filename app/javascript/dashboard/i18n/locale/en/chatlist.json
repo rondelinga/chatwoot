@@ -30,6 +30,9 @@
       "pending": {
         "TEXT": "Pending"
       },
+      "queued": {
+        "TEXT": "Queued"
+      },
       "snoozed": {
         "TEXT": "Snoozed"
       },

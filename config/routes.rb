@@ -388,6 +388,11 @@ Rails.application.routes.draw do
               patch :update
             end
           end
+          resources :inbox_teams, only: [:show], param: :inbox_id do
+            collection do
+              patch :update
+            end
+          end
           resources :labels, only: [:index, :show, :create, :update, :destroy]
 
           resources :notifications, only: [:index, :update, :destroy] do
@@ -403,6 +408,8 @@ Rails.application.routes.draw do
           end
           resource :notification_settings, only: [:show, :update]
 
+          resource :inbox_teams, only: [:show, :update]
+          resources :routing_types, only: [:index, :create, :update, :destroy]
           resources :teams do
             resources :team_members, only: [:index, :create] do
               collection do
@@ -629,6 +636,7 @@ Rails.application.routes.draw do
               get :inbox_label_matrix
               get :first_response_time_distribution
               get :outgoing_messages_count
+              get :queued_customers
             end
           end
           resource :year_in_review, only: [:show]
