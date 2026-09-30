@@ -7,7 +7,7 @@
 
 class ContactIdentifyAction
   include UrlHelper
-  pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false }]
+  pattr_initialize [:contact!, :params!, :inbox_id!, { retain_original_contact_name: false, discard_invalid_attrs: false }]
 
   def perform
     @attributes_to_update = [:identifier, :name, :email, :phone_number]
@@ -25,6 +25,10 @@ class ContactIdentifyAction
 
   def account
     @account ||= @contact.account
+  end
+
+  def contacts_in_inbox
+    @contacts_in_inbox ||= account.contacts.in_inbox(inbox_id)
   end
 
   def merge_if_existing_identified_contact
@@ -54,23 +58,24 @@ class ContactIdentifyAction
   def existing_identified_contact
     return if params[:identifier].blank?
 
-    @existing_identified_contact ||= account.contacts.find_by(identifier: params[:identifier])
+    @existing_identified_contact ||= contacts_in_inbox.find_by(identifier: params[:identifier])
   end
 
   def existing_email_contact
     return if params[:email].blank?
 
-    @existing_email_contact ||= account.contacts.from_email(params[:email])
+    @existing_email_contact ||= contacts_in_inbox.from_email(params[:email])
   end
 
   def existing_phone_number_contact
     return if params[:phone_number].blank?
 
-    @existing_phone_number_contact ||= account.contacts.find_by(phone_number: params[:phone_number])
+    @existing_phone_number_contact ||= contacts_in_inbox.find_by(phone_number: params[:phone_number])
   end
 
   def merge_contacts?(existing_contact, key)
     return if existing_contact.blank?
+    return false if existing_contact.id == @contact.id
 
     return true if params[:identifier].blank?
 
