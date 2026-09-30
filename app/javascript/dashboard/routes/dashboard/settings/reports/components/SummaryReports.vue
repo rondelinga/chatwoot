@@ -1,9 +1,5 @@
 <script setup>
-import OverviewReportFilters from './OverviewReportFilters.vue';
-import ReportsFiltersAgents from './Filters/Agents.vue';
-import ReportsFiltersInboxes from './Filters/Inboxes.vue';
-import ReportsFiltersTeams from './Filters/Teams.vue';
-import ReportsFiltersLabels from './Filters/Labels.vue';
+import ReportFilterSelector from './FilterSelector.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { formatTime } from '@chatwoot/utils';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -322,26 +318,6 @@ const onFilterChange = updatedFilter => {
   fetchAllData();
 };
 
-const onAgentsFilter = agents => {
-  selectedAgents.value = agents || [];
-  fetchAllData();
-};
-
-const onInboxesFilter = inboxes => {
-  selectedInboxes.value = inboxes || [];
-  fetchAllData();
-};
-
-const onTeamsFilter = teams => {
-  selectedTeams.value = teams || [];
-  fetchAllData();
-};
-
-const onLabelsFilter = labels => {
-  selectedLabels.value = labels || [];
-  fetchAllData();
-};
-
 const table = useVueTable({
   get data() {
     return tableData.value;
@@ -402,16 +378,14 @@ defineExpose({ downloadReports });
 
 <template>
   <div class="flex flex-col gap-3">
-    <OverviewReportFilters
-      :disabled="isLoading"
+    <ReportFilterSelector
+      show-time-range-filter
+      show-agents-filter
+      show-inbox-filter
+      show-team-filter
+      show-labels-filter
       @filter-change="onFilterChange"
     />
-    <div class="flex items-center gap-3">
-      <ReportsFiltersAgents @agents-filter-selection="onAgentsFilter" />
-      <ReportsFiltersInboxes @inbox-filter-selection="onInboxesFilter" />
-      <ReportsFiltersTeams @team-filter-selection="onTeamsFilter" />
-      <ReportsFiltersLabels @labels-filter-selection="onLabelsFilter" />
-    </div>
   </div>
   <div
     class="relative flex-1 overflow-hidden px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"

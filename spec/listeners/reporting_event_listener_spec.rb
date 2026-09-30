@@ -426,7 +426,7 @@ describe ReportingEventListener do
         expect(opened_event.value).to eq 0
         expect(opened_event.value_in_business_hours).to eq 0
         expect(opened_event.event_start_time).to be_within(1.second).of(new_conversation.created_at)
-        expect(opened_event.event_end_time).to be_within(1.second).of(opened_at)
+        expect(opened_event.event_end_time).to be_within(1.second).of(new_conversation.updated_at)
       end
     end
 
@@ -478,15 +478,16 @@ describe ReportingEventListener do
         expect(reopened_event.user_id).to eq(user.id)
       end
 
-      it 'uses event timestamp even when conversation updated_at changes later' do
-        allow(reopened_conversation).to receive(:updated_at).and_return(reopened_time + 20.minutes)
+      it 'stores conversation updated_at as the opened event end time' do
+        updated_at = reopened_time + 20.minutes
+        allow(reopened_conversation).to receive(:updated_at).and_return(updated_at)
         event = Events::Base.new('conversation.opened', reopened_time, conversation: reopened_conversation)
 
         listener.conversation_opened(event)
 
         reopened_event = account.reporting_events.where(name: 'conversation_opened').first
         expect(reopened_event.value).to be_within(1).of(3600)
-        expect(reopened_event.event_end_time).to be_within(1.second).of(reopened_time)
+        expect(reopened_event.event_end_time).to be_within(1.second).of(updated_at)
       end
 
       context 'when business hours enabled for inbox' do
@@ -590,13 +591,13 @@ describe ReportingEventListener do
                event_end_time: future_resolved_time)
       end
 
-      it 'ignores future resolved events when computing reopen duration' do
+      it 'uses the latest resolved event even when it is after the opened timestamp' do
         event = Events::Base.new('conversation.opened', reopened_time, conversation: reopened_conversation)
         listener.conversation_opened(event)
 
         reopened_event = account.reporting_events.where(name: 'conversation_opened').first
-        expect(reopened_event.value).to be_within(1).of(3600)
-        expect(reopened_event.event_start_time).to be_within(1.second).of(previous_resolved_time)
+        expect(reopened_event.value).to be_within(1).of(reopened_time.to_i - future_resolved_time.to_i)
+        expect(reopened_event.event_start_time).to be_within(1.second).of(future_resolved_time)
         expect(reopened_event.event_end_time).to be_within(1.second).of(reopened_time)
       end
     end

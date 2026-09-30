@@ -19,11 +19,14 @@ class V2::Reports::BotSummaryReportBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_conversations_count
-    scope = account.conversations
-                   .where(created_at: range)
-                   .where.not(assignee_agent_bot_id: nil)
-    scope = scope.where(inbox_id: params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids]&.reject(&:blank?).present?
-    scope.group(:assignee_agent_bot_id).count
+    pairs = AgentBotInbox.where(account_id: account.id, status: :active).pluck(:inbox_id, :agent_bot_id)
+    allowed = Array(params[:inbox_ids]).reject(&:blank?).map(&:to_i)
+    pairs = pairs.select { |inbox_id, _bot_id| allowed.include?(inbox_id) } if allowed.present?
+    return {} if pairs.empty?
+
+    inbox_to_bot = pairs.to_h
+    account.conversations.where(created_at: range, inbox_id: inbox_to_bot.keys).group(:inbox_id).count
+           .each_with_object(Hash.new(0)) { |(inbox_id, count), result| result[inbox_to_bot[inbox_id]] += count }
   end
 
   def fetch_bot_handoffs_count

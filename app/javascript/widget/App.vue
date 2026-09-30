@@ -1,7 +1,7 @@
 <script>
 import { mapGetters, mapActions } from 'vuex';
 import { setHeader } from 'widget/helpers/axios';
-import addHours from 'date-fns/addHours';
+import { addHours } from 'date-fns';
 import { IFrameHelper, RNHelper } from 'widget/helpers/utils';
 import configMixin from './mixins/configMixin';
 import { getLocale } from './helpers/urlParamsHelper';

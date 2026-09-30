@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useAlert, useTrack } from 'dashboard/composables';
 import BotMetrics from './components/BotMetrics.vue';
 import BotSummaryTable from './components/BotSummaryTable.vue';
-import ReportFilters from './components/ReportFilters.vue';
+import ReportFilterSelector from './components/FilterSelector.vue';
 import { GROUP_BY_FILTER } from './constants';
 import ReportContainer from './ReportContainer.vue';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
@@ -17,7 +17,7 @@ export default {
     BotMetrics,
     BotSummaryTable,
     ReportHeader,
-    ReportFilters,
+    ReportFilterSelector,
     ReportContainer,
     DownloadDropdown,
   },
@@ -100,13 +100,22 @@ export default {
 
       return payload;
     },
-    onFilterChange({ from, to, groupBy, businessHours, timeRange, inboxes }) {
+    onFilterChange({
+      from,
+      to,
+      groupBy,
+      businessHours,
+      timeRange,
+      selectedInbox,
+    }) {
       this.from = from;
       this.to = to;
       this.groupBy = groupBy;
       this.businessHours = businessHours;
       if (timeRange) this.timeRange = timeRange;
-      this.selectedInbox = inboxes?.id ? [inboxes.id] : [];
+      this.selectedInbox = selectedInbox
+        ? selectedInbox.map(inbox => inbox.id || inbox)
+        : [];
       this.fetchAllData();
 
       useTrack(REPORTS_EVENTS.FILTER_REPORT, {
@@ -142,11 +151,12 @@ export default {
   </ReportHeader>
 
   <div class="flex flex-col gap-4">
-    <ReportFilters
-      filter-type="inboxes"
-      show-group-by
-      show-time-range
-      :show-business-hours="false"
+    <ReportFilterSelector
+      :show-agents-filter="false"
+      show-inbox-filter
+      show-group-by-filter
+      show-time-range-filter
+      :show-business-hours-switch="false"
       @filter-change="onFilterChange"
     />
 
