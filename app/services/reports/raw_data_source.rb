@@ -59,21 +59,44 @@ class Reports::RawDataSource < Reports::DataSource
     ).count
   end
 
+  def account_scope?
+    dimension_type == 'account'
+  end
+
   def average_scope
-    scope.reporting_events.where(name: raw_event_name, created_at: range, account_id: account.id)
+    events = scope.reporting_events.where(name: raw_event_name, created_at: range, account_id: account.id)
+    return events unless account_scope?
+
+    events = events.joins(:conversation).where(conversations: { inbox_id: filtered_inbox_ids }) if filtered_inbox_ids.present?
+    events = events.where(user_id: filtered_user_ids) if filtered_user_ids.present?
+    events
   end
 
   def count_scope
     case metric.to_s
     when 'conversations_count'
-      scope.conversations.where(account_id: account.id, created_at: range)
+      conversations = scope.conversations.where(account_id: account.id, created_at: range)
+      return conversations unless account_scope?
+
+      conversations = conversations.where(inbox_id: filtered_inbox_ids) if filtered_inbox_ids.present?
+      conversations = conversations.where(assignee_id: filtered_user_ids) if filtered_user_ids.present?
+      conversations
     when 'incoming_messages_count'
-      scope.messages.where(account_id: account.id, created_at: range).incoming.unscope(:order)
+      message_count_scope(:incoming)
     when 'outgoing_messages_count'
-      scope.messages.where(account_id: account.id, created_at: range).outgoing.unscope(:order)
+      message_count_scope(:outgoing)
     else
       reporting_event_count_scope
     end
+  end
+
+  def message_count_scope(direction)
+    messages = scope.messages.where(account_id: account.id, created_at: range).public_send(direction).unscope(:order)
+    return messages unless account_scope?
+
+    messages = messages.where(inbox_id: filtered_inbox_ids) if filtered_inbox_ids.present?
+    messages = messages.joins(:conversation).where(conversations: { assignee_id: filtered_user_ids }) if filtered_user_ids.present?
+    messages
   end
 
   def reporting_event_count_scope
@@ -82,11 +105,30 @@ class Reports::RawDataSource < Reports::DataSource
       account_id: account.id,
       created_at: range
     )
+    events = apply_account_event_filters(events)
 
     return events.where.not(conversation_id: bot_handoff_conversation_ids_subquery) if raw_count_strategy == :exclude_bot_handoffs
     return events unless raw_count_strategy == :distinct_conversation
 
-    events.joins(:conversation).select(:conversation_id).distinct
+    events.select(:conversation_id).distinct
+  end
+
+  def apply_account_event_filters(events)
+    return events unless account_scope?
+    return events if filtered_inbox_ids.blank? && filtered_user_ids.blank?
+
+    events = events.joins(:conversation)
+    events = events.where(conversations: { inbox_id: filtered_inbox_ids }) if filtered_inbox_ids.present?
+    events = events.where(conversations: { assignee_id: filtered_user_ids }) if filtered_user_ids.present?
+    events
+  end
+
+  def filtered_inbox_ids
+    Array(inbox_ids).reject(&:blank?)
+  end
+
+  def filtered_user_ids
+    Array(user_ids).reject(&:blank?)
   end
 
   def bot_handoff_conversation_ids_subquery
@@ -135,7 +177,7 @@ class Reports::RawDataSource < Reports::DataSource
   end
 
   def summary_select_field(definition)
-    if definition.name == :resolutions_count
+    if definition.name == :resolutions_count && dimension_type == 'inbox'
       "COUNT(DISTINCT CASE WHEN reporting_events.name = 'conversation_resolved' THEN reporting_events.conversation_id END) " \
         "as #{definition.summary_key}"
     elsif definition.count?

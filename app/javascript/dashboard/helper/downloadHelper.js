@@ -1,5 +1,4 @@
-import fromUnixTime from 'date-fns/fromUnixTime';
-import format from 'date-fns/format';
+import { format, fromUnixTime } from 'date-fns';
 
 export const downloadCsvFile = (fileName, content) => {
   const contentType = 'data:text/csv;charset=utf-8;';

@@ -6,9 +6,9 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import MultiSelect from 'dashboard/components-next/filter/inputs/MultiSelect.vue';
 import Auth from '../../../../api/auth';
 import wootConstants from 'dashboard/constants/globals';
-import Multiselect from 'vue-multiselect';
 
 const props = defineProps({
   id: {
@@ -240,38 +240,12 @@ const resetPassword = async () => {
 
       <div class="w-full">
         {{ $t('PROFILE_SETTINGS.FORM.INBOX.LABEL') }}
-        <Multiselect
-          v-model="selectedInboxes"
-          :options="inboxList"
-          track-by="id"
-          label="name"
-          multiple
-          :close-on-select="false"
-          :clear-on-select="false"
-          hide-selected
-          :placeholder="$t('PROFILE_SETTINGS.FORM.INBOX.PLACEHOLDER')"
-          selected-label
-          :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-          :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-        />
+        <MultiSelect v-model="selectedInboxes" :options="inboxList" />
       </div>
 
       <div class="w-full">
         {{ $t('PROFILE_SETTINGS.FORM.TEAM.LABEL') }}
-        <Multiselect
-          v-model="selectedTeams"
-          :options="teamList"
-          track-by="id"
-          label="name"
-          multiple
-          :close-on-select="false"
-          :clear-on-select="false"
-          hide-selected
-          :placeholder="$t('PROFILE_SETTINGS.FORM.TEAM.PLACEHOLDER')"
-          selected-label
-          :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-          :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-        />
+        <MultiSelect v-model="selectedTeams" :options="teamList" />
       </div>
 
       <div class="flex flex-row justify-start w-full gap-2 px-0 py-2">

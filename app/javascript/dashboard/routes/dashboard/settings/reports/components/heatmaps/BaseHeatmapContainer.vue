@@ -6,13 +6,15 @@ import BaseHeatmap from './BaseHeatmap.vue';
 import HeatmapDateRangeSelector from './HeatmapDateRangeSelector.vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
-import differenceInCalendarDays from 'date-fns/differenceInCalendarDays';
-import endOfDay from 'date-fns/endOfDay';
-import format from 'date-fns/format';
-import getUnixTime from 'date-fns/getUnixTime';
-import startOfDay from 'date-fns/startOfDay';
-import startOfMonth from 'date-fns/startOfMonth';
-import subDays from 'date-fns/subDays';
+import {
+  differenceInCalendarDays,
+  endOfDay,
+  format,
+  getUnixTime,
+  startOfDay,
+  startOfMonth,
+  subDays,
+} from 'date-fns';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useI18n } from 'vue-i18n';
@@ -319,7 +321,7 @@ onMounted(() => {
             :menu-items="inboxMenuItems"
             show-search
             :search-placeholder="t('INBOX_REPORTS.SEARCH_INBOX')"
-            class="mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0 top-full !min-w-56 max-w-56 max-h-96"
+            class="mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0 top-full !min-w-56 max-w-56 max-h-96 overflow-y-auto"
             @action="handleInboxAction($event)"
           />
         </div>
