@@ -11,8 +11,8 @@ class V2::ReportBuilder
     @account = account
     @params = params
 
-    timezone_offset = (params[:timezone_offset] || 0).to_f
-    @timezone = ActiveSupport::TimeZone[timezone_offset]&.name
+    (params[:timezone_offset] || 0).to_f
+    @timezone = 'UTC'
   end
 
   def timeseries
@@ -138,5 +138,25 @@ class V2::ReportBuilder
     metric[:unassigned] = @open_conversations.unassigned.count if params[:type].equal?(:account)
     metric[:pending] = @open_conversations.pending.count if params[:type].equal?(:account)
     metric
+  end
+
+  def bot_resolutions_base_scope
+    account.reporting_events
+           .where(name: 'conversation_bot_resolved', created_at: range)
+           .filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?))
+  end
+
+  def bot_handoffs_base_scope
+    account.reporting_events
+           .where(name: 'conversation_bot_handoff', created_at: range)
+           .filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?))
+  end
+
+  def bot_resolutions_count
+    get_grouped_values(bot_resolutions_base_scope)
+  end
+
+  def bot_handoffs_count
+    get_grouped_values(bot_handoffs_base_scope)
   end
 end

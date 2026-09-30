@@ -1,6 +1,6 @@
 class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :prepare_builder_params, only: [:agent, :team, :inbox, :label, :channel]
+  before_action :prepare_builder_params, only: [:agent, :team, :inbox, :label, :channel, :bot]
 
   def agent
     render_report_with(V2::Reports::AgentSummaryBuilder, type: :agent)
@@ -16,6 +16,10 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
 
   def label
     render_report_with(V2::Reports::LabelSummaryBuilder)
+  end
+
+  def bot
+    render_report_with(V2::Reports::BotSummaryReportBuilder)
   end
 
   def channel
@@ -55,7 +59,11 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
     @builder_params = {
       since: permitted_params[:since],
       until: permitted_params[:until],
-      business_hours: ActiveModel::Type::Boolean.new.cast(permitted_params[:business_hours])
+      business_hours: ActiveModel::Type::Boolean.new.cast(permitted_params[:business_hours]),
+      inbox_ids: permitted_params[:inbox_ids],
+      user_ids: permitted_params[:user_ids],
+      team_ids: permitted_params[:team_ids],
+      label_ids: permitted_params[:label_ids]
     }
   end
 
@@ -66,7 +74,7 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
   end
 
   def permitted_params
-    params.permit(:since, :until, :business_hours)
+    params.permit(:since, :until, :business_hours, inbox_ids: [], user_ids: [], team_ids: [], label_ids: [])
   end
 
   def date_range_too_long?
