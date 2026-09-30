@@ -11,13 +11,18 @@ import BaseHeatmap from './components/heatmaps/BaseHeatmap.vue';
 import ReportHeader from './components/ReportHeader.vue';
 import OverviewReportFilters from './components/OverviewReportFilters.vue';
 
+const POLL_INTERVAL = 30_000;
+
 const { t } = useI18n();
 
 const from = ref(0);
 const to = ref(0);
 const selectedInbox = ref([]);
 const selectedTeam = ref([]);
+const timeRange = ref({ since: '00:00', until: '23:59' });
 const loading = ref(false);
+const pollTimer = ref(null);
+
 const queuedReport = ref({
   summary: {
     queued_customers: 0,
@@ -112,13 +117,30 @@ const waitingTimeCollection = computed(() => {
   };
 });
 
-const fetchQueuedCustomers = async () => {
+const unixWithTime = (unixSeconds, time) => {
+  const date = new Date(unixSeconds * 1000);
+  const [hours, minutes] = time.split(':').map(Number);
+
+  return Math.floor(
+    Date.UTC(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      hours,
+      minutes,
+      0,
+      0
+    ) / 1000
+  );
+};
+
+const fetchQueuedCustomers = async ({ showLoader = false } = {}) => {
   if (!from.value) return;
-  loading.value = true;
+  if (showLoader) loading.value = true;
   try {
     const response = await ReportsAPI.getQueuedCustomers({
-      from: from.value,
-      to: to.value,
+      from: unixWithTime(from.value, timeRange.value.since),
+      to: unixWithTime(to.value, timeRange.value.until),
       inboxIds: toIds(selectedInbox.value),
       teamIds: toIds(selectedTeam.value),
     });
@@ -126,8 +148,26 @@ const fetchQueuedCustomers = async () => {
   } catch (error) {
     useAlert(t('QUEUED_CUSTOMERS_REPORTS.FETCH_FAILED'));
   } finally {
-    loading.value = false;
+    if (showLoader) loading.value = false;
   }
+};
+
+const stopPolling = () => {
+  if (pollTimer.value) {
+    clearInterval(pollTimer.value);
+    pollTimer.value = null;
+  }
+};
+
+const startPolling = () => {
+  stopPolling();
+  pollTimer.value = setInterval(() => {
+    fetchQueuedCustomers({ showLoader: false });
+  }, POLL_INTERVAL);
+};
+
+const refreshQueuedCustomers = () => {
+  fetchQueuedCustomers({ showLoader: false });
 };
 
 const onFilterChange = updatedFilter => {
@@ -135,15 +175,19 @@ const onFilterChange = updatedFilter => {
   to.value = updatedFilter.to;
   selectedInbox.value = updatedFilter.selectedInbox || [];
   selectedTeam.value = updatedFilter.selectedTeam || [];
-  fetchQueuedCustomers();
+  if (updatedFilter.timeRange) timeRange.value = updatedFilter.timeRange;
+  fetchQueuedCustomers({ showLoader: true });
+  startPolling();
 };
 
 onMounted(() => {
-  emitter.on('fetch_conversation_stats', fetchQueuedCustomers);
+  emitter.on('fetch_conversation_stats', refreshQueuedCustomers);
+  startPolling();
 });
 
 onUnmounted(() => {
-  emitter.off('fetch_conversation_stats', fetchQueuedCustomers);
+  emitter.off('fetch_conversation_stats', refreshQueuedCustomers);
+  stopPolling();
 });
 </script>
 
@@ -177,9 +221,17 @@ onUnmounted(() => {
           </p>
         </div>
       </div>
-      <div class="mt-4 h-72">
+      <div class="relative mt-4 h-72">
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-n-solid-2/70 backdrop-blur-[2px]"
+        >
+          <div
+            class="h-5 w-5 animate-spin rounded-full border-2 border-n-slate-11 border-t-transparent"
+          />
+        </div>
         <BarChart
-          v-if="!loading && queuedReport.daily.length"
+          v-if="queuedReport.daily.length"
           :collection="queueFlowCollection"
         />
       </div>
@@ -200,9 +252,17 @@ onUnmounted(() => {
           </p>
         </div>
       </div>
-      <div class="mt-4 h-72">
+      <div class="relative mt-4 h-72">
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-n-solid-2/70 backdrop-blur-[2px]"
+        >
+          <div
+            class="h-5 w-5 animate-spin rounded-full border-2 border-n-slate-11 border-t-transparent"
+          />
+        </div>
         <BarChart
-          v-if="!loading && queuedReport.daily.length"
+          v-if="queuedReport.daily.length"
           :collection="waitingTimeCollection"
         />
       </div>

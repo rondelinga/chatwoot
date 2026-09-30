@@ -32,12 +32,6 @@ class V2::Reports::QueuedCustomersBuilder
     scope
   end
 
-  def scoped_queue_statistics
-    return QueueStatistic.none if filtered_by_team_or_inbox?
-
-    account.queue_statistics.where(date: since_time.to_date..until_time.to_date)
-  end
-
   def since_time
     @since_time ||= Time.zone.at(params[:since].to_i)
   end
@@ -47,20 +41,9 @@ class V2::Reports::QueuedCustomersBuilder
   end
 
   def summary_metrics
-    queued, entered, left =
-      if filtered_by_team_or_inbox?
-        [
-          scoped_queue_entries.count,
-          scoped_queue_entries.assigned.count,
-          scoped_queue_entries.left.count
-        ]
-      else
-        [
-          scoped_queue_statistics.sum(:total_queued),
-          scoped_queue_statistics.sum(:total_assigned),
-          scoped_queue_statistics.sum(:total_left)
-        ]
-      end
+    queued = scoped_queue_entries.count
+    entered = scoped_queue_entries.assigned.count
+    left = scoped_queue_entries.left.count
 
     {
       queued_customers: queued,
@@ -83,14 +66,6 @@ class V2::Reports::QueuedCustomersBuilder
   end
 
   def average_wait_time_for(status, end_column)
-    if status == :assigned && !filtered_by_team_or_inbox?
-      assigned_total = scoped_queue_statistics.sum(:total_assigned)
-      return 0 if assigned_total.zero?
-
-      weighted_total = scoped_queue_statistics.sum('average_wait_time_seconds * total_assigned')
-      return (weighted_total.to_f / assigned_total).round
-    end
-
     scoped_queue_entries
       .public_send(status)
       .where.not(end_column => nil)
@@ -149,9 +124,5 @@ class V2::Reports::QueuedCustomersBuilder
     return 0 if total.to_i.zero?
 
     ((value.to_f / total) * 100).round(2)
-  end
-
-  def filtered_by_team_or_inbox?
-    params[:team_ids].present? || params[:inbox_ids].present?
   end
 end

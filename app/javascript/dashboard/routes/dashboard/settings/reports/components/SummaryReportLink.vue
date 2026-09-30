@@ -1,9 +1,14 @@
 <script setup>
 import { computed } from 'vue';
+
 const props = defineProps({
   row: {
     type: Object,
     required: true,
+  },
+  class: {
+    type: String,
+    default: '',
   },
 });
 
@@ -18,6 +23,7 @@ const routeName = computed(() => `${props.row.original.type}_reports_show`);
       query: $route.query,
     }"
     class="text-n-slate-12 hover:underline"
+    :class="props.class"
   >
     {{ row.original.name }}
   </router-link>
