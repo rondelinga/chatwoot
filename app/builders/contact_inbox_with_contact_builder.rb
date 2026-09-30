@@ -35,6 +35,10 @@ class ContactInboxWithContactBuilder
     @account ||= inbox.account
   end
 
+  def contacts_in_inbox
+    @contacts_in_inbox ||= account.contacts.in_inbox(inbox.id)
+  end
+
   def create_contact_inbox
     ContactInboxBuilder.new(
       contact: @contact,
@@ -98,23 +102,18 @@ class ContactInboxWithContactBuilder
   def find_contact_by_identifier(identifier)
     return if identifier.blank?
 
-    account.contacts.find_by(identifier: identifier)
+    contacts_in_inbox.find_by(identifier: identifier)
   end
 
   def find_contact_by_email(email)
     return if email.blank?
 
-    account.contacts.from_email(email)
+    contacts_in_inbox.from_email(email)
   end
 
   def find_contact_by_phone_numbers
     phone_numbers = [contact_attributes[:phone_number], *Array(contact_attributes[:phone_number_candidates])].compact_blank.uniq
 
-    phone_numbers.each do |phone_number|
-      contact = account.contacts.find_by(phone_number: phone_number)
-      return contact if contact
-    end
-
-    nil
+    contacts_in_inbox.find_by(phone_number: phone_number)
   end
 end
