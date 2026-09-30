@@ -44,7 +44,23 @@ class ContactMergeAction
   end
 
   def merge_contact_inboxes
-    ContactInbox.where(contact_id: @mergee_contact.id).update(contact_id: @base_contact.id)
+    @mergee_contact.contact_inboxes.find_each { |contact_inbox| migrate_contact_inbox(contact_inbox) }
+  end
+
+  def migrate_contact_inbox(contact_inbox)
+    contact_inbox.contact_id = @base_contact.id
+    return if contact_inbox.save
+
+    rehome_conversations_on_conflict(contact_inbox)
+  end
+
+  def rehome_conversations_on_conflict(contact_inbox)
+    target_contact_inbox = @base_contact.contact_inboxes.find_by(inbox_id: contact_inbox.inbox_id)
+
+    raise ActiveRecord::RecordInvalid, contact_inbox if target_contact_inbox.blank?
+
+    Conversation.where(contact_inbox_id: contact_inbox.id)
+                .update_all(contact_id: @base_contact.id, contact_inbox_id: target_contact_inbox.id)
   end
 
   def merge_calls
