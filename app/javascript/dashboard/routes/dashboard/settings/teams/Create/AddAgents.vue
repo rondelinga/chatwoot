@@ -15,7 +15,7 @@ export default {
   validations: {
     selectedAgents: {
       isEmpty() {
-        return !!this.selectedAgents.length;
+        return this.primaryAgents.length + this.backupAgents.length > 0;
       },
     },
   },
@@ -26,7 +26,8 @@ export default {
 
   data() {
     return {
-      selectedAgents: [],
+      primaryAgents: [],
+      backupAgents: [],
       isCreating: false,
     };
   },
@@ -54,21 +55,20 @@ export default {
   },
 
   methods: {
-    updateSelectedAgents(newAgentList) {
+    updateAgents({ primary, backup }) {
       this.v$.selectedAgents.$touch();
-      this.selectedAgents = [...newAgentList];
-    },
-    selectAllAgents() {
-      this.selectedAgents = this.agentList.map(agent => agent.id);
+      this.primaryAgents = [...primary];
+      this.backupAgents = [...backup];
     },
     async addAgents() {
       this.isCreating = true;
-      const { teamId, selectedAgents } = this;
+      const { teamId, primaryAgents, backupAgents } = this;
 
       try {
         await this.$store.dispatch('teamMembers/create', {
           teamId,
-          agentsList: selectedAgents,
+          primaryUserIds: primaryAgents,
+          backupUserIds: backupAgents,
         });
         router.replace({
           name: 'settings_teams_finish',
@@ -103,8 +103,9 @@ export default {
         </div>
         <AgentSelector
           :agent-list="agentList"
-          :selected-agents="selectedAgents"
-          :update-selected-agents="updateSelectedAgents"
+          :primary-agents="primaryAgents"
+          :backup-agents="backupAgents"
+          :update-agents="updateAgents"
           :is-working="isCreating"
           :submit-button-text="$t('TEAMS_SETTINGS.ADD.BUTTON_TEXT')"
         />

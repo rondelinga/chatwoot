@@ -63,10 +63,11 @@ class AgentBotListener < BaseListener
   private
 
   def agent_bots_for(inbox, conversation = nil)
-    bots = [active_inbox_agent_bot(inbox)]
-    bots << conversation.ai_assignee if conversation&.assignee_type == 'AgentBot'
+    if conversation&.assignee_type == 'AgentBot' && conversation.ai_assignee.present?
+      return [conversation.ai_assignee]
+    end
 
-    bots.compact.uniq
+    [active_inbox_agent_bot(inbox)].compact
   end
 
   def active_inbox_agent_bot(inbox)

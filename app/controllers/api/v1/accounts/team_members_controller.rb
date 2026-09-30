@@ -4,21 +4,25 @@ class Api::V1::Accounts::TeamMembersController < Api::V1::Accounts::BaseControll
   before_action :validate_member_id_params, only: [:create, :update, :destroy]
 
   def index
-    @team_members = @team.team_members.map(&:user)
+    @team_members = @team.team_members.includes(:user)
   end
 
   def create
     ActiveRecord::Base.transaction do
-      @team_members = @team.add_members(members_to_be_added_ids)
+      @team_members = @team.sync_members(
+        primary_user_ids: primary_user_ids,
+        backup_user_ids: backup_user_ids
+      )
     end
   end
 
   def update
     ActiveRecord::Base.transaction do
-      @team.add_members(members_to_be_added_ids)
-      @team.remove_members(members_to_be_removed_ids)
+      @team_members = @team.sync_members(
+        primary_user_ids: primary_user_ids,
+        backup_user_ids: backup_user_ids
+      )
     end
-    @team_members = @team.members
     render action: 'create'
   end
 
@@ -31,16 +35,16 @@ class Api::V1::Accounts::TeamMembersController < Api::V1::Accounts::BaseControll
 
   private
 
-  def members_to_be_added_ids
-    params[:user_ids] - current_members_ids
+  def primary_user_ids
+    params[:primary_user_ids] || []
   end
 
-  def members_to_be_removed_ids
-    current_members_ids - params[:user_ids]
+  def backup_user_ids
+    params[:backup_user_ids] || []
   end
 
-  def current_members_ids
-    @current_members_ids ||= @team.members.pluck(:id)
+  def member_user_ids
+    (primary_user_ids + backup_user_ids).map(&:to_i)
   end
 
   def fetch_team
@@ -48,8 +52,17 @@ class Api::V1::Accounts::TeamMembersController < Api::V1::Accounts::BaseControll
   end
 
   def validate_member_id_params
-    invalid_ids = params[:user_ids].map(&:to_i) - @team.account.user_ids
+    if overlapping_member_ids.present?
+      render json: { error: 'Agent cannot be both primary and backup' }, status: :unprocessable_entity
+      return
+    end
+
+    invalid_ids = member_user_ids - @team.account.user_ids
 
     render json: { error: 'Invalid User IDs' }, status: :unauthorized and return if invalid_ids.present?
+  end
+
+  def overlapping_member_ids
+    primary_user_ids.map(&:to_i) & backup_user_ids.map(&:to_i)
   end
 end

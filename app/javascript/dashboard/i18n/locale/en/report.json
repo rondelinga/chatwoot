@@ -759,6 +759,19 @@
       "OFFLINE": "Offline"
     }
   },
+  "QUEUED_CUSTOMERS_REPORTS": {
+    "HEADER": "Queued customers",
+    "DESCRIPTION": "Track queue load, conversion and waiting time trends.",
+    "HEATMAP_TITLE": "Queue heatmap",
+    "FETCH_FAILED": "Failed to fetch queued customers report",
+    "CARDS": {
+      "QUEUED_CUSTOMERS": "Queued customers",
+      "ENTERED_CHAT": "Entered the chat",
+      "LEFT_QUEUE": "Left the queue",
+      "TIME_TO_ENTER_CHAT": "Time to enter the chat",
+      "TIME_TO_LEAVE_QUEUE": "Time to leave the queue"
+    }
+  },
   "DAYS_OF_WEEK": {
     "SUNDAY": "Sunday",
     "MONDAY": "Monday",

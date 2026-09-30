@@ -22,9 +22,6 @@ class ConversationBuilder
     custom_attributes = params[:custom_attributes]&.permit! || {}
     status = params[:status].present? ? { status: params[:status] } : {}
 
-    # TODO: temporary fallback for the old bot status in conversation, we will remove after couple of releases
-    # commenting this out to see if there are any errors, if not we can remove this in subsequent releases
-    # status = { status: 'pending' } if status[:status] == 'bot'
     {
       account_id: @contact_inbox.inbox.account_id,
       inbox_id: @contact_inbox.inbox_id,
@@ -34,7 +31,8 @@ class ConversationBuilder
       custom_attributes: custom_attributes,
       snoozed_until: params[:snoozed_until],
       assignee_id: params[:assignee_id],
-      team_id: params[:team_id]
-    }.merge(status)
+      team_id: params[:team_id],
+      assignee_agent_bot_id: params[:assignee_agent_bot_id]
+    }.compact.merge(status)
   end
 end

@@ -367,6 +367,7 @@
     "NEW_TEAM": "New team",
     "NEW_INBOX": "New inbox",
     "REPORTS_CONVERSATION": "Conversations",
+    "ROUTING_TYPES": "Routing Types",
     "CSAT": "CSAT",
     "LIVE_CHAT": "Live Chat",
     "SMS": "SMS",
@@ -387,6 +388,7 @@
     "CUSTOM_ROLES": "Custom Roles",
     "BETA": "Beta",
     "REPORTS_OVERVIEW": "Overview",
+    "REPORTS_QUEUED_CUSTOMERS": "Queued customers",
     "REAUTHORIZE": "Your inbox connection has expired, please reconnect\n to continue receiving and sending messages",
     "HELP_CENTER": {
       "TITLE": "Help Center",

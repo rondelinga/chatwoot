@@ -76,6 +76,7 @@ class Conversation < ApplicationRecord
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
+  before_validation :apply_chat_routing, on: :create
   before_validation :validate_additional_attributes
   before_validation :reset_agent_bot_when_assignee_present
   validates :additional_attributes, jsonb_attributes_length: true
@@ -83,7 +84,7 @@ class Conversation < ApplicationRecord
   validates :uuid, uniqueness: true
   validate :validate_referer_url
 
-  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
+  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3, queued: 4 }
   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
 
   scope :unassigned, -> { where(assignee_id: nil, assignee_agent_bot_id: nil) }
@@ -127,6 +128,7 @@ class Conversation < ApplicationRecord
   has_many :mentions, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
+  has_one :conversation_queue, dependent: :destroy
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
@@ -135,14 +137,20 @@ class Conversation < ApplicationRecord
 
   before_save :ensure_snooze_until_reset
   before_save :set_status_changed_at
+  before_save :clear_bot_assignee_when_leaving_pending
+  before_save :enforce_queue_status_invariants
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
+  after_create :create_chat_routing_activity_messages
+  after_update :leave_queue_if_assignee_present
 
+  after_update :remove_from_queue_if_status_changed
   after_update_commit :execute_after_update_commit_callbacks
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   before_destroy :set_unread_count_deletion_data
   after_destroy_commit :notify_conversation_deletion
+  after_update_commit :process_queue_on_assignment_change
 
   delegate :auto_resolve_after, to: :account
 
@@ -267,7 +275,24 @@ class Conversation < ApplicationRecord
     dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
   end
 
+  # Team-routed inboxes stay open unless routing already assigned a bot.
+  # Inboxes without teams keep the legacy active-bot pending behavior.
+  def pending_for_bot?
+    return true if assignee_agent_bot_id.present?
+    return false if inbox.inbox_teams.exists?
+
+    inbox.active_bot?
+  end
+
   private
+
+  def leave_queue_if_assignee_present
+    return unless account.queue_enabled?
+    return unless saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id?
+    return if assignee_id.blank? && assignee_agent_bot_id.blank?
+
+    ChatQueue::QueueService.new(account: account).remove_from_queue(self, reason: :other)
+  end
 
   def execute_after_update_commit_callbacks
     handle_resolved_status_change
@@ -275,6 +300,26 @@ class Conversation < ApplicationRecord
     create_activity
     invalidate_filtered_unread_count_conversation
     notify_conversation_updation
+  end
+
+  def process_queue_on_assignment_change
+    return unless account.queue_enabled?
+    return unless saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id? || saved_change_to_status?
+
+    open! if assignee_present? && queued?
+    ChatQueue::ProcessQueueJob.perform_later(account.id) if resolved? || assignee_id.blank?
+  end
+
+  def enforce_queue_status_invariants
+    return unless account&.queue_enabled?
+
+    return unless assignee_present?
+
+    self.status = :open if queued?
+  end
+
+  def assignee_present?
+    assignee_id.present? || assignee_agent_bot_id.present?
   end
 
   def handle_resolved_status_change
@@ -302,8 +347,24 @@ class Conversation < ApplicationRecord
     self.additional_attributes = {} unless additional_attributes.is_a?(Hash)
   end
 
+  def apply_chat_routing
+    @chat_routing_result = ChatRouting::AssignService.new(conversation: self).apply
+  end
+
+  def create_chat_routing_activity_messages
+    ChatRouting::AssignService.new(conversation: self).create_activity_messages(@chat_routing_result)
+  end
+
   def reset_agent_bot_when_assignee_present
     return if assignee_id.blank?
+
+    self.ai_assignee = nil
+  end
+
+  def clear_bot_assignee_when_leaving_pending
+    return unless will_save_change_to_status?
+    return unless open?
+    return unless status_in_database == 'pending'
 
     self.ai_assignee = nil
   end
@@ -313,16 +374,17 @@ class Conversation < ApplicationRecord
 
     return handle_campaign_status if campaign.present?
 
-    set_active_bot_conversation if inbox.active_bot?
+    set_active_bot_conversation if pending_for_bot?
   end
 
   def handle_campaign_status
-    set_active_bot_conversation if campaign.sender_id.nil? && inbox.active_bot?
+    set_active_bot_conversation if campaign.sender_id.nil? && pending_for_bot?
   end
 
   def set_active_bot_conversation
     # TODO: make this an inbox config instead of assuming bot conversations should start as pending
     self.status = :pending
+    return if assignee_agent_bot_id.present?
     return unless inbox.agent_bot_inbox&.active? && assignee_id.blank?
 
     self.ai_assignee = inbox.agent_bot
@@ -427,6 +489,19 @@ class Conversation < ApplicationRecord
     return unless additional_attributes['referer']
 
     self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
+  end
+
+  def remove_from_queue_if_status_changed
+    return unless saved_change_to_status?
+
+    old_status, new_status = saved_change_to_status
+
+    return unless old_status == 'queued' && new_status != 'queued'
+
+    reason = new_status == 'resolved' ? :resolved : :other
+
+    ChatQueue::QueueService.new(account: account)
+                           .remove_from_queue(self, reason: reason)
   end
 
   # creating db triggers

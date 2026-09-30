@@ -160,6 +160,8 @@ class Message < ApplicationRecord
   def conversation_push_event_data
     {
       assignee_id: conversation.assignee_id,
+      assignee_agent_bot_id: conversation.assignee_agent_bot_id,
+      assignee_type: conversation.assignee_type,
       unread_count: conversation.unread_incoming_messages.count,
       last_activity_at: conversation.last_activity_at.to_i,
       contact_inbox: { source_id: conversation.contact_inbox.source_id }
@@ -432,7 +434,7 @@ class Message < ApplicationRecord
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
-    if conversation.inbox.active_bot?
+    if conversation.pending_for_bot?
       conversation.pending!
     elsif conversation.inbox.api?
       Current.executed_by = sender if reopened_by_contact?

@@ -21,7 +21,7 @@
       "AGENTS": {
         "BUTTON_TEXT": "Add agents to team",
         "TITLE": "Add agents to team - {teamName}",
-        "DESC": "Add Agents to your newly created team. This lets you collaborate as a team on conversations, get notified on new events in the same conversation."
+        "DESC": "Assign agents as primary or backup for this team. Conversations are distributed to primary agents first. When all primary agents reach their chat limits, backup agents receive assignments. If no agents are available, conversations go to the queue."
       },
       "WIZARD_CREATE": {
         "TITLE": "Create",
@@ -36,6 +36,12 @@
         "BODY": "You are all set to go!"
       }
     },
+    "EDIT": {
+      "API": {
+        "SUCCESS_MESSAGE": "Team updated successfully.",
+        "AGENTS_SUCCESS_MESSAGE": "Team agents updated successfully."
+      }
+    },
     "EDIT_FLOW": {
       "CREATE": {
         "TITLE": "Edit your team details",
@@ -45,7 +51,7 @@
       "AGENTS": {
         "BUTTON_TEXT": "Update agents in team",
         "TITLE": "Add agents to team - {teamName}",
-        "DESC": "Add Agents to your newly created team. All the added agents will be notified when a conversation is assigned to this team."
+        "DESC": "Assign agents as primary or backup for this team. Conversations are distributed to primary agents first. When all primary agents reach their chat limits, backup agents receive assignments. If no agents are available, conversations go to the queue."
       },
       "EDIT_WIZARD_DETAILS": {
         "TITLE": "Team details",
@@ -69,15 +75,20 @@
     "AGENTS": {
       "AGENT": "Agent",
       "EMAIL": "Email",
+      "PRIMARY": "Primary",
+      "BACKUP": "Backup",
+      "SELECT_PRIMARY": "Select as primary agent",
+      "SELECT_BACKUP": "Select as backup agent",
       "BUTTON_TEXT": "Add agents",
       "ADD_AGENTS": "Adding Agents to your Team...",
       "SELECT": "select",
       "SELECT_ALL": "select all agents",
-      "SELECTED_COUNT": "{selected} out of {total} agents selected."
+      "SELECTED_COUNT": "{selected} out of {total} agents selected.",
+      "TIER_COUNT": "{primary} primary, {backup} backup"
     },
     "ADD": {
       "TITLE": "Add agents to team - {teamName}",
-      "DESC": "Add Agents to your newly created team. This lets you collaborate as a team on conversations, get notified on new events in the same conversation.",
+      "DESC": "Assign agents as primary or backup for this team. Conversations are distributed to primary agents first. When all primary agents reach their chat limits, backup agents receive assignments. If no agents are available, conversations go to the queue.",
       "SELECT": "select",
       "SELECT_ALL": "select all agents",
       "SELECTED_COUNT": "{selected} out of {total} agents selected.",

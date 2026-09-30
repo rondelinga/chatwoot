@@ -13,11 +13,15 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  selectedAgents: {
+  primaryAgents: {
     type: Array,
     default: () => [],
   },
-  updateSelectedAgents: {
+  backupAgents: {
+    type: Array,
+    default: () => [],
+  },
+  updateAgents: {
     type: Function,
     default: () => {},
   },
@@ -33,48 +37,36 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const selectedAgentCount = computed(() => props.selectedAgents.length);
-
-const allAgentsSelected = computed(
-  () =>
-    props.selectedAgents.length === props.agentList.length &&
-    props.agentList.length > 0
-);
-
-const someAgentsSelected = computed(
-  () => props.selectedAgents.length > 0 && !allAgentsSelected.value
+const selectedAgentCount = computed(
+  () => props.primaryAgents.length + props.backupAgents.length
 );
 
 const disableSubmitButton = computed(() => selectedAgentCount.value === 0);
 
-const isAgentSelected = agentId => {
-  return props.selectedAgents.includes(agentId);
+const isPrimarySelected = agentId => props.primaryAgents.includes(agentId);
+const isBackupSelected = agentId => props.backupAgents.includes(agentId);
+
+const handlePrimarySelect = agentId => {
+  const primary = isPrimarySelected(agentId)
+    ? props.primaryAgents.filter(id => id !== agentId)
+    : [...props.primaryAgents, agentId];
+  const backup = props.backupAgents.filter(id => id !== agentId);
+
+  props.updateAgents({ primary, backup });
 };
 
-const handleSelectAgent = agentId => {
-  const shouldRemove = isAgentSelected(agentId);
+const handleBackupSelect = agentId => {
+  const backup = isBackupSelected(agentId)
+    ? props.backupAgents.filter(id => id !== agentId)
+    : [...props.backupAgents, agentId];
+  const primary = props.primaryAgents.filter(id => id !== agentId);
 
-  let result = [];
-  if (shouldRemove) {
-    result = props.selectedAgents.filter(item => item !== agentId);
-  } else {
-    result = [...props.selectedAgents, agentId];
-  }
-
-  props.updateSelectedAgents(result);
-};
-
-const toggleSelectAll = () => {
-  if (allAgentsSelected.value) {
-    props.updateSelectedAgents([]);
-  } else {
-    const result = props.agentList.map(item => item.id);
-    props.updateSelectedAgents(result);
-  }
+  props.updateAgents({ primary, backup });
 };
 
 const headers = computed(() => [
-  '',
+  t('TEAMS_SETTINGS.AGENTS.PRIMARY'),
+  t('TEAMS_SETTINGS.AGENTS.BACKUP'),
   t('TEAMS_SETTINGS.AGENTS.AGENT'),
   t('TEAMS_SETTINGS.AGENTS.EMAIL'),
 ]);
@@ -82,25 +74,25 @@ const headers = computed(() => [
 
 <template>
   <BaseTable :headers="headers" :items="agentList">
-    <template #header-0>
-      <div class="flex items-center">
-        <Checkbox
-          :model-value="allAgentsSelected"
-          :indeterminate="someAgentsSelected"
-          :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_ALL')"
-          @change="toggleSelectAll"
-        />
-      </div>
-    </template>
-
     <template #row="{ items }">
       <BaseTableRow v-for="agent in items" :key="agent.id" :item="agent">
         <template #default>
           <BaseTableCell class="w-5">
             <div class="flex items-center">
               <Checkbox
-                :model-value="isAgentSelected(agent.id)"
-                @change="() => handleSelectAgent(agent.id)"
+                :model-value="isPrimarySelected(agent.id)"
+                :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_PRIMARY')"
+                @change="() => handlePrimarySelect(agent.id)"
+              />
+            </div>
+          </BaseTableCell>
+
+          <BaseTableCell class="w-5">
+            <div class="flex items-center">
+              <Checkbox
+                :model-value="isBackupSelected(agent.id)"
+                :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_BACKUP')"
+                @change="() => handleBackupSelect(agent.id)"
               />
             </div>
           </BaseTableCell>
@@ -138,8 +130,15 @@ const headers = computed(() => [
     <p class="text-body-main text-n-slate-11 mb-0">
       {{
         $t('TEAMS_SETTINGS.AGENTS.SELECTED_COUNT', {
-          selected: selectedAgents.length,
+          selected: selectedAgentCount,
           total: agentList.length,
+        })
+      }}
+      ·
+      {{
+        $t('TEAMS_SETTINGS.AGENTS.TIER_COUNT', {
+          primary: primaryAgents.length,
+          backup: backupAgents.length,
         })
       }}
     </p>

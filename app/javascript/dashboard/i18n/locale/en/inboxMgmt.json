@@ -672,6 +672,28 @@
       "BUTTON_TEXT": "Add agents",
       "ADD_AGENTS": "Adding Agents to your Inbox..."
     },
+    "TEAMS": {
+      "TITLE": "Teams",
+      "SUB_TEXT": "Link teams to this inbox. All team members automatically become inbox collaborators.",
+      "PICK_TEAMS": "Pick teams for the inbox",
+      "ADD_TITLE": "Teams",
+      "ADD_DESC": "Select teams whose members will have access to this inbox. Manage team members from Settings → Teams.",
+      "VALIDATION_ERROR": "Add at least one team to your new Source",
+      "BUTTON_TEXT": "Add teams",
+      "UPDATE_SUCCESS": "Inbox teams updated successfully",
+      "UPDATE_ERROR": "Could not update inbox teams. Please try again.",
+      "DERIVED_AGENTS": "Collaborators",
+      "DERIVED_AGENTS_SUB_TEXT": "Agents from linked teams. To add or remove agents, update team membership in Settings → Teams.",
+      "ROUTING": {
+        "BOT": "Bot",
+        "NO_BOT": "No Bot",
+        "DEFAULT": "Default",
+        "NO_ROUTING_TYPE": "No Routing Type",
+        "ROUTING_TYPE": "Routing Type",
+        "TEAM": "Team",
+        "DEFAULT_TEAM_REQUIRED": "Default team is required"
+      }
+    },
     "FINISH": {
       "TITLE": "Your Inbox is ready!",
       "MESSAGE": "You can now engage with your customers through your new Channel. Happy supporting",

@@ -44,7 +44,9 @@ class Conversations::EventDataPresenter < SimpleDelegator
       sender: contact.push_event_data,
       assignee: assigned_entity&.push_event_data,
       assignee_type: assignee_type,
+      assignee_agent_bot: assignee_agent_bot&.webhook_data,
       team: team&.push_event_data,
+      team_id: team_id,
       hmac_verified: contact_inbox&.hmac_verified
     }
   end

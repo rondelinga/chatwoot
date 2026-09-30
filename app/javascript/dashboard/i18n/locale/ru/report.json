@@ -601,6 +601,18 @@
       "OFFLINE": "Оффлайн"
     }
   },
+  "QUEUED_CUSTOMERS_REPORTS": {
+    "HEADER": "Отчеты по очередям",
+    "DESCRIPTION": "Отслеживайте загрузку очереди, конверсию и время ожидания.",
+    "HEATMAP_TITLE": "Карта очереди",
+    "CARDS": {
+      "QUEUED_CUSTOMERS": "Клиентов в очереди",
+      "ENTERED_CHAT": "Приняты оператором",
+      "LEFT_QUEUE": "Не дождались ответа",
+      "TIME_TO_ENTER_CHAT": "Среднее время до принятия",
+      "TIME_TO_LEAVE_QUEUE": "Среднее время до ухода"
+    }
+  },
   "DAYS_OF_WEEK": {
     "SUNDAY": "Воскресенье",
     "MONDAY": "Понедельник",

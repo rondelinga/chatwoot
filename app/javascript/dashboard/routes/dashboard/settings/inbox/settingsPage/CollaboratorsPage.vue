@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { vOnClickOutside } from '@vueuse/components';
@@ -30,8 +30,9 @@ const router = useRouter();
 const { t } = useI18n();
 const { isEnterprise } = useConfig();
 
-const selectedAgentIds = ref([]);
-const isAgentListUpdating = ref(false);
+const selectedTeamIds = ref([]);
+const derivedAgentNames = ref([]);
+const isTeamListUpdating = ref(false);
 const enableAutoAssignment = ref(false);
 const maxAssignmentLimit = ref(null);
 const assignmentPolicy = ref(null);
@@ -43,33 +44,57 @@ const isLoadingPolicies = ref(false);
 const showPolicyDropdown = ref(false);
 const isLinkingPolicy = ref(false);
 
-const agentList = computed(() => store.getters['agents/getAgents']);
+// { [teamId]: { routing_type_id, agent_bot_id } }
+const teamConfigs = reactive({});
+const defaultTeamId = ref(null);
 
-const selectedAgentNames = computed(() =>
-  selectedAgentIds.value.map(
-    id => agentList.value.find(a => a.id === id)?.name ?? ''
+const teamList = computed(() => store.getters['teams/getTeams']);
+const routingTypes = computed(
+  () => store.getters['routingTypes/getRoutingTypes']
+);
+const agentBots = computed(() => store.getters['agentBots/getBots']);
+
+const selectedTeamNames = computed(() =>
+  selectedTeamIds.value.map(
+    id => teamList.value.find(team => team.id === id)?.name ?? ''
   )
 );
 
-const agentMenuItems = computed(() =>
-  agentList.value
-    .filter(({ id }) => !selectedAgentIds.value.includes(id))
-    .map(({ id, name, thumbnail, avatar_url }) => ({
+const teamMenuItems = computed(() =>
+  teamList.value
+    .filter(({ id }) => !selectedTeamIds.value.includes(id))
+    .map(({ id, name }) => ({
       label: name,
       value: id,
       action: 'select',
-      thumbnail: { name, src: thumbnail || avatar_url || '' },
     }))
 );
 
-const handleAgentAdd = ({ value }) => {
-  if (!selectedAgentIds.value.includes(value)) {
-    selectedAgentIds.value.push(value);
+const selectedTeams = computed(() =>
+  selectedTeamIds.value
+    .map(id => teamList.value.find(team => team.id === id))
+    .filter(Boolean)
+);
+
+const ensureTeamConfig = teamId => {
+  if (!teamConfigs[teamId]) {
+    teamConfigs[teamId] = { routing_type_id: '', agent_bot_id: '' };
   }
 };
 
-const handleAgentRemove = index => {
-  selectedAgentIds.value.splice(index, 1);
+const handleTeamAdd = ({ value }) => {
+  if (!selectedTeamIds.value.includes(value)) {
+    selectedTeamIds.value.push(value);
+    ensureTeamConfig(value);
+  }
+};
+
+const handleTeamRemove = index => {
+  const [removedId] = selectedTeamIds.value.splice(index, 1);
+  delete teamConfigs[removedId];
+  if (defaultTeamId.value === removedId) {
+    defaultTeamId.value = null;
+  }
 };
 
 const isFeatureEnabled = feature => {
@@ -144,17 +169,36 @@ const maxAssignmentLimitErrors = computed(() => {
   return '';
 });
 
-const fetchAttachedAgents = async () => {
+const fetchAttachedTeams = async () => {
   try {
-    const response = await store.dispatch('inboxMembers/get', {
+    const response = await store.dispatch('inboxTeams/get', {
       inboxId: props.inbox.id,
     });
     const {
-      data: { payload: inboxMembers },
+      data: {
+        payload: { teams, agents },
+      },
     } = response;
-    selectedAgentIds.value = inboxMembers.map(m => m.id);
+
+    selectedTeamIds.value = teams.map(team => team.id);
+    derivedAgentNames.value = agents.map(agent => agent.name);
+
+    // reset & repopulate configs from server state
+    Object.keys(teamConfigs).forEach(key => delete teamConfigs[key]);
+    defaultTeamId.value = null;
+
+    teams.forEach(team => {
+      const link = team.inbox_team || {};
+      teamConfigs[team.id] = {
+        routing_type_id: link.routing_type_id || '',
+        agent_bot_id: link.agent_bot_id || '',
+      };
+      if (link.is_default) {
+        defaultTeamId.value = team.id;
+      }
+    });
   } catch (error) {
-    //  Handle error
+    // Handle error silently
   }
 };
 
@@ -261,18 +305,31 @@ const handleToggleAutoAssignment = async val => {
   }
 };
 
-const updateAgents = async () => {
-  isAgentListUpdating.value = true;
-  try {
-    await store.dispatch('inboxMembers/create', {
-      inboxId: props.inbox.id,
-      agentList: selectedAgentIds.value,
-    });
-    useAlert(t('AGENT_MGMT.EDIT.API.SUCCESS_MESSAGE'));
-  } catch (error) {
-    useAlert(t('AGENT_MGMT.EDIT.API.ERROR_MESSAGE'));
+const updateTeams = async () => {
+  if (selectedTeamIds.value.length && !defaultTeamId.value) {
+    useAlert(t('INBOX_MGMT.TEAMS.ROUTING.DEFAULT_TEAM_REQUIRED'));
+    return;
   }
-  isAgentListUpdating.value = false;
+
+  isTeamListUpdating.value = true;
+  try {
+    const teamConfigsPayload = selectedTeamIds.value.map(teamId => ({
+      team_id: teamId,
+      is_default: teamId === defaultTeamId.value,
+      routing_type_id: teamConfigs[teamId]?.routing_type_id || null,
+      agent_bot_id: teamConfigs[teamId]?.agent_bot_id || null,
+    }));
+
+    await store.dispatch('inboxTeams/update', {
+      inboxId: props.inbox.id,
+      teamConfigs: teamConfigsPayload,
+    });
+    await fetchAttachedTeams();
+    useAlert(t('INBOX_MGMT.TEAMS.UPDATE_SUCCESS'));
+  } catch (error) {
+    useAlert(t('INBOX_MGMT.TEAMS.UPDATE_ERROR'));
+  }
+  isTeamListUpdating.value = false;
 };
 
 const updateInbox = async () => {
@@ -345,7 +402,7 @@ const setDefaults = () => {
   enableAutoAssignment.value = props.inbox.enable_auto_assignment;
   maxAssignmentLimit.value =
     props.inbox.auto_assignment_config?.max_assignment_limit || null;
-  fetchAttachedAgents();
+  fetchAttachedTeams();
   if (showAdvancedAssignmentUI.value) {
     fetchAssignmentPolicy();
     fetchAvailablePolicies();
@@ -355,7 +412,12 @@ const setDefaults = () => {
 // Watch only inbox.id to avoid unnecessary refetches when other properties change
 watch(() => props.inbox.id, setDefaults);
 
-onMounted(() => {
+onMounted(async () => {
+  await Promise.all([
+    store.dispatch('teams/get'),
+    store.dispatch('routingTypes/get'),
+    store.dispatch('agentBots/get'),
+  ]);
   setDefaults();
 });
 </script>
@@ -363,37 +425,153 @@ onMounted(() => {
 <template>
   <div>
     <SettingsFieldSection
-      :label="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_AGENTS')"
-      :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_AGENTS_SUB_TEXT')"
+      :label="$t('INBOX_MGMT.TEAMS.TITLE')"
+      :help-text="$t('INBOX_MGMT.TEAMS.SUB_TEXT')"
       class="[&>div]:!items-start"
     >
       <div
         class="rounded-xl outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong px-2 py-2"
       >
         <TagInput
-          :model-value="selectedAgentNames"
-          :placeholder="$t('INBOX_MGMT.ADD.AGENTS.PICK_AGENTS')"
-          :menu-items="agentMenuItems"
+          :model-value="selectedTeamNames"
+          :placeholder="$t('INBOX_MGMT.TEAMS.PICK_TEAMS')"
+          :menu-items="teamMenuItems"
           show-dropdown
           skip-label-dedup
           :auto-open-dropdown="false"
-          @add="handleAgentAdd"
-          @remove="handleAgentRemove"
+          @add="handleTeamAdd"
+          @remove="handleTeamRemove"
         />
       </div>
 
       <template #extra>
+        <div v-if="selectedTeams.length" class="mt-4">
+          <table class="w-full border-collapse table-fixed">
+            <colgroup>
+              <col class="w-[26%]" />
+              <col class="w-[30%]" />
+              <col class="w-[30%]" />
+              <col class="w-[14%]" />
+            </colgroup>
+            <thead>
+              <tr class="border-b border-n-weak">
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.TEAM') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.ROUTING_TYPE') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.BOT') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-center text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.DEFAULT') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="team in selectedTeams" :key="team.id">
+                <td class="px-3 pt-4 text-sm text-n-slate-12 truncate">
+                  {{ team.name }}
+                </td>
+
+                <td class="px-3 pt-4">
+                  <div
+                    v-if="teamConfigs[team.id]"
+                    class="rounded-lg outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong"
+                  >
+                    <select
+                      v-model="teamConfigs[team.id].routing_type_id"
+                      class="reset-base !mb-0 !border-0 !outline-none !bg-transparent !shadow-none !py-2.5 !px-3 !h-auto !leading-normal text-sm text-n-slate-12"
+                    >
+                      <option value="">
+                        {{ $t('INBOX_MGMT.TEAMS.ROUTING.NO_ROUTING_TYPE') }}
+                      </option>
+                      <option
+                        v-for="rt in routingTypes"
+                        :key="rt.id"
+                        :value="rt.id"
+                      >
+                        {{ rt.name }}
+                      </option>
+                    </select>
+                  </div>
+                </td>
+
+                <td class="px-3 pt-4">
+                  <div
+                    v-if="teamConfigs[team.id]"
+                    class="rounded-lg outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong"
+                  >
+                    <select
+                      v-model="teamConfigs[team.id].agent_bot_id"
+                      class="reset-base !mb-0 !border-0 !outline-none !bg-transparent !shadow-none !py-2.5 !px-3 !h-auto !leading-normal text-sm text-n-slate-12"
+                    >
+                      <option value="">
+                        {{ $t('INBOX_MGMT.TEAMS.ROUTING.NO_BOT') }}
+                      </option>
+                      <option
+                        v-for="bot in agentBots"
+                        :key="bot.id"
+                        :value="bot.id"
+                      >
+                        {{ bot.name }}
+                      </option>
+                    </select>
+                  </div>
+                </td>
+
+                <td class="px-3 pt-4">
+                  <div class="flex justify-center">
+                    <input
+                      v-model="defaultTeamId"
+                      type="radio"
+                      name="defaultTeam"
+                      :value="team.id"
+                      class="w-4 h-4 cursor-pointer accent-n-teal-9"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-8">
           <div class="col-span-1 lg:col-span-2" />
           <div class="col-span-1 lg:col-span-6 mt-4 justify-self-end">
             <NextButton
               :label="$t('INBOX_MGMT.SETTINGS_POPUP.UPDATE')"
-              :is-loading="isAgentListUpdating"
-              @click="updateAgents"
+              :is-loading="isTeamListUpdating"
+              @click="updateTeams"
             />
           </div>
         </div>
       </template>
+    </SettingsFieldSection>
+    <SettingsFieldSection
+      v-if="derivedAgentNames.length"
+      :label="$t('INBOX_MGMT.TEAMS.DERIVED_AGENTS')"
+      :help-text="$t('INBOX_MGMT.TEAMS.DERIVED_AGENTS_SUB_TEXT')"
+      class="mt-6 [&>div]:!items-start"
+    >
+      <div class="flex flex-wrap gap-2">
+        <span
+          v-for="agentName in derivedAgentNames"
+          :key="agentName"
+          class="px-2 py-1 text-sm rounded-lg bg-n-alpha-2 text-n-slate-12"
+        >
+          {{ agentName }}
+        </span>
+      </div>
     </SettingsFieldSection>
     <SettingsAccordion
       :title="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_ASSIGNMENT')"

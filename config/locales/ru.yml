@@ -298,6 +298,11 @@ ru:
       delivery_status:
         error_code: 'Код ошибки: %{error_code}'
     activity:
+      routing:
+          team_assigned_with_type: "Диалог назначен команде «%{team_name}» по типу маршрутизации «%{routing_type_name}»"
+          team_assigned_default: "Диалог назначен команде «%{team_name}» (маршрутизация по умолчанию)"
+          bot_assigned_with_type: "Назначен бот «%{bot_name}» по типу маршрутизации «%{routing_type_name}»"
+          bot_assigned_default: "Назначен бот «%{bot_name}» (маршрутизация по умолчанию)"
       captain:
         resolved: 'Диалог был решен %{user_name} из-за бездействия'
         resolved_with_reason: 'Conversation was marked resolved by %{user_name} (%{reason})'

@@ -3,7 +3,6 @@ import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 
 import TeamForm from '../TeamForm.vue';
-import router from '../../../../index';
 import PageHeader from '../../SettingsSubPageHeader.vue';
 import Spinner from 'shared/components/Spinner.vue';
 
@@ -41,13 +40,7 @@ export default {
           ...data,
         });
 
-        router.replace({
-          name: 'settings_teams_edit_members',
-          params: {
-            page: 'edit',
-            teamId,
-          },
-        });
+        useAlert(this.$t('TEAMS_SETTINGS.EDIT.API.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(this.$t('TEAMS_SETTINGS.TEAM_FORM.ERROR_MESSAGE'));
       }
@@ -57,7 +50,7 @@ export default {
 </script>
 
 <template>
-  <div class="h-full w-full p-8 col-span-6 overflow-y-auto">
+  <div>
     <PageHeader
       :header-title="$t('TEAMS_SETTINGS.EDIT_FLOW.CREATE.TITLE')"
       :header-content="$t('TEAMS_SETTINGS.EDIT_FLOW.CREATE.DESC')"
