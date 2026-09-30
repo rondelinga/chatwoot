@@ -4,11 +4,11 @@ import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
-import subDays from 'date-fns/subDays';
 import differenceInDays from 'date-fns/differenceInDays';
 import ActiveFilterChip from './Filters/v3/ActiveFilterChip.vue';
 import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
+import ReportsFiltersTimeRange from './Filters/TimeRange.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { DATE_RANGE_TYPES } from 'dashboard/components/ui/DatePicker/helpers/DatePickerHelper';
 import {
@@ -35,6 +35,10 @@ const props = defineProps({
   showBusinessHours: {
     type: Boolean,
     default: true,
+  },
+  showTimeRange: {
+    type: Boolean,
+    default: false,
   },
   showEntityFilter: {
     type: Boolean,
@@ -74,8 +78,8 @@ const getFilterKey = () => getReportFilterKey(props.filterType);
 const showSubDropdownMenu = ref(false);
 const showGroupByDropdown = ref(false);
 const activeFilterType = ref('');
-const customDateRange = ref([subDays(new Date(), 6), new Date()]);
-const selectedDateRange = ref(DATE_RANGE_TYPES.LAST_7_DAYS);
+const customDateRange = ref([new Date(), new Date()]);
+const selectedDateRange = ref(DATE_RANGE_TYPES.TODAY);
 const businessHoursSelected = ref(false);
 const groupBy = ref(GROUP_BY_FILTER[1]);
 const groupByfilterItemsList = ref([{ id: 1, name: 'Day' }]);
@@ -107,7 +111,13 @@ const isGroupByPossible = computed(() => {
   return props.showGroupBy && daysDifference.value >= 29;
 });
 
+const timeRange = ref({ since: '00:00', until: '23:59' });
+
 const GROUP_BY_OPTIONS = computed(() => ({
+  HOUR: [
+    { id: 5, name: t('REPORT.GROUPING_OPTIONS.HOUR') },
+    { id: 1, name: t('REPORT.GROUPING_OPTIONS.DAY') },
+  ],
   WEEK: [
     { id: 1, name: t('REPORT.GROUPING_OPTIONS.DAY') },
     { id: 2, name: t('REPORT.GROUPING_OPTIONS.WEEK') },
@@ -126,6 +136,7 @@ const GROUP_BY_OPTIONS = computed(() => ({
 
 const fetchFilterItems = () => {
   const days = daysDifference.value;
+  if (days < 1) return GROUP_BY_OPTIONS.value.HOUR;
   if (days >= 364) return GROUP_BY_OPTIONS.value.YEAR;
   if (days >= 90) return GROUP_BY_OPTIONS.value.MONTH;
   if (days >= 29) return GROUP_BY_OPTIONS.value.WEEK;
@@ -194,6 +205,10 @@ const emitChange = () => {
       : GROUP_BY_FILTER[1];
   }
 
+  if (props.showTimeRange) {
+    payload.timeRange = timeRange.value;
+  }
+
   if (props.showEntityFilter) {
     const filterKey = getFilterKey();
     const selectedValue = appliedFilters.value[filterKey];
@@ -208,6 +223,11 @@ const emitChange = () => {
 
   updateURLParams();
   emit('filterChange', payload);
+};
+
+const onTimeRangeChange = range => {
+  timeRange.value = range;
+  emitChange();
 };
 
 const closeActiveFilterDropdown = () => {
@@ -361,6 +381,11 @@ onMounted(() => {
         @close-dropdown="closeGroupByDropdown"
         @add-filter="onGroupByFilterChange"
         @remove-filter="() => {}"
+      />
+
+      <ReportsFiltersTimeRange
+        v-if="showTimeRange"
+        @time-range-changed="onTimeRangeChange"
       />
 
       <div

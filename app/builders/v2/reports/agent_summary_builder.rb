@@ -10,7 +10,7 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
 
   attr_reader :conversations_count, :resolved_count,
               :avg_resolution_time, :avg_first_response_time, :avg_reply_time,
-              :agent_chat_duration
+              :agent_chat_duration, :csat_satisfaction_score
 
   def load_data
     super
@@ -18,18 +18,48 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_conversations_count
-    account.conversations.where(created_at: range).group('assignee_id').count
+    scope = account.conversations.where(created_at: range)
+    scope = scope.where(assignee_id: params[:user_ids]&.reject(&:blank?)) if params[:user_ids].present?
+    scope = scope.where(inbox_id: params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids].present?
+    scope = scope.where(team_id: params[:team_ids]&.reject(&:blank?)) if params[:team_ids].present?
+    scope.group('assignee_id').count
   end
 
   def fetch_agent_chat_duration
-    account.reporting_events
+    scope = account.reporting_events
            .where(name: :agent_chat_duration, created_at: range)
-           .group(:user_id)
-           .average(:value)
+           .filter_by_user_id(params[:user_ids]&.reject(&:blank?))
+    
+    scope = scope.filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids].present?
+    scope = scope.filter_by_label_ids(params[:label_ids], account.id) if params[:label_ids].present?
+    scope = filter_by_team(scope) if params[:team_ids].present?
+    
+    scope.group(:user_id).average(:value)
   end
 
   def prepare_report
-    account.account_users.map do |account_user|
+    scope = account.account_users
+    
+    if params[:user_ids].present? && params[:user_ids].reject(&:blank?).any?
+      scope = scope.where(user_id: params[:user_ids].reject(&:blank?))
+    else
+      if params[:inbox_ids].present? || params[:team_ids].present? || params[:label_ids].present?
+        all_user_ids = [
+          conversations_count.keys,
+          resolved_count.keys,
+          avg_resolution_time.keys,
+          avg_first_response_time.keys,
+          avg_reply_time.keys,
+          agent_chat_duration.keys,
+          csat_satisfaction_score.keys
+        ].flatten.compact.uniq
+        
+        return [] if all_user_ids.empty?
+        scope = scope.where(user_id: all_user_ids)
+      end
+    end
+    
+    scope.map do |account_user|
       build_agent_stats(account_user)
     end
   end
@@ -43,8 +73,28 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
       avg_resolution_time: avg_resolution_time[user_id],
       avg_first_response_time: avg_first_response_time[user_id],
       avg_reply_time: avg_reply_time[user_id],
-      agent_chat_duration: (agent_chat_duration[user_id] || 0).to_i
+      agent_chat_duration: (agent_chat_duration[user_id] || 0).to_i,
+      csat_satisfaction_score: csat_satisfaction_score[user_id] || 0
     }
+  end
+
+  def apply_csat_filters(scope)
+    scope = scope.where(assigned_agent_id: params[:user_ids].reject(&:blank?)) if params[:user_ids].present?
+    scope = scope.joins(:conversation)
+    scope = scope.where(conversations: { inbox_id: params[:inbox_ids].reject(&:blank?) }) if params[:inbox_ids].present?
+    scope = scope.where(conversations: { team_id: params[:team_ids].reject(&:blank?) }) if params[:team_ids].present?
+    
+    if params[:label_ids].present?
+      tag_ids = ReportingEvent.tag_ids_for_labels(params[:label_ids].reject(&:blank?), account.id)
+      scope = scope.joins('INNER JOIN taggings ON taggings.taggable_id = conversations.id AND taggings.taggable_type = \'Conversation\' AND taggings.context = \'labels\'')
+                   .where(taggings: { tag_id: tag_ids }) unless tag_ids.empty?
+    end
+    
+    scope
+  end
+
+  def csat_group_by_key
+    'csat_survey_responses.assigned_agent_id'
   end
 
   def group_by_key

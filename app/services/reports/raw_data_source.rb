@@ -98,17 +98,29 @@ class Reports::RawDataSource < Reports::DataSource
   end
 
   def summary_scope
-    scope = account.reporting_events.where(created_at: range)
-    return scope.joins(:conversation) if dimension_type == 'team'
+    events = account.reporting_events.where(created_at: range)
+    events = events.filter_by_user_id(user_ids) if user_ids.present?
+    events = events.filter_by_inbox_id(inbox_ids) if inbox_ids.present?
+    events = events.filter_by_label_ids(label_ids, account.id) if label_ids.present?
+    apply_team_filter(events)
+  end
 
-    scope
+  def apply_team_filter(events)
+    return events unless dimension_type == 'team' || team_ids.present?
+
+    events = events.joins(:conversation)
+    return events.where(conversations: { team_id: team_ids }) if team_ids.present?
+
+    events
   end
 
   def summary_conversation_counts
-    account.conversations
-           .where(created_at: range)
-           .group(summary_conversation_group_by_key)
-           .count
+    conversations = account.conversations.where(created_at: range)
+    conversations = conversations.where(assignee_id: user_ids) if user_ids.present?
+    conversations = conversations.where(inbox_id: inbox_ids) if inbox_ids.present?
+    conversations = conversations.where(team_id: team_ids) if team_ids.present?
+    conversations = conversations.filter_by_label_ids(label_ids, account.id) if label_ids.present?
+    conversations.group(summary_conversation_group_by_key).count
   end
 
   def merge_summary_results(metric_results, conversation_counts)
@@ -123,7 +135,10 @@ class Reports::RawDataSource < Reports::DataSource
   end
 
   def summary_select_field(definition)
-    if definition.count?
+    if definition.name == :resolutions_count
+      "COUNT(DISTINCT CASE WHEN reporting_events.name = 'conversation_resolved' THEN reporting_events.conversation_id END) " \
+        "as #{definition.summary_key}"
+    elsif definition.count?
       "COUNT(CASE WHEN name = '#{definition.raw_event_name}' THEN 1 END) as #{definition.summary_key}"
     else
       "AVG(CASE WHEN name = '#{definition.raw_event_name}' THEN #{average_value_key} END) as #{definition.summary_key}"

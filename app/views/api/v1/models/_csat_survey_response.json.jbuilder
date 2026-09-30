@@ -23,3 +23,4 @@ if resource.assigned_agent
   end
 end
 json.created_at resource.created_at.to_i
+json.chat_created_at resource.conversation.created_at.to_i

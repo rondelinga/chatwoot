@@ -64,4 +64,29 @@ class V2::Reports::Timeseries::BaseTimeseriesBuilder
   def dimension_type
     (params[:type].presence || 'account').to_s
   end
+
+  def apply_filters(relation)
+    apply_user_filter(apply_inbox_filter(relation))
+  end
+
+  def apply_user_filter(relation)
+    return relation if params[:user_ids].blank?
+    return relation unless params[:type].to_sym == :account
+
+    relation.where(assignee_id: params[:user_ids])
+  end
+
+  def apply_inbox_filter(relation)
+    return relation if params[:inbox_ids].blank?
+    return relation unless params[:type].to_sym == :account
+
+    relation.where(inbox_id: params[:inbox_ids])
+  end
+
+  def apply_user_filter_via_conversation(relation)
+    return relation if params[:user_ids].blank?
+    return relation unless params[:type].to_sym == :account
+
+    relation.joins(:conversation).where(conversations: { assignee_id: params[:user_ids] })
+  end
 end

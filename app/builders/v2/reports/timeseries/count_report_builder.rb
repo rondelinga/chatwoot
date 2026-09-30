@@ -26,40 +26,44 @@ class V2::Reports::Timeseries::CountReportBuilder < V2::Reports::Timeseries::Bas
   end
 
   def scope_for_conversations_count
-    scope.conversations.where(account_id: account.id, created_at: range)
+    apply_filters(
+      scope.conversations.where(account_id: account.id, created_at: range)
+    )
   end
 
   def scope_for_incoming_messages_count
-    scope.messages.where(account_id: account.id, created_at: range).incoming.unscope(:order)
+    base = scope.messages.where(account_id: account.id, created_at: range).incoming.unscope(:order)
+    apply_inbox_filter(apply_user_filter_via_conversation(base))
   end
 
   def scope_for_outgoing_messages_count
-    scope.messages.where(account_id: account.id, created_at: range).outgoing.unscope(:order)
+    base = scope.messages.where(account_id: account.id, created_at: range).outgoing.unscope(:order)
+    apply_inbox_filter(apply_user_filter_via_conversation(base))
   end
 
   def scope_for_resolutions_count
     case params[:type].to_sym
     when :agent
-      scope.reporting_events.where(name: :conversation_resolved, account_id: account.id,  user_id: params[:id], created_at: range)
+      scope.reporting_events.where(name: :conversation_resolved, account_id: account.id, user_id: params[:id], created_at: range)
     else
-      scope.conversations.where(account_id: account.id, status: :resolved,  resolved_at: range)
+      apply_filters(
+        scope.conversations.where(account_id: account.id, status: :resolved, resolved_at: range)
+      )
     end
   end
 
   def scope_for_bot_resolutions_count
-    scope.reporting_events.where(
-      name: :conversation_bot_resolved,
-      account_id: account.id,
-      created_at: range
-    )
+    scope.reporting_events
+         .where(name: :conversation_bot_resolved, account_id: account.id, created_at: range)
+         .filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?))
   end
 
   def scope_for_bot_handoffs_count
-    scope.reporting_events.joins(:conversation).select(:conversation_id).where(
-      name: :conversation_bot_handoff,
-      account_id: account.id,
-      created_at: range
-    ).distinct
+    scope.reporting_events
+         .where(name: :conversation_bot_handoff, account_id: account.id, created_at: range)
+         .filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?))
+         .select(:conversation_id)
+         .distinct
   end
 
   def grouped_count

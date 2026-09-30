@@ -262,6 +262,30 @@ en:
       busy_hours: Busy hours
       offline_hours: Offline hours
       current_status: Current status
+    conversation_details_csv:
+      conversation_id: 'conversation ID'
+      created_at: 'Start date'
+      inbox_name: 'Inbox'
+      team_name: 'Team'
+      contact_email: 'Contact email'
+      agent_nick: 'Operator name %{index}'
+      duration: 'Duration'
+      chat_resolution: "Chat Resolution"
+      first_response_time: 'First Response Time'
+      avg_response_time: 'AVG Response Time'
+      csat_score: 'Conv Score (CSAT)'
+      csat_feedback: 'Feedback'
+      queue_entered_at: 'Queue entered at'
+      queue_accepted_at: 'Queue accepted at'
+      queue_left_at: 'Queue left at'
+      queue_exit_reason: 'Queue exit reason'
+      label: 'Category %{index}'
+      contact_name: 'Contact name'
+      chat_custom: 'Chat custom: %{attr}'
+      contact_custom: 'Contact custom: %{attr}'
+      contact_additional: 'Contact additional: %{attr}'
+      agent_chat_duration: 'Agent chat duration'
+      agent_chat_duration_individual: 'Agent chat duration %{index}'
     agent_csv:
       agent_name: Agent name
       conversations_count: Assigned conversations
@@ -270,12 +294,20 @@ en:
       resolution_count: Resolution Count
       avg_customer_waiting_time: Avg customer waiting time
       agent_chat_duration: Avg chat duration
+      csat_score: CSAT Score
+    bot_csv:
+      bot_name: Bot
+      conversations_count: Conversation Count
+      avg_first_response_time: Avg first response time
+      avg_reply_time: Avg reply time
+      avg_resolution_time: Avg resolution time
     inbox_csv:
       inbox_name: Inbox name
       inbox_type: Inbox type
       conversations_count: No. of conversations
       avg_first_response_time: Avg first response time
       avg_resolution_time: Avg resolution time
+      csat_score: CSAT Score
     label_csv:
       label_title: Label
       conversations_count: No. of conversations
@@ -283,6 +315,32 @@ en:
       avg_resolution_time: Avg resolution time
       avg_reply_time: Avg reply time
       resolution_count: Resolution Count
+      csat_score: CSAT Score
+    overview:
+      open_conversations: Open conversations
+      agent_status: Agent Status
+      resolutions: Resolutions
+      by_agents: Conversations by agents
+      by_teams: Conversations by teams
+    overview_csv:
+      period: Report Period
+      open: Open
+      unattended: Unnatended
+      unassigned: Unassigned
+      pending: Pending
+      resolved: Resolved
+      status: Status
+      count: Count
+      data: Data
+      no_data: No Data
+      hour: Hour
+      agent: Agent
+      team: Team
+      resolutions_count: Resolution Count
+      avg_resolution_time: AVG Resolution Time Count
+    metrics:
+      resolutions_count: Resolution Count
+      avg_resolution_time: AVG Resolution Time Count
     team_csv:
       team_name: Team name
       conversations_count: Conversations count
@@ -290,6 +348,7 @@ en:
       avg_resolution_time: Avg resolution time
       resolution_count: Resolution Count
       avg_customer_waiting_time: Avg customer waiting time
+      csat_score: CSAT Score
     conversation_csv:
       conversations_count: Conversations
       incoming_messages_count: Messages received
@@ -319,6 +378,7 @@ en:
         agent_name: Agent Name
         rating: Rating
         feedback: Feedback Comment
+        chat_created_at: Chat created date
         recorded_at: Recorded date
         review_notes: Review Notes
   notifications:

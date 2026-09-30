@@ -399,6 +399,7 @@
     "BETA": "Beta",
     "REPORTS_OVERVIEW": "Overview",
     "REPORTS_QUEUED_CUSTOMERS": "Queued customers",
+    "REPORTS_ALL_METRICS": "All metrics",
     "REAUTHORIZE": "Your inbox connection has expired, please reconnect\n to continue receiving and sending messages",
     "HELP_CENTER": {
       "TITLE": "Help Center",

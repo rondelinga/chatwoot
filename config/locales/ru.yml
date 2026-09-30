@@ -217,6 +217,30 @@ ru:
       busy_hours: Занят (часы)
       offline_hours: Оффлайн (часы)
       current_status: Текущий статус
+    conversation_details_csv:
+      conversation_id: 'ID чата'
+      created_at: 'Дата и время начала'
+      inbox_name: 'Источник'
+      team_name: 'Группа'
+      contact_email: 'Почта клиента'
+      agent_nick: 'Ник оператора %{index}'
+      duration: 'Длительность диалога'
+      chat_resolution: "Общее время до решения"
+      first_response_time: 'Время первого ответа'
+      avg_response_time: 'Среднее время ответа'
+      csat_score: 'Оценка чата (CSAT)'
+      csat_feedback: 'Комментарий к оценке'
+      queue_entered_at: 'Чат попал в очередь'
+      queue_accepted_at: 'Чат принят оператором'
+      queue_left_at: 'Чат покинул очередь без ответа'
+      queue_exit_reason: 'Причина выхода из очереди'
+      label: 'Категория %{index}'
+      contact_name: 'Имя клиента'
+      chat_custom: 'Кастом инфо о чате: %{attr}'
+      contact_custom: 'Кастом инфо о контакте: %{attr}'
+      contact_additional: 'Дополнительная инфо: %{attr}'
+      agent_chat_duration: 'Общее время длительности чата агентов'
+      agent_chat_duration_individual: 'Длительность диалога оператора %{index}'
     agent_csv:
       agent_name: Имя оператора
       conversations_count: Назначенные диалоги
@@ -225,12 +249,14 @@ ru:
       resolution_count: Количество завершенных
       avg_customer_waiting_time: Среднее время ожидания клиента
       agent_chat_duration: Среднее время длительности чатов
+      csat_score: Оценка CSAT
     inbox_csv:
       inbox_name: Имя источника
       inbox_type: Тип входящего сообщения
       conversations_count: Количество диалогов
       avg_first_response_time: Среднее время первого ответа
       avg_resolution_time: Среднее время завершения
+      csat_score: Оценка CSAT
     label_csv:
       label_title: Метка
       conversations_count: Количество диалогов
@@ -238,6 +264,39 @@ ru:
       avg_resolution_time: Среднее время завершения
       avg_reply_time: Среднее время ответа
       resolution_count: Количество завершенных
+      csat_score: Оценка CSAT
+    overview:
+      open_conversations: Открытые диалоги
+      agent_status: Статус агентов
+      conversation_traffic: Трафик диалогов
+      resolutions: Резолюции
+      by_agents: Диалоги по агентам
+      by_teams: Диалоги по командам
+    overview_csv:
+      period: Период отчёта
+      open: Открытые
+      unattended: Без ответа
+      unassigned: Не назначены
+      pending: В ожидании
+      resolved: Решенных
+      status: Статус
+      count: Количество
+      data: Дата
+      no_data: Нет данных
+      hour: Час
+      agent: Агент
+      team: Команда
+      resolutions_count: Количество резолюций
+      avg_resolution_time: Среднее время резолюции
+    metrics:
+      resolutions_count: Количество резолюций
+      avg_resolution_time: Среднее время резолюции
+    bot_csv:
+      bot_name: Бот
+      conversations_count: Количество диалогов
+      avg_first_response_time: Среднее время первого ответа
+      avg_reply_time: Среднее время ожидания клиента
+      avg_resolution_time: Среднее время завершения    
     team_csv:
       team_name: Название команды
       conversations_count: Количество бесед
@@ -245,6 +304,7 @@ ru:
       avg_resolution_time: Среднее время завершения
       resolution_count: Количество завершенных
       avg_customer_waiting_time: Среднее время ожидания клиента
+      csat_score: Оценка CSAT
     conversation_csv:
       conversations_count: Диалоги
       incoming_messages_count: Входящие сообщения
@@ -274,6 +334,7 @@ ru:
         agent_name: Имя оператора
         rating: Оценка
         feedback: Комментарий к отзыву
+        chat_created_at: Дата создания чата       
         recorded_at: Дата записи
         review_notes: Просмотреть заметки
   notifications:

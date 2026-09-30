@@ -1578,9 +1578,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.float "value_in_business_hours"
     t.datetime "event_start_time", precision: nil
     t.datetime "event_end_time", precision: nil
+    t.bigint "agent_bot_id"
     t.index ["account_id", "name", "created_at"], name: "reporting_events__account_id__name__created_at"
     t.index ["account_id", "name", "inbox_id", "created_at"], name: "index_reporting_events_for_response_distribution"
     t.index ["account_id"], name: "index_reporting_events_on_account_id"
+    t.index ["agent_bot_id"], name: "index_reporting_events_on_agent_bot_id"
     t.index ["conversation_id"], name: "index_reporting_events_on_conversation_id"
     t.index ["created_at"], name: "index_reporting_events_on_created_at"
     t.index ["inbox_id"], name: "index_reporting_events_on_inbox_id"
@@ -1811,6 +1813,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
   add_foreign_key "agent_activity_logs", "users"
   add_foreign_key "conversation_queues", "accounts"
   add_foreign_key "conversation_queues", "conversations"
+  add_foreign_key "conversation_queues", "inboxes"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "priority_groups"
   add_foreign_key "priority_groups", "accounts"

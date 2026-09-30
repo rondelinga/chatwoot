@@ -574,6 +574,7 @@ Rails.application.routes.draw do
               get :inbox
               get :label
               get :channel
+              get :bot
             end
           end
           resources :reports, only: [:index] do
@@ -594,6 +595,9 @@ Rails.application.routes.draw do
               get :first_response_time_distribution
               get :outgoing_messages_count
               get :queued_customers
+              get :overview_summary
+              get :bot_summary_download
+              get :all_conversation_metrics_download
             end
           end
           resource :year_in_review, only: [:show]
