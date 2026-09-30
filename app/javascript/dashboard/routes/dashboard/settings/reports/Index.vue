@@ -2,9 +2,7 @@
 import DownloadDropdown from 'dashboard/components/DownloadDropdown.vue';
 import { useReportDownloadOptions } from 'dashboard/composables/useReportDownloadOptions';
 import { useAlert, useTrack } from 'dashboard/composables';
-import ReportFilters from './components/ReportFilters.vue';
-import ReportsFiltersAgents from './components/Filters/Agents.vue';
-import ReportsFiltersInboxes from './components/Filters/Inboxes.vue';
+import ReportFilterSelector from './components/FilterSelector.vue';
 import { GROUP_BY_FILTER } from './constants';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
@@ -26,9 +24,7 @@ export default {
   name: 'ConversationReports',
   components: {
     ReportHeader,
-    ReportFilters,
-    ReportsFiltersAgents,
-    ReportsFiltersInboxes,
+    ReportFilterSelector,
     ReportContainer,
     DownloadDropdown,
   },
@@ -125,26 +121,28 @@ export default {
         inboxIds: selectedInboxes.map(inbox => inbox.id),
       });
     },
-    onFilterChange({ from, to, groupBy, businessHours, timeRange }) {
+    onFilterChange({
+      from,
+      to,
+      groupBy,
+      businessHours,
+      timeRange,
+      selectedAgents,
+      selectedInbox,
+    }) {
       this.from = from;
       this.to = to;
       this.groupBy = groupBy;
       this.businessHours = businessHours;
-      if (timeRange) this.timeRange = timeRange;
+      this.timeRange = timeRange;
+      this.selectedAgents = selectedAgents || [];
+      this.selectedInboxes = selectedInbox || [];
       this.fetchAllData();
 
       useTrack(REPORTS_EVENTS.FILTER_REPORT, {
         filterValue: { from, to, groupBy, businessHours, timeRange },
         reportType: 'conversations',
       });
-    },
-    onAgentsFilter(agents) {
-      this.selectedAgents = agents || [];
-      this.fetchAllData();
-    },
-    onInboxesFilter(inboxes) {
-      this.selectedInboxes = inboxes || [];
-      this.fetchAllData();
     },
   },
 };
@@ -159,16 +157,13 @@ export default {
     />
   </ReportHeader>
   <div class="flex flex-col gap-3">
-    <ReportFilters
-      :show-entity-filter="false"
-      show-group-by
-      show-time-range
+    <ReportFilterSelector
+      show-agents-filter
+      show-inbox-filter
+      show-group-by-filter
+      show-time-range-filter
       @filter-change="onFilterChange"
     />
-    <div class="flex items-center gap-3 px-4">
-      <ReportsFiltersAgents @agents-filter-selection="onAgentsFilter" />
-      <ReportsFiltersInboxes @inbox-filter-selection="onInboxesFilter" />
-    </div>
     <ReportContainer
       :group-by="groupBy"
       :from="from"

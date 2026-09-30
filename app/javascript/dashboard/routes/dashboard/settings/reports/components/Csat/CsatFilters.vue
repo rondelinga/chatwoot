@@ -2,9 +2,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
-import { useRoute, useRouter } from 'vue-router';
-import { subDays, fromUnixTime } from 'date-fns';
-import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { useMapGetter } from 'dashboard/composables/store';
 import {
   buildFilterList,
   buildRatingsList,
@@ -12,14 +11,7 @@ import {
 } from './CsatFilterHelpers';
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
-import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
-import ReportsFiltersTimeRange from '../Filters/TimeRange.vue';
-import {
-  parseReportURLParams,
-  parseFilterURLParams,
-  generateCompleteURLParams,
-} from '../../helpers/reportFilterHelper';
-import { DATE_RANGE_TYPES } from 'dashboard/components/ui/DatePicker/helpers/DatePickerHelper';
+import ReportFilterSelector from '../FilterSelector.vue';
 
 const props = defineProps({
   showTeamFilter: {
@@ -32,36 +24,30 @@ const emit = defineEmits(['filterChange']);
 
 const { t } = useI18n();
 const store = useStore();
-const route = useRoute();
-const router = useRouter();
+const { accountId } = useAccount();
+const currentUser = useMapGetter('getCurrentUser');
 
-// Initialize from URL params immediately
-const urlParams = parseReportURLParams(route.query);
-const urlFilters = parseFilterURLParams(route.query);
+const isRestrictedAgent = computed(() => {
+  const account = currentUser.value?.accounts?.find(
+    item => Number(item.id) === Number(accountId.value)
+  );
 
-const initialDateRange =
-  urlParams.from && urlParams.to
-    ? [fromUnixTime(urlParams.from), fromUnixTime(urlParams.to)]
-    : [subDays(new Date(), 6), new Date()];
-
-const toIdList = value => {
-  if (value == null || value === '') return [];
-
-  return (Array.isArray(value) ? value : [value])
-    .map(Number)
-    .filter(Number.isFinite);
-};
+  return account?.role === 'agent' && !account?.custom_role_id;
+});
 
 const showDropdownMenu = ref(false);
-const timeRange = ref({ since: '00:00', until: '23:59' });
-const customDateRange = ref(initialDateRange);
-const selectedDateRange = ref(urlParams.range || DATE_RANGE_TYPES.LAST_7_DAYS);
-
+const from = ref(0);
+const to = ref(0);
+const businessHours = ref(false);
+const timeRange = ref({
+  since: '00:00',
+  until: '23:59',
+});
 const appliedFilters = ref({
-  user_ids: toIdList(route.query.agent_id),
-  inbox_id: toIdList(route.query.inbox_id),
-  team_id: toIdList(route.query.team_id),
-  rating: urlFilters.rating,
+  user_ids: [],
+  inbox_id: [],
+  team_id: [],
+  rating: null,
 });
 
 const agents = computed(() => store.getters['agents/getAgents']);
@@ -69,9 +55,6 @@ const inboxes = computed(() => store.getters['inboxes/getInboxes']);
 const teams = computed(() => store.getters['teams/getTeams']);
 
 const ratings = computed(() => buildRatingsList(t));
-
-const from = computed(() => getUnixStartOfDay(customDateRange.value[0]));
-const to = computed(() => getUnixEndOfDay(customDateRange.value[1]));
 
 const getFilterSource = type => {
   const sources = {
@@ -101,11 +84,15 @@ const getFilterOptions = type => {
 
 const filterListMenuItems = computed(() => {
   const filterTypes = [
-    {
-      id: '1',
-      name: t('CSAT_REPORTS.FILTERS.AGENTS.LABEL'),
-      type: 'agents',
-    },
+    ...(!isRestrictedAgent.value
+      ? [
+          {
+            id: '1',
+            name: t('CSAT_REPORTS.FILTERS.AGENTS.LABEL'),
+            type: 'agents',
+          },
+        ]
+      : []),
     {
       id: '2',
       name: t('CSAT_REPORTS.FILTERS.INBOXES.LABEL'),
@@ -202,44 +189,19 @@ const hasActiveFilters = computed(() =>
   )
 );
 
-const filterQueryValue = value => {
-  if (Array.isArray(value)) return value.length ? value : null;
-  return value;
-};
-
-const updateURLParams = () => {
-  const params = generateCompleteURLParams({
-    from: from.value,
-    to: to.value,
-    range: selectedDateRange.value,
-    filters: {
-      agent_id: filterQueryValue(appliedFilters.value.user_ids),
-      inbox_id: filterQueryValue(appliedFilters.value.inbox_id),
-      team_id: filterQueryValue(appliedFilters.value.team_id),
-      rating: appliedFilters.value.rating,
-    },
-  });
-  router.replace({ query: params });
-};
-
 const emitChange = () => {
-  updateURLParams();
   emit('filterChange', {
     from: from.value,
     to: to.value,
+    businessHours: businessHours.value,
+    timeRange: timeRange.value,
     selectedAgents: appliedFilters.value.user_ids.map(id => ({ id })),
     selectedInboxes: appliedFilters.value.inbox_id.map(id => ({ id })),
     selectedTeams: appliedFilters.value.team_id.map(id => ({ id })),
     selectedRating: appliedFilters.value.rating
       ? { value: appliedFilters.value.rating }
       : null,
-    timeRange: timeRange.value,
   });
-};
-
-const onTimeRangeChange = range => {
-  timeRange.value = range;
-  emitChange();
 };
 
 const closeDropdown = () => {
@@ -294,10 +256,11 @@ const showDropdown = () => {
   showDropdownMenu.value = !showDropdownMenu.value;
 };
 
-const onDateRangeChange = value => {
-  const [startDate, endDate, rangeType] = value;
-  customDateRange.value = [startDate, endDate];
-  selectedDateRange.value = rangeType || DATE_RANGE_TYPES.CUSTOM_RANGE;
+const onDateFilterChange = updatedFilter => {
+  from.value = updatedFilter.from;
+  to.value = updatedFilter.to;
+  businessHours.value = updatedFilter.businessHours;
+  timeRange.value = updatedFilter.timeRange;
   emitChange();
 };
 
@@ -307,13 +270,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col flex-wrap w-full gap-3 md:flex-row">
-    <WootDatePicker
-      v-model:date-range="customDateRange"
-      v-model:range-type="selectedDateRange"
-      @date-range-changed="onDateRangeChange"
+  <div class="flex flex-col w-full gap-3">
+    <ReportFilterSelector
+      show-time-range-filter
+      @filter-change="onDateFilterChange"
     />
-    <ReportsFiltersTimeRange @time-range-changed="onTimeRangeChange" />
 
     <div
       class="flex flex-col flex-wrap items-start gap-2 md:items-center md:flex-nowrap md:flex-row"

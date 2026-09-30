@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import formatDistanceStrict from 'date-fns/formatDistanceStrict';
+import { formatDistanceStrict } from 'date-fns';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { formatDate, isActiveImport } from '../importStatus';

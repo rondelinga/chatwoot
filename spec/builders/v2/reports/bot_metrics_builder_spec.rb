@@ -48,11 +48,11 @@ RSpec.describe V2::Reports::BotMetricsBuilder do
                                  conversation_id: handoff_only_conversation.id, created_at: 2.days.ago)
       end
 
-      it 'excludes the conversation from resolution count — handoff wins' do
+      it 'counts a bot resolution even when the conversation was also handed off' do
         metrics = bot_metrics_builder.metrics
 
         expect(metrics[:conversation_count]).to eq(2)
-        expect(metrics[:resolution_rate]).to eq(0)
+        expect(metrics[:resolution_rate]).to eq(50)
         expect(metrics[:handoff_rate]).to eq(100)
       end
     end

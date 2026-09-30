@@ -1,76 +1,54 @@
-<script>
-import { mapGetters } from 'vuex';
+<script setup>
+import { ref, computed } from 'vue';
+import { useStore } from 'vuex';
+import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 
-export default {
-  name: 'ReportsFiltersLabels',
-  props: {
-    selectedLabel: {
-      type: [Array, Object],
-      default: null,
-    },
-  },
-  emits: ['labelsFilterSelection'],
-  data() {
-    return {
-      selectedOptions: this.selectedLabel || [],
-    };
-  },
-  computed: {
-    ...mapGetters({
-      options: 'labels/getLabels',
-    }),
-  },
-  mounted() {
-    this.$store.dispatch('labels/get');
-  },
-  methods: {
-    handleInput() {
-      this.$emit('labelsFilterSelection', this.selectedOptions);
-    },
-  },
+const props = defineProps({
+  selectedLabel: { type: [Array, Object], default: null },
+});
+const emit = defineEmits(['labelsFilterSelection']);
+const store = useStore();
+
+store.dispatch('labels/get');
+
+const options = computed(() => store.getters['labels/getLabels']);
+const selectedItems = ref(
+  Array.isArray(props.selectedLabel) ? [...props.selectedLabel] : []
+);
+
+const tags = computed(() => selectedItems.value.map(l => l.title));
+const menuItems = computed(() =>
+  options.value
+    .filter(o => !selectedItems.value.find(s => s.id === o.id))
+    .map(o => ({ action: 'select', value: String(o.id), label: o.title }))
+);
+
+const handleAdd = ({ value }) => {
+  const item = options.value.find(o => String(o.id) === value);
+  if (item) {
+    selectedItems.value = [...selectedItems.value, item];
+    emit('labelsFilterSelection', selectedItems.value);
+  }
+};
+const handleRemove = index => {
+  selectedItems.value = selectedItems.value.filter((_, i) => i !== index);
+  emit('labelsFilterSelection', selectedItems.value);
 };
 </script>
 
 <template>
-  <div class="multiselect-wrap--small">
-    <multiselect
-      v-model="selectedOptions"
-      class="no-margin"
-      :options="options"
-      track-by="id"
-      label="title"
-      multiple
-      :close-on-select="false"
-      :clear-on-select="false"
-      hide-selected
-      :option-height="24"
-      :show-labels="false"
+  <div
+    class="rounded-xl outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong px-2 py-2"
+  >
+    <TagInput
+      :model-value="tags"
+      :menu-items="menuItems"
+      show-dropdown
+      :allow-create="false"
+      :auto-open-dropdown="false"
       :placeholder="$t('LABEL_REPORTS.FILTER_DROPDOWN_LABEL')"
-      selected-label
-      :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-      :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-      @update:model-value="handleInput"
-    >
-      <template #singleLabel="props">
-        <div class="flex items-center min-w-0 gap-2">
-          <div
-            :style="{ backgroundColor: props.option.color }"
-            class="w-5 h-5 rounded-full"
-          />
-          <span class="my-0 text-n-slate-12">{{ props.option.title }}</span>
-        </div>
-      </template>
-      <template #option="props">
-        <div class="flex items-center gap-2">
-          <div
-            :style="{ backgroundColor: props.option.color }"
-            class="flex-shrink-0 w-5 h-5 border border-solid rounded-full border-n-weak"
-          />
-          <span class="my-0 text-n-slate-12 truncate min-w-0">{{
-            props.option.title
-          }}</span>
-        </div>
-      </template>
-    </multiselect>
+      @add="handleAdd"
+      @remove="handleRemove"
+    />
   </div>
 </template>

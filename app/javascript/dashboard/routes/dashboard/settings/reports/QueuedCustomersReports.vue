@@ -9,7 +9,7 @@ import { useAlert } from 'dashboard/composables';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import BaseHeatmap from './components/heatmaps/BaseHeatmap.vue';
 import ReportHeader from './components/ReportHeader.vue';
-import OverviewReportFilters from './components/OverviewReportFilters.vue';
+import ReportFilterSelector from './components/FilterSelector.vue';
 
 const POLL_INTERVAL = 30_000;
 
@@ -19,7 +19,6 @@ const from = ref(0);
 const to = ref(0);
 const selectedInbox = ref([]);
 const selectedTeam = ref([]);
-const timeRange = ref({ since: '00:00', until: '23:59' });
 const loading = ref(false);
 const pollTimer = ref(null);
 
@@ -75,63 +74,61 @@ const waitingCards = computed(() => [
 ]);
 
 const queueFlowCollection = computed(() => {
-  const labels = queuedReport.value.daily.map(item => item.date);
+  const categories = queuedReport.value.daily.map(item => item.date);
   return {
-    labels,
-    datasets: [
+    categories,
+    series: [
       {
+        id: 'queued_customers',
         label: t('QUEUED_CUSTOMERS_REPORTS.CARDS.QUEUED_CUSTOMERS'),
+        color: 'rgb(var(--iris-9))',
         data: queuedReport.value.daily.map(item => item.queued_customers),
-        backgroundColor: '#3B82F6',
       },
       {
+        id: 'entered_chat',
         label: t('QUEUED_CUSTOMERS_REPORTS.CARDS.ENTERED_CHAT'),
+        color: 'rgb(var(--teal-9))',
         data: queuedReport.value.daily.map(item => item.entered_chat),
-        backgroundColor: '#10B981',
       },
       {
+        id: 'left_queue',
         label: t('QUEUED_CUSTOMERS_REPORTS.CARDS.LEFT_QUEUE'),
+        color: 'rgb(var(--amber-9))',
         data: queuedReport.value.daily.map(item => item.left_queue),
-        backgroundColor: '#F97316',
       },
     ],
   };
 });
 
 const waitingTimeCollection = computed(() => {
-  const labels = queuedReport.value.daily.map(item => item.date);
+  const categories = queuedReport.value.daily.map(item => item.date);
   return {
-    labels,
-    datasets: [
+    categories,
+    series: [
       {
+        id: 'time_to_enter_chat',
         label: t('QUEUED_CUSTOMERS_REPORTS.CARDS.TIME_TO_ENTER_CHAT'),
+        color: 'rgb(var(--iris-9))',
         data: queuedReport.value.daily.map(item => item.time_to_enter_chat),
-        backgroundColor: '#6366F1',
       },
       {
+        id: 'time_to_leave_queue',
         label: t('QUEUED_CUSTOMERS_REPORTS.CARDS.TIME_TO_LEAVE_QUEUE'),
+        color: 'rgb(var(--ruby-9))',
         data: queuedReport.value.daily.map(item => item.time_to_leave_queue),
-        backgroundColor: '#EC4899',
       },
     ],
   };
 });
 
-const unixWithTime = (unixSeconds, time) => {
-  const date = new Date(unixSeconds * 1000);
-  const [hours, minutes] = time.split(':').map(Number);
+const formatHeatmapValue = value => {
+  if (!value) {
+    return t('QUEUED_CUSTOMERS_REPORTS.HEATMAP.NO_CUSTOMERS');
+  }
 
-  return Math.floor(
-    Date.UTC(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      hours,
-      minutes,
-      0,
-      0
-    ) / 1000
-  );
+  return value === 1
+    ? t('QUEUED_CUSTOMERS_REPORTS.HEATMAP.CUSTOMER', { count: value })
+    : t('QUEUED_CUSTOMERS_REPORTS.HEATMAP.CUSTOMERS', { count: value });
 };
 
 const fetchQueuedCustomers = async ({ showLoader = false } = {}) => {
@@ -139,8 +136,8 @@ const fetchQueuedCustomers = async ({ showLoader = false } = {}) => {
   if (showLoader) loading.value = true;
   try {
     const response = await ReportsAPI.getQueuedCustomers({
-      from: unixWithTime(from.value, timeRange.value.since),
-      to: unixWithTime(to.value, timeRange.value.until),
+      from: from.value,
+      to: to.value,
       inboxIds: toIds(selectedInbox.value),
       teamIds: toIds(selectedTeam.value),
     });
@@ -175,7 +172,6 @@ const onFilterChange = updatedFilter => {
   to.value = updatedFilter.to;
   selectedInbox.value = updatedFilter.selectedInbox || [];
   selectedTeam.value = updatedFilter.selectedTeam || [];
-  if (updatedFilter.timeRange) timeRange.value = updatedFilter.timeRange;
   fetchQueuedCustomers({ showLoader: true });
   startPolling();
 };
@@ -198,8 +194,13 @@ onUnmounted(() => {
   />
 
   <div class="flex flex-col gap-4 pb-6">
-    <OverviewReportFilters
-      :disabled="loading"
+    <ReportFilterSelector
+      :show-agents-filter="false"
+      :show-group-by-filter="false"
+      :show-business-hours-switch="false"
+      show-time-range-filter
+      show-team-filter
+      show-inbox-filter
       @filter-change="onFilterChange"
     />
 
@@ -232,7 +233,8 @@ onUnmounted(() => {
         </div>
         <BarChart
           v-if="queuedReport.daily.length"
-          :collection="queueFlowCollection"
+          :data="queueFlowCollection"
+          :aria-label="$t('QUEUED_CUSTOMERS_REPORTS.QUEUE_FLOW_ARIA_LABEL')"
         />
       </div>
     </section>
@@ -263,7 +265,8 @@ onUnmounted(() => {
         </div>
         <BarChart
           v-if="queuedReport.daily.length"
-          :collection="waitingTimeCollection"
+          :data="waitingTimeCollection"
+          :aria-label="$t('QUEUED_CUSTOMERS_REPORTS.WAITING_TIME_ARIA_LABEL')"
         />
       </div>
     </section>
@@ -280,6 +283,8 @@ onUnmounted(() => {
           :number-of-rows="7"
           :is-loading="loading"
           color-scheme="green"
+          :aria-label="$t('QUEUED_CUSTOMERS_REPORTS.HEATMAP_ARIA_LABEL')"
+          :format-value="formatHeatmapValue"
         />
       </div>
     </section>

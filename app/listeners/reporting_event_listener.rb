@@ -100,11 +100,10 @@ class ReportingEventListener < BaseListener
     conversation = extract_conversation_and_account(event)[0]
     event_end_time = event.timestamp
 
-    # Find the most recent resolved event for this conversation
     last_resolved_event = ReportingEvent.where(
       conversation_id: conversation.id,
       name: 'conversation_resolved'
-    ).where('event_end_time <= ?', event_end_time).order(event_end_time: :desc).first
+    ).order(event_end_time: :desc).first
 
     # For first-time openings, value is 0
     # For reopenings, calculate time since resolution
@@ -118,7 +117,7 @@ class ReportingEventListener < BaseListener
       start_time = conversation.created_at
     end
 
-    create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time, event_end_time)
+    create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time)
   end
 
   def message_created(event)
@@ -197,8 +196,12 @@ class ReportingEventListener < BaseListener
   def create_conversation_resolved_events(conversation, start_time, end_time, time_to_resolve)
     user_ids = conversation.conversation_participants.where.not(user_id: nil).distinct.pluck(:user_id)
 
-    user_ids.each do |user_id|
-      build_conversation_resolved_event(conversation, user_id, start_time, end_time, time_to_resolve)
+    if user_ids.empty?
+      build_conversation_resolved_event(conversation, nil, start_time, end_time, time_to_resolve)
+    else
+      user_ids.each do |user_id|
+        build_conversation_resolved_event(conversation, user_id, start_time, end_time, time_to_resolve)
+      end
     end
 
     create_bot_resolved_event(conversation, start_time, end_time, time_to_resolve)
@@ -228,6 +231,7 @@ class ReportingEventListener < BaseListener
     return if resolution_time <= 0
 
     user_ids = conversation.conversation_participants.where.not(user_id: nil).distinct.pluck(:user_id)
+    user_ids = [nil] if user_ids.empty?
 
     user_ids.each do |user_id|
       reporting_event = ReportingEvent.new(
@@ -246,7 +250,7 @@ class ReportingEventListener < BaseListener
     end
   end
 
-  def create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time, event_end_time)
+  def create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time)
     reporting_event = ReportingEvent.new(
       name: 'conversation_opened',
       value: time_since_resolved,
@@ -256,7 +260,7 @@ class ReportingEventListener < BaseListener
       user_id: conversation.assignee_id,
       conversation_id: conversation.id,
       event_start_time: start_time,
-      event_end_time: event_end_time
+      event_end_time: conversation.updated_at
     )
     reporting_event.save!
   end

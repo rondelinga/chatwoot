@@ -8,7 +8,7 @@ import ReportsFiltersInboxes from './Filters/Inboxes.vue';
 import ReportsFiltersTeams from './Filters/Teams.vue';
 import ReportsFiltersRatings from './Filters/Ratings.vue';
 import ReportsFiltersTimeRange from './Filters/TimeRange.vue';
-import subDays from 'date-fns/subDays';
+import { subDays } from 'date-fns';
 import { DATE_RANGE_OPTIONS, GROUP_BY_OPTIONS } from '../constants';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 

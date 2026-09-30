@@ -1,5 +1,5 @@
 <script>
-import addDays from 'date-fns/addDays';
+import { addDays } from 'date-fns';
 import DatePicker from 'vue-datepicker-next';
 export default {
   components: { DatePicker },
