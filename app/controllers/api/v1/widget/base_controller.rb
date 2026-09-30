@@ -21,7 +21,10 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def create_conversation
-    ::Conversation.create!(conversation_params)
+    ::ConversationBuilder.new(
+      params: ActionController::Parameters.new(conversation_params).permit!,
+      contact_inbox: @contact_inbox
+    ).perform
   end
 
   def inbox
