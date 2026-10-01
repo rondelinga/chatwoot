@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -49,7 +49,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.datetime "updated_at", precision: nil, null: false
     t.datetime "active_at", precision: nil
     t.integer "availability", default: 0, null: false
-    t.boolean "auto_offline", default: true, null: false
+    t.boolean "auto_offline", default: false, null: false
     t.bigint "custom_role_id"
     t.bigint "agent_capacity_policy_id"
     t.integer "active_chat_limit"
@@ -75,11 +75,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.integer "status", default: 0
     t.jsonb "internal_attributes", default: {}, null: false
     t.jsonb "settings", default: {}
-    t.bigint "feature_flags_ext_1", default: 0, null: false
     t.boolean "active_chat_limit_enabled", default: false, null: false
     t.integer "active_chat_limit_value", default: 7
     t.boolean "queue_enabled", default: false, null: false
     t.text "queue_message"
+    t.bigint "feature_flags_ext_1", default: 0, null: false
     t.index ["status"], name: "index_accounts_on_status"
   end
 
@@ -545,8 +545,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.integer "status", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_captain_faq_suggestions_on_account_id"
     t.index ["account_id", "assistant_id", "status", "language"], name: "idx_cap_faq_suggestions_on_account_assistant_status_language"
+    t.index ["account_id"], name: "index_captain_faq_suggestions_on_account_id"
     t.index ["assistant_id"], name: "index_captain_faq_suggestions_on_assistant_id"
     t.index ["embedding"], name: "vector_idx_captain_faq_suggestions_embedding", opclass: :vector_cosine_ops, using: :ivfflat
   end
@@ -651,8 +651,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.boolean "smtp_enable_ssl_tls", default: false
     t.jsonb "provider_config", default: {}
     t.string "provider"
-    t.string "imap_authentication", default: "plain"
     t.boolean "verified_for_sending", default: false, null: false
+    t.string "imap_authentication", default: "plain"
     t.index ["email"], name: "index_channel_email_on_email", unique: true
     t.index ["forward_to_email"], name: "index_channel_email_on_forward_to_email", unique: true
   end
@@ -791,7 +791,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.text "business_management_token"
     t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
     t.index ["phone_number_health_checked_at"], name: "index_channel_whatsapp_on_phone_number_health_checked_at"
-    t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
   end
 
   create_table "companies", force: :cascade do |t|
@@ -801,7 +800,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.bigint "account_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "contacts_count"
+    t.integer "contacts_count", default: 0, null: false
     t.jsonb "additional_attributes", default: {}
     t.jsonb "custom_attributes", default: {}
     t.datetime "last_activity_at", precision: nil
@@ -1038,12 +1037,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.datetime "waiting_since"
     t.text "cached_label_list"
     t.bigint "assignee_agent_bot_id"
-    t.string "ai_assignee_type"
-    t.datetime "status_changed_at"
-    t.datetime "resolved_at"
     t.datetime "resolved_at"
     t.boolean "resolved_by_contact", default: false
-    t.datetime "proxied_at"
     t.datetime "status_changed_at"
     t.string "ai_assignee_type"
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
@@ -1220,8 +1215,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.text "processing_errors"
     t.integer "total_records"
     t.integer "processed_records"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "name"
     t.string "source_type"
     t.string "source_provider"
@@ -1246,13 +1241,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.integer "account_id"
     t.integer "template_type", default: 1
     t.integer "locale", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "inbox_id"
-    t.index ["account_id", "name", "template_type", "locale"], name: "index_email_templates_on_account_scope", unique: true, where: "(account_id IS NOT NULL) AND (inbox_id IS NULL)"
+    t.index ["account_id", "name", "template_type", "locale"], name: "index_email_templates_on_account_scope", unique: true, where: "((account_id IS NOT NULL) AND (inbox_id IS NULL))"
     t.index ["inbox_id", "name", "template_type", "locale"], name: "index_email_templates_on_inbox_scope", unique: true, where: "(inbox_id IS NOT NULL)"
     t.index ["inbox_id"], name: "index_email_templates_on_inbox_id"
-    t.index ["name", "template_type", "locale"], name: "index_email_templates_on_installation_scope", unique: true, where: "(account_id IS NULL) AND (inbox_id IS NULL)"
+    t.index ["name", "template_type", "locale"], name: "index_email_templates_on_installation_scope", unique: true, where: "((account_id IS NULL) AND (inbox_id IS NULL))"
   end
 
   create_table "folders", force: :cascade do |t|
@@ -1331,9 +1326,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.string "business_name"
     t.jsonb "csat_config", default: {}, null: false
     t.bigint "priority_group_id"
+    t.string "public_name"
     t.boolean "queue_notification_enabled", default: true, null: false
     t.boolean "resolution_notification_enabled", default: true, null: false
-    t.string "public_name"
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -1737,12 +1732,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.text "description"
     t.boolean "allow_auto_assign", default: false
     t.bigint "account_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "icon", default: ""
     t.string "icon_color", default: ""
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
+  end
+
+  create_table "user_pinned_labels", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "label_id", null: false
+    t.integer "position", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["label_id"], name: "index_user_pinned_labels_on_label_id"
+    t.index ["user_id", "label_id"], name: "index_user_pinned_labels_on_user_id_and_label_id", unique: true
+    t.index ["user_id"], name: "index_user_pinned_labels_on_user_id"
   end
 
   create_table "user_sessions", force: :cascade do |t|
@@ -1763,17 +1769,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "client_id"], name: "index_user_sessions_on_user_id_and_client_id", unique: true
     t.index ["user_id"], name: "index_user_sessions_on_user_id"
-  end
-  
-  create_table "user_pinned_labels", force: :cascade do |t|
-    t.bigint "user_id", null: false
-    t.bigint "label_id", null: false
-    t.integer "position", default: 0
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["label_id"], name: "index_user_pinned_labels_on_label_id"
-    t.index ["user_id", "label_id"], name: "index_user_pinned_labels_on_user_id_and_label_id", unique: true
-    t.index ["user_id"], name: "index_user_pinned_labels_on_user_id"
   end
 
   create_table "users", id: :serial, force: :cascade do |t|
@@ -1848,10 +1843,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_activity_logs", "accounts"
+  add_foreign_key "agent_activity_logs", "users"
   add_foreign_key "campaign_recipients", "accounts", on_delete: :cascade
   add_foreign_key "campaign_recipients", "campaigns", on_delete: :cascade
   add_foreign_key "campaign_recipients", "contacts", on_delete: :cascade
   add_foreign_key "campaign_recipients", "inboxes", on_delete: :cascade
+  add_foreign_key "canned_response_scopes", "canned_responses"
   add_foreign_key "conversation_monitor_daily_usages", "accounts", on_delete: :cascade
   add_foreign_key "conversation_monitor_evaluations", "accounts", on_delete: :cascade
   add_foreign_key "conversation_monitor_evaluations", "conversation_monitors", column: "monitor_id", on_delete: :cascade
@@ -1868,12 +1866,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
   add_foreign_key "inbox_teams", "inboxes"
   add_foreign_key "inbox_teams", "routing_types"
   add_foreign_key "inbox_teams", "teams"
-  add_foreign_key "agent_activity_logs", "accounts"
-  add_foreign_key "agent_activity_logs", "users"
-  add_foreign_key "canned_response_scopes", "canned_responses"
-  add_foreign_key "conversation_queues", "accounts"
-  add_foreign_key "conversation_queues", "conversations"
-  add_foreign_key "conversation_queues", "inboxes"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "priority_groups"
   add_foreign_key "messages", "messages", column: "audit_private_note_id"
@@ -1884,9 +1876,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
   add_foreign_key "priority_groups", "accounts"
   add_foreign_key "queue_statistics", "accounts"
   add_foreign_key "routing_types", "accounts"
-  add_foreign_key "user_sessions", "users"
   add_foreign_key "user_pinned_labels", "labels"
   add_foreign_key "user_pinned_labels", "users"
+  add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

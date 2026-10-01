@@ -18,14 +18,13 @@
 #
 #  idx_on_account_id_status_position_c5e04b77ac   (account_id,status,position)
 #  idx_on_account_id_status_queued_at_960ec2cf36  (account_id,status,queued_at)
-#  index_conversation_queues_on_account_id        (account_id)
 #  index_conversation_queues_on_conversation_id   (conversation_id) UNIQUE
-#  index_conversation_queues_on_inbox_id          (inbox_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (account_id => accounts.id)
 #  fk_rails_...  (conversation_id => conversations.id)
+#  fk_rails_...  (inbox_id => inboxes.id)
 #
 class ConversationQueue < ApplicationRecord
   belongs_to :conversation
