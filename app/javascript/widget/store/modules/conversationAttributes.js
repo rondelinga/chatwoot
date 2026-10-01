@@ -28,6 +28,19 @@ export const actions = {
   update({ commit }, data) {
     commit(UPDATE_CONVERSATION_ATTRIBUTES, data);
   },
+  setFromEvent({ commit }, data) {
+    if (data?.id === undefined || data?.id === null) return;
+
+    commit(SET_CONVERSATION_ATTRIBUTES, data);
+    if (
+      data.contact_last_seen_at !== undefined &&
+      data.contact_last_seen_at !== null
+    ) {
+      commit('conversation/setMetaUserLastSeenAt', data.contact_last_seen_at, {
+        root: true,
+      });
+    }
+  },
   clearConversationAttributes: ({ commit }) => {
     commit('CLEAR_CONVERSATION_ATTRIBUTES');
   },

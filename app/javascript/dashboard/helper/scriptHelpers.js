@@ -5,6 +5,7 @@ import {
 } from '../constants/appEvents';
 import AnalyticsHelper from './AnalyticsHelper';
 import DashboardAudioNotificationHelper from './AudioAlerts/DashboardAudioNotificationHelper';
+import GlobalStore from 'dashboard/store';
 import { emitter } from 'shared/helpers/mitt';
 
 export const initializeAnalyticsEvents = () => {
@@ -56,5 +57,6 @@ export const initializeChatwootEvents = () => {
     }
 
     initializeAudioAlerts(user);
+    GlobalStore.dispatch('userNotificationSettings/get');
   });
 };

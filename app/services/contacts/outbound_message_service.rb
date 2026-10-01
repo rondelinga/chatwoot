@@ -45,7 +45,7 @@ class Contacts::OutboundMessageService
   end
 
   def find_or_create_conversation
-    reusable = reusable_conversation
+    reusable = reusable_telegram_conversation
     if reusable.present?
       assign_sender!(reusable)
       reusable.open! unless reusable.open?
@@ -55,13 +55,10 @@ class Contacts::OutboundMessageService
     create_conversation
   end
 
-  def reusable_conversation
-    conversations = contact.conversations.where(inbox_id: inbox.id)
-    if inbox.telegram? && inbox.lock_to_single_conversation?
-      conversations.order(last_activity_at: :desc).first
-    else
-      conversations.open.order(last_activity_at: :desc).first
-    end
+  def reusable_telegram_conversation
+    return unless inbox.telegram? && inbox.lock_to_single_conversation?
+
+    contact.conversations.where(inbox_id: inbox.id).order(last_activity_at: :desc).first
   end
 
   def create_conversation

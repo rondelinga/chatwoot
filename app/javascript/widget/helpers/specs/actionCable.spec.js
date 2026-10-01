@@ -22,6 +22,11 @@ describe('Widget ActionCableConnector', () => {
         getters: {
           getCurrentAccountId: 1,
           getCurrentUserID: 1,
+          'conversationAttributes/getConversationParams': {
+            id: '',
+            status: '',
+          },
+          'appConfig/getIsWidgetOpen': false,
         },
       },
     };

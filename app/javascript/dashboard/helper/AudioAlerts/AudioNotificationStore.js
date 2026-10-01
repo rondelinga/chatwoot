@@ -19,6 +19,22 @@ class AudioNotificationStore {
     return mineConversation.some(conv => conv.unread_count > 0);
   };
 
+  firstUnreadUnmutedConversationId = isMuted => {
+    const mineConversation = this.store.getters.getMineChats({
+      assigneeType: 'me',
+      status: 'open',
+    });
+
+    const conversation = mineConversation.find(
+      conv => conv.unread_count > 0 && !isMuted(conv.id)
+    );
+    return conversation?.id;
+  };
+
+  getSoundSettings = () => {
+    return this.store.getters['userNotificationSettings/getSoundSettings'];
+  };
+
   isMessageFromPendingConversation = (message = {}) => {
     const { conversation_id: conversationId } = message || {};
     if (!conversationId) return false;

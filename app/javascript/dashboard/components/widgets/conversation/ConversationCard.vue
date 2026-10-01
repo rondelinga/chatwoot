@@ -12,6 +12,7 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -34,6 +35,8 @@ const emit = defineEmits([
 ]);
 
 const hovered = ref(false);
+const { isMuted } = useMutedConversations();
+const isChatMuted = computed(() => isMuted(props.chat.id));
 
 const unreadCount = computed(() => props.chat.unread_count);
 const hasUnread = computed(() => unreadCount.value > 0);
@@ -183,6 +186,18 @@ watch(
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
+        <Icon
+          v-if="isChatMuted"
+          v-tooltip="$t('CONVERSATION.HEADER.MUTED')"
+          icon="i-lucide-bell-off"
+          class="inline-block size-3.5 ms-1 align-text-bottom text-n-amber-10"
+        />
+        <span
+          v-if="isResolvedInOpenList"
+          class="ml-1.5 text-[10px] font-medium normal-case text-n-slate-9 bg-n-slate-2 border border-n-slate-4 rounded px-1.5 py-px align-middle"
+        >
+          {{ $t('CHAT_LIST.CLOSED_LABEL') }}
+        </span>
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"

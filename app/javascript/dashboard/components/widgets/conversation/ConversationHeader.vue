@@ -9,6 +9,8 @@ import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ConversationCallButton from './ConversationCallButton.vue';
+import ButtonV4 from 'dashboard/components-next/button/Button.vue';
+import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
@@ -31,6 +33,7 @@ const props = defineProps({
 const { t } = useI18n();
 const store = useStore();
 const route = useRoute();
+const { isMuted, toggleMute } = useMutedConversations();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox, isAnEmailChannel } = useInbox();
@@ -101,6 +104,8 @@ const hasMultipleInboxes = computed(
 const hasSlaPolicyId = computed(
   () => props.chat?.applied_sla?.id && !currentContact.value?.blocked
 );
+
+const isChatMuted = computed(() => isMuted(currentChat.value.id));
 
 const copyConversationId = async () => {
   try {
@@ -189,6 +194,24 @@ const copyConversationId = async () => {
         class="hidden md:flex"
       />
       <ConversationCallButton :inbox="inbox" :chat="currentChat" />
+      <ButtonV4
+        v-tooltip="
+          isChatMuted
+            ? $t('CONVERSATION.HEADER.UNMUTE')
+            : $t('CONVERSATION.HEADER.MUTE')
+        "
+        size="sm"
+        variant="ghost"
+        :color="isChatMuted ? 'amber' : 'slate'"
+        :icon="isChatMuted ? 'i-lucide-bell-off' : 'i-lucide-bell'"
+        class="rounded-md"
+        :aria-label="
+          isChatMuted
+            ? $t('CONVERSATION.HEADER.UNMUTE')
+            : $t('CONVERSATION.HEADER.MUTE')
+        "
+        @click="toggleMute(currentChat.id)"
+      />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>

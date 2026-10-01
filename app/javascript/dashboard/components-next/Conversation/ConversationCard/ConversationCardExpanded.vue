@@ -12,6 +12,7 @@ import SLACardLabel from 'dashboard/components-next/Conversation/Sla/SLACardLabe
 import CardStatusIcon from './CardStatusIcon.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -60,6 +61,8 @@ const orderClass = key =>
 
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
 const showLabelsSection = computed(() => props.chat.labels?.length > 0);
+const { isMuted } = useMutedConversations();
+const isChatMuted = computed(() => isMuted(props.chat.id));
 
 const voiceCallData = computed(() => {
   const last = lastMessageInChat.value;
@@ -217,7 +220,15 @@ const selectedModel = computed({
         class="text-heading-3 my-0 capitalize truncate text-n-slate-12 font-medium w-32 flex-shrink-0"
         :class="orderClass('name')"
       >
-        {{ currentContact.name }}
+        <span class="inline-flex items-center gap-1 min-w-0">
+          <span class="truncate">{{ currentContact.name }}</span>
+          <Icon
+            v-if="isChatMuted"
+            v-tooltip="$t('CONVERSATION.HEADER.MUTED')"
+            icon="i-lucide-bell-off"
+            class="size-3.5 flex-shrink-0 text-n-amber-10"
+          />
+        </span>
       </h4>
 
       <CardContent

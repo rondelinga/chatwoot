@@ -6,6 +6,12 @@ import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import NotificationCard from './NotificationCard.vue';
+import { isConversationMuted } from 'dashboard/composables/useMutedConversations';
+
+const MUTED_MESSAGE_NOTIFICATION_TYPES = [
+  'assigned_conversation_new_message',
+  'participating_conversation_new_message',
+];
 
 const { t } = useI18n();
 const router = useRouter();
@@ -54,6 +60,13 @@ const handleNewNotification = data => {
   const pushFlags =
     store.getters['userNotificationSettings/getSelectedPushFlags'] ?? [];
   if (!pushFlags.includes(`push_${notificationType}`)) return;
+
+  if (
+    MUTED_MESSAGE_NOTIFICATION_TYPES.includes(notificationType) &&
+    isConversationMuted(primary_actor?.id)
+  ) {
+    return;
+  }
 
   const sender = primary_actor?.meta?.sender;
   const inbox = primary_actor?.inbox_id

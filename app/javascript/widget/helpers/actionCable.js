@@ -4,14 +4,29 @@ import { ON_AGENT_MESSAGE_RECEIVED } from '../constants/widgetBusEvents';
 import { IFrameHelper } from 'widget/helpers/utils';
 import { shouldTriggerMessageUpdateEvent } from './IframeEventHelper';
 import { CHATWOOT_ON_MESSAGE } from '../constants/sdkEvents';
+import { MESSAGE_TYPE } from './constants';
 import { emitter } from '../../shared/helpers/mitt';
+
+const sameConversationId = (left, right) =>
+  left !== null &&
+  left !== undefined &&
+  right !== null &&
+  right !== undefined &&
+  Number(left) === Number(right);
 
 const isMessageInActiveConversation = (getters, message) => {
   const { conversation_id: conversationId } = message;
   const activeConversationId =
     getters['conversationAttributes/getConversationParams'].id;
-  return activeConversationId && conversationId !== activeConversationId;
+  return (
+    Boolean(activeConversationId) &&
+    !sameConversationId(activeConversationId, conversationId)
+  );
 };
+
+const isOutgoingAgentMessage = message =>
+  Number(message.message_type) === MESSAGE_TYPE.OUTGOING &&
+  message.sender_type === 'User';
 
 const WIDGET_PRESENCE_INTERVAL = 60000;
 
@@ -58,12 +73,19 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onMessageCreated = data => {
     if (isMessageInActiveConversation(this.app.$store.getters, data)) {
+      if (isOutgoingAgentMessage(data)) {
+        this.maybeShowOutboundNotification(data);
+        this.refreshConversationFromOutbound();
+      }
       return;
     }
 
     this.app.$store
       .dispatch('conversation/addOrUpdateMessage', data)
-      .then(() => emitter.emit(ON_AGENT_MESSAGE_RECEIVED));
+      .then(() => {
+        this.maybeShowOutboundNotification(data);
+        emitter.emit(ON_AGENT_MESSAGE_RECEIVED);
+      });
 
     IFrameHelper.sendMessage({
       event: 'onEvent',
@@ -91,19 +113,31 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('conversation/addOrUpdateMessage', data);
   };
 
-  onConversationCreated = async () => {
-    const isWidgetOpen = this.app.$store.getters['appConfig/getIsWidgetOpen'];
-    if (!isWidgetOpen) {
-      this.app.$store.dispatch(
-        'conversation/setShowOutboundNotification',
-        true
-      );
+  onConversationCreated = async data => {
+    if (data?.id) {
+      this.app.$store.dispatch('conversationAttributes/setFromEvent', data);
     }
+    this.maybeShowOutboundNotification({
+      sender_type: 'User',
+      message_type: 1,
+    });
+    await this.refreshConversationFromOutbound();
+  };
 
+  refreshConversationFromOutbound = async () => {
     await this.app.$store.dispatch('conversation/clearConversations');
     await this.app.$store.dispatch('conversationAttributes/getAttributes');
     await this.app.$store.dispatch('conversation/fetchOldConversations');
     emitter.emit(ON_AGENT_MESSAGE_RECEIVED);
+  };
+
+  maybeShowOutboundNotification = data => {
+    if (!isOutgoingAgentMessage(data)) return;
+
+    const isWidgetOpen = this.app.$store.getters['appConfig/getIsWidgetOpen'];
+    if (isWidgetOpen) return;
+
+    this.app.$store.dispatch('conversation/setShowOutboundNotification', true);
   };
 
   onPresenceUpdate = data => {

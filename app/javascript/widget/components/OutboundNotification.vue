@@ -16,9 +16,15 @@ const store = useStore();
 const { t } = useI18n();
 
 const unreadMessages = useMapGetter('conversation/getUnreadTextMessages');
+const latestOutgoingMessage = useMapGetter(
+  'conversation/getLatestOutgoingMessage'
+);
 const latestMessage = computed(() => {
   const messages = unreadMessages.value || [];
-  return messages[messages.length - 1] || {};
+  if (messages.length) {
+    return messages[messages.length - 1];
+  }
+  return latestOutgoingMessage.value || {};
 });
 const sender = computed(() => latestMessage.value.sender || {});
 const agentName = computed(() => {

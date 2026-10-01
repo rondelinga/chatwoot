@@ -13,8 +13,15 @@ export default {
   computed: {
     ...mapGetters({
       messages: 'conversation/getUnreadTextMessages',
+      latestOutgoingMessage: 'conversation/getLatestOutgoingMessage',
       showOutboundNotification: 'conversation/getShowOutboundNotification',
     }),
+    showOutboundCard() {
+      return (
+        this.showOutboundNotification &&
+        (this.messages.length > 0 || Boolean(this.latestOutgoingMessage?.id))
+      );
+    },
   },
   methods: {
     closeFullView() {
@@ -28,10 +35,7 @@ export default {
 </script>
 
 <template>
-  <OutboundNotification
-    v-if="showOutboundNotification && messages.length"
-    @close="closeFullView"
-  />
+  <OutboundNotification v-if="showOutboundCard" @close="closeFullView" />
   <UnreadMessageList
     v-else-if="messages.length"
     :messages="messages"

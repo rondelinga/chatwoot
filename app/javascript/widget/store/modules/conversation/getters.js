@@ -38,6 +38,14 @@ export const getters = {
   getIsFetchingList: _state => _state.uiFlags.isFetchingList,
   getShowOutboundNotification: _state =>
     _state.uiFlags.showOutboundNotification,
+  getLatestOutgoingMessage: _state => {
+    return (
+      Object.values(_state.conversations)
+        .slice()
+        .reverse()
+        .find(message => message.message_type === MESSAGE_TYPE.OUTGOING) || {}
+    );
+  },
   getMessageCount: _state => {
     return Object.values(_state.conversations).length;
   },
