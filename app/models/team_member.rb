@@ -2,12 +2,12 @@
 #
 # Table name: team_members
 #
-#  id               :bigint           not null, primary key
-#  assignment_tier  :integer          default("primary"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  team_id          :bigint           not null
-#  user_id          :bigint           not null
+#  id              :bigint           not null, primary key
+#  assignment_tier :integer          default("primary"), not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  team_id         :bigint           not null
+#  user_id         :bigint           not null
 #
 # Indexes
 #
