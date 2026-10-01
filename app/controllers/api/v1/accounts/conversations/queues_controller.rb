@@ -17,7 +17,7 @@ class Api::V1::Accounts::Conversations::QueuesController < Api::V1::Accounts::Co
     end
 
     open_conversation_if_queued!
-    Queue::ProcessQueueJob.perform_later(Current.account.id, @conversation.inbox_id)
+    ChatQueue::ProcessQueueJob.perform_later(Current.account.id)
 
     render json: { queue: queue_payload(entry.reload) }
   end
