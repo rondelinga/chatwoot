@@ -1,3 +1,31 @@
+# == Schema Information
+#
+# Table name: inbox_teams
+#
+#  id              :bigint           not null, primary key
+#  is_default      :boolean          default(FALSE), not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  agent_bot_id    :bigint
+#  inbox_id        :bigint           not null
+#  routing_type_id :bigint
+#  team_id         :bigint           not null
+#
+# Indexes
+#
+#  index_inbox_teams_on_agent_bot_id          (agent_bot_id)
+#  index_inbox_teams_on_inbox_id              (inbox_id)
+#  index_inbox_teams_on_inbox_id_and_team_id  (inbox_id,team_id) UNIQUE
+#  index_inbox_teams_on_routing_type_id       (routing_type_id)
+#  index_inbox_teams_on_team_id               (team_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (agent_bot_id => agent_bots.id)
+#  fk_rails_...  (inbox_id => inboxes.id)
+#  fk_rails_...  (routing_type_id => routing_types.id)
+#  fk_rails_...  (team_id => teams.id)
+#
 class InboxTeam < ApplicationRecord
   belongs_to :inbox
   belongs_to :team
