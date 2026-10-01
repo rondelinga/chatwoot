@@ -54,6 +54,7 @@ export default {
       unreadMessageCount: 'conversation/getUnreadMessageCount',
       isWidgetStyleFlat: 'appConfig/isWidgetStyleFlat',
       showUnreadMessagesDialog: 'appConfig/getShowUnreadMessagesDialog',
+      showOutboundNotification: 'conversation/getShowOutboundNotification',
     }),
     isIFrame() {
       return IFrameHelper.isIFrame();
@@ -177,6 +178,10 @@ export default {
         if ((this.isWidgetOpen || !this.isIFrame) && routeName === 'messages') {
           this.$store.dispatch('conversation/setUserLastSeen');
         }
+        if (this.isWidgetOpen && routeName === 'home' && this.messageCount) {
+          this.router.replace({ name: 'messages' });
+          return;
+        }
         this.setUnreadView();
       });
       emitter.on(ON_UNREAD_MESSAGE_CLICK, () => {
@@ -224,7 +229,7 @@ export default {
       }
     },
     setUnreadView() {
-      const { unreadMessageCount } = this;
+      const { unreadMessageCount, showOutboundNotification } = this;
       if (!this.showUnreadMessagesDialog || !this.isIFrame) return;
 
       // The unread view marks the widget as open, so only the route tells us it
@@ -234,7 +239,10 @@ export default {
         return;
       }
 
-      if (unreadMessageCount > 0 && !this.isWidgetOpen) {
+      if (
+        (unreadMessageCount > 0 || showOutboundNotification) &&
+        !this.isWidgetOpen
+      ) {
         this.router.replace({ name: 'unread-messages' }).then(() => {
           this.setIframeHeight(true);
           IFrameHelper.sendMessage({ event: 'setUnreadMode' });
@@ -330,7 +338,12 @@ export default {
           this.setColorScheme(message.darkMode);
         } else if (message.event === 'toggle-open') {
           this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
-          if (message.isOpen) {
+          // setUnreadMode opens the holder to show the overlay. Keep the outbound
+          // toast until the customer actually enters the full conversation view.
+          if (
+            message.isOpen &&
+            !['unread-messages', 'campaigns'].includes(this.$route.name)
+          ) {
             this.$store.dispatch(
               'conversation/setShowOutboundNotification',
               false

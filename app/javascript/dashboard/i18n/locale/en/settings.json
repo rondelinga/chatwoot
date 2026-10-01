@@ -112,6 +112,28 @@
         "TITLE": "Audio Alerts",
         "NOTE": "Enable audio alerts in dashboard for new messages and conversations.",
         "PLAY": "Play sound",
+        "SOUND_LABEL": "Sound",
+        "NEW_CONVERSATION": {
+          "TITLE": "New conversation"
+        },
+        "NEW_MESSAGE": {
+          "TITLE": "New message"
+        },
+        "SOUNDS": {
+          "UPLOAD_TITLE": "Custom notification sounds",
+          "UPLOAD_HINT": "Formats: MP3, WAV, OGG. Maximum size: 2 MB. Maximum duration: 5 seconds.",
+          "CHOOSE_FILE": "Choose file",
+          "UPLOADING": "Uploading...",
+          "UPLOADED": "Uploaded ({size})",
+          "DELETE": "Delete sound",
+          "UPLOAD_SUCCESS": "Custom sound uploaded successfully",
+          "UPLOAD_ERROR": "Unable to upload the sound. Please try again.",
+          "DELETE_SUCCESS": "Custom sound deleted",
+          "DELETE_ERROR": "Unable to delete the sound. Please try again.",
+          "INVALID_TYPE": "File type is not supported. Use MP3, WAV, or OGG.",
+          "TOO_LARGE": "File exceeds the maximum allowed size of 2 MB.",
+          "TOO_LONG": "Audio must be 5 seconds or shorter."
+        },
         "ALERT_TYPES": {
           "NONE": "None",
           "MINE": "Assigned",
