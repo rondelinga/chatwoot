@@ -15,7 +15,6 @@
 #
 # Indexes
 #
-#  index_queue_statistics_on_account_id           (account_id)
 #  index_queue_statistics_on_account_id_and_date  (account_id,date) UNIQUE
 #
 # Foreign Keys

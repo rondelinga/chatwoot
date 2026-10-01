@@ -4,12 +4,10 @@
 #
 #  id                        :integer          not null, primary key
 #  additional_attributes     :jsonb
-#  audit_private_note_id     :integer
 #  content                   :text
 #  content_attributes        :json
 #  content_type              :integer          default("text"), not null
 #  deleted_at                :datetime
-#  deleted_by_id             :integer
 #  external_source_ids       :jsonb
 #  message_type              :integer          not null
 #  original_content          :text
@@ -21,7 +19,9 @@
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  account_id                :integer          not null
+#  audit_private_note_id     :integer
 #  conversation_id           :integer          not null
+#  deleted_by_id             :integer
 #  inbox_id                  :integer          not null
 #  sender_id                 :bigint
 #  source_id                 :text
@@ -40,7 +40,13 @@
 #  index_messages_on_deleted_at                         (deleted_at)
 #  index_messages_on_inbox_id                           (inbox_id)
 #  index_messages_on_sender_and_created                 (sender_type,sender_id,created_at)
+#  index_messages_on_sender_type_and_sender_id          (sender_type,sender_id)
 #  index_messages_on_source_id                          (source_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (audit_private_note_id => messages.id)
+#  fk_rails_...  (deleted_by_id => users.id)
 #
 
 class Message < ApplicationRecord

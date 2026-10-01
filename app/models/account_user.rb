@@ -6,7 +6,7 @@
 #  active_at                 :datetime
 #  active_chat_limit         :integer
 #  active_chat_limit_enabled :boolean          default(FALSE), not null
-#  auto_offline              :boolean          default(TRUE), not null
+#  auto_offline              :boolean          default(FALSE), not null
 #  availability              :integer          default("online"), not null
 #  role                      :integer          default("agent")
 #  created_at                :datetime         not null

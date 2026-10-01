@@ -11,6 +11,7 @@
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  account_id              :integer
+#  agent_bot_id            :bigint
 #  conversation_id         :integer
 #  inbox_id                :integer
 #  user_id                 :integer
@@ -19,6 +20,7 @@
 #
 #  index_reporting_events_for_response_distribution  (account_id,name,inbox_id,created_at)
 #  index_reporting_events_on_account_id              (account_id)
+#  index_reporting_events_on_agent_bot_id            (agent_bot_id)
 #  index_reporting_events_on_conversation_id         (conversation_id)
 #  index_reporting_events_on_created_at              (created_at)
 #  index_reporting_events_on_inbox_id                (inbox_id)
