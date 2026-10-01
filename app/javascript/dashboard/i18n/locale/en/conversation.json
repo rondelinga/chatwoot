@@ -148,6 +148,9 @@
       "REOPEN_ACTION": "Reopen",
       "OPEN_ACTION": "Open",
       "MORE_ACTIONS": "More actions",
+      "MUTE": "Mute",
+      "MUTED": "Muted",
+      "UNMUTE": "Unmute",
       "OPEN": "More",
       "CLOSE": "Close",
       "DETAILS": "details",
@@ -254,6 +257,8 @@
       "RESOLVED": "Mark as resolved",
       "MARK_AS_UNREAD": "Mark as unread",
       "MARK_AS_READ": "Mark as read",
+      "MUTE": "Mute notifications",
+      "UNMUTE": "Unmute notifications",
       "REOPEN": "Reopen conversation",
       "SNOOZE": {
         "TITLE": "Snooze",

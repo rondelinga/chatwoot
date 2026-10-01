@@ -1471,7 +1471,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
     t.datetime "updated_at", precision: nil, null: false
     t.integer "push_flags", default: 0, null: false
     t.integer "notification_display_duration", default: 6
+    t.boolean "new_conversation_sound_enabled", default: true, null: false
+    t.string "new_conversation_sound", default: "bell", null: false
+    t.integer "new_conversation_volume", default: 80, null: false
+    t.bigint "new_conversation_custom_sound_id"
+    t.boolean "new_message_sound_enabled", default: true, null: false
+    t.string "new_message_sound", default: "pop", null: false
+    t.integer "new_message_volume", default: 60, null: false
+    t.bigint "new_message_custom_sound_id"
     t.index ["account_id", "user_id"], name: "by_account_user", unique: true
+    t.index ["new_conversation_custom_sound_id"], name: "idx_on_new_conversation_custom_sound_id_9ebec7035e"
+    t.index ["new_message_custom_sound_id"], name: "index_notification_settings_on_new_message_custom_sound_id"
+  end
+
+  create_table "notification_sounds", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "filename", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_notification_sounds_on_user_id"
   end
 
   create_table "notification_subscriptions", force: :cascade do |t|
@@ -1852,6 +1870,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_120000) do
   add_foreign_key "conversation_queues", "inboxes"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "inboxes", "priority_groups"
+  add_foreign_key "notification_settings", "notification_sounds", column: "new_conversation_custom_sound_id", on_delete: :nullify
+  add_foreign_key "notification_settings", "notification_sounds", column: "new_message_custom_sound_id", on_delete: :nullify
+  add_foreign_key "notification_sounds", "users"
   add_foreign_key "priority_groups", "accounts"
   add_foreign_key "queue_statistics", "accounts"
   add_foreign_key "routing_types", "accounts"

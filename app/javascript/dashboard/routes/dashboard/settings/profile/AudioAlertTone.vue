@@ -3,43 +3,39 @@ import { computed } from 'vue';
 import Icon from 'next/icon/Icon.vue';
 import * as Sentry from '@sentry/vue';
 import FormSelect from 'v3/components/Form/Select.vue';
+import {
+  BUILTIN_ALERT_TONES,
+  playAlertSound,
+} from 'dashboard/helper/AudioAlerts/AudioNotificationService';
 
 const props = defineProps({
   value: {
     type: String,
     required: true,
-    validator: value =>
-      ['ding', 'bell', 'chime', 'magic', 'ping'].includes(value),
   },
   label: {
     type: String,
     default: '',
+  },
+  extraOptions: {
+    type: Array,
+    default: () => [],
+  },
+  playSrc: {
+    type: String,
+    default: '',
+  },
+  volume: {
+    type: Number,
+    default: 80,
   },
 });
 
 const emit = defineEmits(['change']);
 
 const alertTones = computed(() => [
-  {
-    value: 'ding',
-    label: 'Ding',
-  },
-  {
-    value: 'bell',
-    label: 'Bell',
-  },
-  {
-    value: 'chime',
-    label: 'Chime',
-  },
-  {
-    value: 'magic',
-    label: 'Magic',
-  },
-  {
-    value: 'ping',
-    label: 'Ping',
-  },
+  ...BUILTIN_ALERT_TONES,
+  ...props.extraOptions,
 ]);
 
 const selectedValue = computed({
@@ -49,13 +45,13 @@ const selectedValue = computed({
   },
 });
 
-const audio = new Audio();
-
 const playAudio = async () => {
   try {
-    // Has great support https://caniuse.com/mdn-api_htmlaudioelement
-    audio.src = `/audio/dashboard/${selectedValue.value}.mp3`;
-    await audio.play();
+    await playAlertSound({
+      tone: selectedValue.value,
+      customUrl: props.playSrc,
+      volume: props.volume,
+    });
   } catch (error) {
     Sentry.captureException(error);
   }
@@ -75,7 +71,7 @@ const playAudio = async () => {
     >
       <option
         v-for="tone in alertTones"
-        :key="tone.label"
+        :key="tone.value"
         :value="tone.value"
         :selected="tone.value === selectedValue"
       >
@@ -86,6 +82,7 @@ const playAudio = async () => {
       v-tooltip.top="
         $t('PROFILE_SETTINGS.FORM.AUDIO_NOTIFICATIONS_SECTION.PLAY')
       "
+      type="button"
       class="border-0 shadow-sm outline-none flex justify-center items-center size-10 appearance-none rounded-xl ring-n-weak ring-1 ring-inset focus:ring-2 focus:ring-inset focus:ring-n-brand flex-shrink-0 mt-[1.75rem]"
       @click="playAudio"
     >

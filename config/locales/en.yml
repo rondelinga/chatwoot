@@ -103,6 +103,11 @@ en:
       not_found: Assignment policy not found
     attachments:
       invalid: Invalid attachment
+    notification_sounds:
+      missing: Please choose an audio file
+      invalid_type: File type is not supported. Use MP3, WAV, or OGG
+      too_large: File exceeds the maximum allowed size of 2 MB
+      too_long: Audio must be 5 seconds or shorter
     upload:
       missing_input: 'No file or URL provided'
       invalid_url: 'Invalid URL provided'

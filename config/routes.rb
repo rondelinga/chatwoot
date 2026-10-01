@@ -529,6 +529,7 @@ Rails.application.routes.draw do
           end
           resources :sessions, only: [:index, :destroy]
           resource :trusted_devices, only: [:destroy]
+          resources :notification_sounds, only: [:index, :create, :destroy]
         end
       end
 

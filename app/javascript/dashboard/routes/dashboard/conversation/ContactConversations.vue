@@ -137,7 +137,7 @@ onMounted(() => {
         :has-unread-messages="activeContextChat.unread_count > 0"
         :conversation-labels="activeContextChat.labels"
         :conversation-url="conversationPath"
-        :allowed-options="['open-new-tab', 'copy-link']"
+        :allowed-options="['open-new-tab', 'copy-link', 'mute']"
         @close="closeContextMenu"
       />
     </ContextMenu>
