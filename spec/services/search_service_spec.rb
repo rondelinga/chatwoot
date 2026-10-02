@@ -61,6 +61,8 @@ describe SearchService do
     end
 
     context 'when contact search' do
+      before { account.account_users.find_by(user: user).update!(role: 'administrator') }
+
       it 'searches across name, email, phone_number and identifier and returns in the order of contact last_activity_at' do
         # random contact
         create(:contact, account_id: account.id)
@@ -324,6 +326,7 @@ describe SearchService do
 
       before do
         account.enable_features!('advanced_search')
+        account.account_users.find_by(user: user).update!(role: 'administrator')
       end
 
       it 'caps since to 90 days ago and excludes older contacts' do
@@ -450,12 +453,11 @@ describe SearchService do
           create(:inbox_member, user: user, inbox: other_inbox)
         end
 
-        it 'skips inbox filtering as optimization' do
+        it 'still scopes agent messages by accessible inbox conversations' do
           base_query = search.send(:message_base_query)
 
-          # Should only have the time filter, not inbox filter
           expect(base_query.to_sql).to include('created_at >= ')
-          expect(base_query.to_sql).not_to include('inbox_id')
+          expect(base_query.to_sql).to include('inbox_id')
         end
       end
     end

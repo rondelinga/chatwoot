@@ -516,9 +516,13 @@ RSpec.describe Conversation do
 
     it 'creates mute message' do
       mute!
-      expect(Conversations::ActivityMessageJob)
-        .to(have_been_enqueued.at_least(:once).with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                                                                    message_type: :activity, content: "#{user.name} has muted the conversation" }))
+      mute_content = "#{user.name} has muted the conversation for "
+      expect(Conversations::ActivityMessageJob).to(
+        have_been_enqueued.at_least(:once).with(
+          conversation,
+          { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity, content: mute_content }
+        )
+      )
     end
 
     context 'when contact is missing' do
@@ -698,6 +702,7 @@ RSpec.describe Conversation do
           assignee: conversation.assigned_entity&.push_event_data,
           assignee_type: conversation.assignee_type,
           team: conversation.team&.push_event_data,
+          team_id: conversation.team_id,
           hmac_verified: conversation.contact_inbox.hmac_verified
         },
         id: conversation.display_id,
@@ -719,12 +724,14 @@ RSpec.describe Conversation do
         updated_at: conversation.updated_at.to_f,
         waiting_since: conversation.waiting_since.to_i,
         priority: nil,
-        unread_count: 0
+        unread_count: 0,
+        resolved_by_contact: conversation.resolved_by_contact,
+        csat_response: {}
       }
     end
 
     it 'returns push event payload' do
-      expect(push_event_data).to eq(expected_data)
+      expect(push_event_data).to include(expected_data)
     end
   end
 

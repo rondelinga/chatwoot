@@ -53,6 +53,8 @@ class Inbox < ApplicationRecord
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
   include InboxBotStatus
+  include InboxChannelTypes
+  include InboxNameSanitizer
 
   # Not allowing characters:
   validates :name, presence: true
@@ -134,72 +136,6 @@ class Inbox < ApplicationRecord
     Inboxes::MembersSyncService.new(inbox: self).perform
   end
 
-  # Sanitizes inbox name for balanced email provider compatibility
-  # ALLOWS: /'._- and Unicode letters/numbers/emojis
-  # REMOVES: Forbidden chars (\<>@"()) + spam-trigger symbols (!#$%&*+=?^`{|}~)
-  def sanitized_name
-    return default_name_for_blank_name if name.blank?
-
-    sanitized = apply_sanitization_rules(name)
-    sanitized.blank? && email? ? display_name_from_email : sanitized
-  end
-
-  def sanitized_business_name
-    sanitize_raw_name(business_name) || sanitized_name
-  end
-
-  def sms?
-    channel_type == 'Channel::Sms'
-  end
-
-  def facebook?
-    channel_type == 'Channel::FacebookPage'
-  end
-
-  def instagram?
-    (facebook? || instagram_direct?) && channel.instagram_id.present?
-  end
-
-  def instagram_direct?
-    channel_type == 'Channel::Instagram'
-  end
-
-  def tiktok?
-    channel_type == 'Channel::Tiktok'
-  end
-
-  def web_widget?
-    channel_type == 'Channel::WebWidget'
-  end
-
-  def api?
-    channel_type == 'Channel::Api'
-  end
-
-  def email?
-    channel_type == 'Channel::Email'
-  end
-
-  def twilio?
-    channel_type == 'Channel::TwilioSms'
-  end
-
-  def twitter?
-    channel_type == 'Channel::TwitterProfile'
-  end
-
-  def telegram?
-    channel_type == 'Channel::Telegram'
-  end
-
-  def whatsapp?
-    channel_type == 'Channel::Whatsapp'
-  end
-
-  def twilio_whatsapp?
-    channel_type == 'Channel::TwilioSms' && channel.medium == 'whatsapp'
-  end
-
   def assignable_agents
     (account.users.where(id: members.select(:user_id)) + account.administrators).uniq
   end
@@ -213,19 +149,6 @@ class Inbox < ApplicationRecord
       id: id,
       name: name
     }
-  end
-
-  def callback_webhook_url
-    case channel_type
-    when 'Channel::TwilioSms'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/twilio/callback"
-    when 'Channel::Sms'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/sms/#{channel.phone_number.delete_prefix('+')}"
-    when 'Channel::Line'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/line/#{channel.line_channel_id}"
-    when 'Channel::Whatsapp'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/whatsapp/#{channel.phone_number}"
-    end
   end
 
   def member_ids_with_assignment_capacity
@@ -245,34 +168,7 @@ class Inbox < ApplicationRecord
     Rails.configuration.dispatcher.dispatch(INBOX_UPDATED, Time.zone.now, inbox: self, changed_attributes: changed_attributes)
   end
 
-  def display_name
-    public_name.presence || name
-  end
-
   private
-
-  def default_name_for_blank_name
-    email? ? display_name_from_email : ''
-  end
-
-  def sanitize_raw_name(raw)
-    return nil if raw.blank?
-
-    result = apply_sanitization_rules(raw)
-    result.presence
-  end
-
-  def apply_sanitization_rules(name)
-    name.gsub(/[\\<>@"!#$%&*+=?^`{|}~:;()]/, '')        # Remove forbidden chars
-        .gsub(/[\x00-\x1F\x7F]/, ' ')                   # Replace control chars with spaces
-        .gsub(/\A[[:punct:]]+|[[:punct:]]+\z/, '')      # Remove leading/trailing punctuation
-        .gsub(/\s+/, ' ')                               # Normalize spaces
-        .strip
-  end
-
-  def display_name_from_email
-    channel.email.split('@').first.parameterize.titleize
-  end
 
   def dispatch_create_event
     return if ENV['ENABLE_INBOX_EVENTS'].blank?

@@ -519,28 +519,17 @@ RSpec.describe 'Contacts API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:agent) { create(:user, account: account, role: :agent) }
-      let!(:twilio_sms) { create(:channel_twilio_sms, account: account) }
-      let!(:twilio_sms_inbox) { create(:inbox, channel: twilio_sms, account: account) }
       let!(:twilio_whatsapp) { create(:channel_twilio_sms, medium: :whatsapp, account: account) }
       let!(:twilio_whatsapp_inbox) { create(:inbox, channel: twilio_whatsapp, account: account) }
 
-      it 'shows the contactable inboxes which the user has access to' do
+      it 'does not allow agents to view contactable inboxes' do
         create(:inbox_member, user: agent, inbox: twilio_whatsapp_inbox)
 
-        inbox_service = double
-        allow(Contacts::ContactableInboxesService).to receive(:new).and_return(inbox_service)
-        allow(inbox_service).to receive(:get).and_return([
-                                                           { source_id: '1123', inbox: twilio_sms_inbox },
-                                                           { source_id: '1123', inbox: twilio_whatsapp_inbox }
-                                                         ])
-        expect(inbox_service).to receive(:get)
         get "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/contactable_inboxes",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:success)
-        # only the inboxes which agent has access to are shown
-        expect(response.parsed_body['payload'].pluck('inbox').pluck('id')).to eq([twilio_whatsapp_inbox.id])
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
@@ -813,13 +802,13 @@ RSpec.describe 'Contacts API', type: :request do
         contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
       end
 
-      it 'delete contact avatar' do
+      it 'does not allow agents to delete contact avatar' do
         delete "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/avatar",
                headers: agent.create_new_auth_token,
                as: :json
 
-        expect { contact.avatar.attachment.reload }.to raise_error(ActiveRecord::RecordNotFound)
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unauthorized)
+        expect(contact.reload.avatar.attached?).to be(true)
       end
     end
   end

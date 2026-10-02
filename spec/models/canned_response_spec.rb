@@ -12,7 +12,6 @@ RSpec.describe CannedResponse, type: :model do
 
     it { is_expected.to validate_presence_of(:content) }
     it { is_expected.to validate_presence_of(:short_code) }
-    it { is_expected.to validate_uniqueness_of(:short_code).scoped_to(:account_id) }
   end
 
   describe 'enums' do

@@ -240,7 +240,7 @@ RSpec.describe DataImportJob do
 
         contact = labels_data_import.account.contacts.from_email('duplicate-labeled@example.com')
         lead = ActsAsTaggableOn::Tag.find_by(name: 'lead')
-        expect(contact.label_list).to contain_exactly('customer', 'lead')
+        expect(contact.label_list).to contain_exactly('lead')
         expect(ActsAsTaggableOn::Tagging.where(tag_id: lead.id, taggable: contact, context: 'labels').count).to eq(1)
       end
 

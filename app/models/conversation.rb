@@ -169,9 +169,9 @@ class Conversation < ApplicationRecord
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
   after_create :create_chat_routing_activity_messages
-  after_update :leave_queue_if_assignee_present
   before_update :close_previous_agent_on_reassign
   before_update :close_agents_on_resolve
+  after_update :leave_queue_if_assignee_present
 
   after_update :remove_from_queue_if_status_changed
   after_update :create_participant_for_new_agent
@@ -319,7 +319,7 @@ class Conversation < ApplicationRecord
 
     inbox.active_bot?
   end
-  
+
   def track_agent_chat_duration(participant)
     return if participant.created_at.nil? || participant.left_at.nil?
 
@@ -402,10 +402,18 @@ class Conversation < ApplicationRecord
 
   def process_queue_on_assignment_change
     return unless account.queue_enabled?
-    return unless saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id? || saved_change_to_status?
+    return unless queue_assignment_change?
 
     open! if assignee_present? && queued?
-    ChatQueue::ProcessQueueJob.perform_later(account.id) if resolved? || assignee_id.blank? || saved_change_to_assignee_id?
+    ChatQueue::ProcessQueueJob.perform_later(account.id) if should_process_queue_after_assignment_change?
+  end
+
+  def queue_assignment_change?
+    saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id? || saved_change_to_status?
+  end
+
+  def should_process_queue_after_assignment_change?
+    resolved? || assignee_id.blank? || saved_change_to_assignee_id?
   end
 
   def enforce_queue_status_invariants

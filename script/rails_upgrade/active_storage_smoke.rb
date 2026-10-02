@@ -23,7 +23,7 @@ begin
   raise 'Uploaded blob does not exist in the configured service' unless blob.service.exist?(blob.key)
   raise 'Downloaded blob did not match the uploaded payload' unless blob.download == payload
 
-  puts({ status: 'PASS', service_name: service_name, service_class: blob.service.class.name }.to_json)
+  Rails.logger.debug({ status: 'PASS', service_name: service_name, service_class: blob.service.class.name }.to_json)
 ensure
   blob&.purge
 end

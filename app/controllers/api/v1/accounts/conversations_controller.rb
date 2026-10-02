@@ -3,6 +3,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include DateRangeHelper
   include HmacConcern
   include ConversationCustomAttributesConcern
+  include ConversationLastSeenConcern
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
@@ -163,29 +164,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     params.permit(:page)
   end
 
-  def update_last_seen_on_conversation(last_seen_at, update_assignee)
-    updates = { agent_last_seen_at: last_seen_at }
-    updates[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
-
-    # rubocop:disable Rails/SkipsModelValidations
-    @conversation.update_columns(updates)
-    # rubocop:enable Rails/SkipsModelValidations
-
-    ::Conversations::UnreadCounts::Notifier.new(@conversation).perform
-    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(Current.account).conversation_changed!
-  end
-
-  def should_update_last_seen?
-    # Update if at least one relevant timestamp is older than 1 hour or not set
-    # This prevents redundant DB writes when agents repeatedly view the same conversation
-    agent_needs_update = @conversation.agent_last_seen_at.blank? || @conversation.agent_last_seen_at < 1.hour.ago
-    return agent_needs_update unless assignee?
-
-    # For assignees, check both timestamps - update if either is old
-    assignee_needs_update = @conversation.assignee_last_seen_at.blank? || @conversation.assignee_last_seen_at < 1.hour.ago
-    agent_needs_update || assignee_needs_update
-  end
-
   def set_conversation_status
     @conversation.status = params[:status]
     @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
@@ -243,10 +221,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def conversation_finder
     @conversation_finder ||= ConversationFinder.new(Current.user, params)
-  end
-
-  def assignee?
-    @conversation.assignee_id? && Current.user == @conversation.assignee
   end
 end
 

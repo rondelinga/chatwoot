@@ -500,7 +500,7 @@ class Message < ApplicationRecord
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
     return unless conversation.inbox.allow_messages_after_resolved
-    
+
     if conversation.pending_for_bot?
       conversation.pending!
     elsif conversation.inbox.api?
