@@ -10,20 +10,29 @@ import { useRouter } from 'vue-router';
 import { IFrameHelper } from '../helpers/utils';
 import { CHATWOOT_ON_START_CONVERSATION } from '../constants/sdkEvents';
 import { emitter } from 'shared/helpers/mitt';
+import FluentIcon from 'shared/components/FluentIcon/Index.vue';
+import { useCsatRequest } from '../composables/useCsatRequest';
+
+const TRANSCRIPT_COOLDOWN_MS = 15000;
 
 export default {
   components: {
     ChatInputWrap,
     CustomButton,
     FooterReplyTo,
+    FluentIcon,
   },
   setup() {
     const router = useRouter();
-    return { router };
+    const { canRequestCsat } = useCsatRequest();
+    return { router, canRequestCsat };
   },
   data() {
     return {
       inReplyTo: null,
+      isSendingTranscript: false,
+      transcriptCooldown: false,
+      transcriptCooldownTimer: null,
     };
   },
   computed: {
@@ -57,8 +66,15 @@ export default {
   mounted() {
     emitter.on(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.toggleReplyTo);
   },
+  beforeUnmount() {
+    clearTimeout(this.transcriptCooldownTimer);
+  },
   methods: {
-    ...mapActions('conversation', ['sendMessage', 'sendAttachment']),
+    ...mapActions('conversation', [
+      'sendMessage',
+      'sendAttachment',
+      'requestCSAT',
+    ]),
     ...mapActions('conversationAttributes', ['getAttributes']),
     async handleSendMessage(content) {
       await this.sendMessage({
@@ -79,6 +95,9 @@ export default {
       });
       this.inReplyTo = null;
     },
+    async handleRequestCSAT() {
+      await this.requestCSAT();
+    },
     startNewConversation() {
       this.router.replace({ name: 'prechat-form' });
       IFrameHelper.sendMessage({
@@ -90,19 +109,35 @@ export default {
     toggleReplyTo(message) {
       this.inReplyTo = message;
     },
+    startTranscriptCooldown() {
+      this.transcriptCooldown = true;
+      clearTimeout(this.transcriptCooldownTimer);
+      this.transcriptCooldownTimer = setTimeout(() => {
+        this.transcriptCooldown = false;
+      }, TRANSCRIPT_COOLDOWN_MS);
+    },
     async sendTranscript() {
-      if (this.hasEmail) {
-        try {
-          await sendEmailTranscript();
-          emitter.emit(BUS_EVENTS.SHOW_ALERT, {
-            message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_SUCCESS'),
-            type: 'success',
-          });
-        } catch (error) {
-          emitter.$emit(BUS_EVENTS.SHOW_ALERT, {
-            message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_ERROR'),
-          });
-        }
+      if (
+        !this.hasEmail ||
+        this.isSendingTranscript ||
+        this.transcriptCooldown
+      ) {
+        return;
+      }
+      this.isSendingTranscript = true;
+      try {
+        await sendEmailTranscript();
+        this.startTranscriptCooldown();
+        emitter.emit(BUS_EVENTS.SHOW_ALERT, {
+          message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_SUCCESS'),
+          type: 'success',
+        });
+      } catch (error) {
+        emitter.emit(BUS_EVENTS.SHOW_ALERT, {
+          message: this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_ERROR'),
+        });
+      } finally {
+        this.isSendingTranscript = false;
       }
     },
   },
@@ -128,22 +163,34 @@ export default {
       class="shadow-sm"
       :on-send-message="handleSendMessage"
       :on-send-attachment="handleSendAttachment"
+      :on-request-csat="handleRequestCSAT"
     />
   </footer>
   <div v-else>
-    <CustomButton
-      class="font-medium"
-      block
-      :bg-color="widgetColor"
-      :text-color="textColor"
-      @click="startNewConversation"
-    >
-      {{ $t('START_NEW_CONVERSATION') }}
-    </CustomButton>
+    <div class="flex gap-2 items-stretch">
+      <CustomButton
+        class="font-medium flex-1"
+        :bg-color="widgetColor"
+        :text-color="textColor"
+        @click="startNewConversation"
+      >
+        {{ $t('START_NEW_CONVERSATION') }}
+      </CustomButton>
+      <button
+        v-if="canRequestCsat"
+        class="flex items-center justify-center shrink-0 min-w-12 rounded-lg text-n-slate-12 bg-n-background shadow-sm hover:bg-n-slate-2 dark:hover:bg-n-solid-3 transition-colors"
+        :aria-label="$t('CSAT.RATE_CHAT_BUTTON')"
+        :title="$t('CSAT.RATE_CHAT_BUTTON')"
+        @click="handleRequestCSAT"
+      >
+        <FluentIcon icon="thumb-up" icon-lib="lucide" />
+      </button>
+    </div>
     <CustomButton
       v-if="showEmailTranscriptButton"
       type="clear"
       class="font-normal"
+      :disabled="isSendingTranscript || transcriptCooldown"
       @click="sendTranscript"
     >
       {{ $t('EMAIL_TRANSCRIPT.BUTTON_TEXT') }}

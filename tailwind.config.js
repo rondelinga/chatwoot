@@ -22,7 +22,8 @@ const defaultSansFonts = [
 const tailwindConfig = {
   darkMode: 'class',
   content: [
-    './enterprise/app/views/**/*.html.erb',
+    './enterprise/app/views/**/*.erb',
+    './app/javascript/superadmin_pages/**/*.vue',
     './app/javascript/widget/**/*.vue',
     './app/javascript/v3/**/*.vue',
     './app/javascript/dashboard/**/*.vue',
@@ -34,7 +35,7 @@ const tailwindConfig = {
     './app/javascript/dashboard/composables/**/*.js',
     './app/javascript/dashboard/components-next/**/*.js',
     './app/javascript/dashboard/routes/dashboard/**/**/*.js',
-    './app/views/**/*.html.erb',
+    './app/views/**/*.erb',
   ],
   theme: {
     extend: {
@@ -42,6 +43,13 @@ const tailwindConfig = {
         sans: defaultSansFonts,
         inter: ['Inter', ...defaultSansFonts],
         interDisplay: ['InterDisplay', ...defaultSansFonts],
+      },
+      fontWeight: {
+        420: '420',
+        440: '440',
+        460: '460',
+        520: '520',
+        620: '620',
       },
       typography: {
         bubble: {
@@ -99,24 +107,30 @@ const tailwindConfig = {
               textDecoration: 'underline',
             },
             ul: {
-              paddingInlineStart: '0.625em',
+              paddingInlineStart: '0',
+              listStylePosition: 'inside',
             },
             ol: {
-              paddingInlineStart: '0.625em',
+              paddingInlineStart: '0',
+              listStylePosition: 'inside',
             },
-            'ul li': {
-              margin: '0 0 0.5em 1em',
+            'ul > li': {
+              marginBlockEnd: '0.5em',
               listStyleType: 'disc',
-              '[dir="rtl"] &': {
-                margin: '0 1em 0.5em 0',
-              },
+              paddingInlineStart: '1.5em',
+              textIndent: '-1.5em',
             },
-            'ol li': {
-              margin: '0 0 0.5em 1em',
+            'ol > li': {
+              marginBlockEnd: '0.5em',
               listStyleType: 'decimal',
-              '[dir="rtl"] &': {
-                margin: '0 1em 0.5em 0',
-              },
+              paddingInlineStart: '1.5em',
+              textIndent: '-1.5em',
+            },
+            'li > p:first-child': {
+              display: 'inline',
+            },
+            'li > *': {
+              textIndent: '0',
             },
             blockquote: {
               color: 'rgb(var(--slate-11))',
@@ -187,9 +201,11 @@ const tailwindConfig = {
       lg: '1024px',
       xl: '1280px',
       '2xl': '1536px',
+      '3xl': '1900px',
     },
     fontSize: {
       ...defaultTheme.fontSize,
+      xxxs: '0.5rem',
       xxs: '0.625rem',
     },
     colors: {
@@ -236,6 +252,19 @@ const tailwindConfig = {
         '50%': { transform: 'translateX(-0.234375rem)' },
         '75%': { transform: 'translateX(0.234375rem)' },
       },
+      shimmer: {
+        '0%': { transform: 'translateX(-100%)' },
+        '100%': { transform: 'translateX(100%)' },
+      },
+      twinkle: {
+        '0%, 100%': { transform: 'scale(1) rotate(0deg)', opacity: 1 },
+        '50%': { transform: 'scale(1.25) rotate(20deg)', opacity: 0.7 },
+      },
+      'pop-in': {
+        '0%': { opacity: 0, transform: 'scale(0.8) translateY(0.25rem)' },
+        '60%': { opacity: 1, transform: 'scale(1.04) translateY(0)' },
+        '100%': { opacity: 1, transform: 'scale(1) translateY(0)' },
+      },
     },
     animation: {
       ...defaultTheme.animation,
@@ -244,6 +273,9 @@ const tailwindConfig = {
       'loader-pulse': 'loader-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       'card-select': 'card-select 0.25s ease-in-out',
       shake: 'shake 0.3s ease-in-out 0s 2',
+      shimmer: 'shimmer 1.4s ease-in-out infinite',
+      'pop-in': 'pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) backwards',
+      twinkle: 'twinkle 0.9s ease-in-out infinite',
     },
   },
   plugins: [
@@ -259,6 +291,7 @@ const tailwindConfig = {
           'ph',
           'material-symbols',
           'teenyicons',
+          'fluent',
         ]),
       },
     }),

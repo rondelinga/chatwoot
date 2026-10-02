@@ -39,7 +39,24 @@ describe ContactInboxWithContactBuilder do
       expect(contact_inbox.inbox_id).to eq(inbox.id)
     end
 
+    it 'truncates long contact names before creating the contact' do
+      long_name = 'a' * 300
+
+      contact_inbox = described_class.new(
+        source_id: '123456',
+        inbox: inbox,
+        contact_attributes: {
+          name: long_name,
+          email: 'testemail@example.com'
+        }
+      ).perform
+
+      expect(contact_inbox.contact.name).to eq(long_name.first(ApplicationRecord::MAX_STRING_COLUMN_LENGTH))
+    end
+
     it 'doesnot create contact if it already exist with identifier' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -55,6 +72,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with email' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -69,6 +88,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact when an uppercase email is passed for an already existing contact email' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -83,6 +104,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with phone number' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,

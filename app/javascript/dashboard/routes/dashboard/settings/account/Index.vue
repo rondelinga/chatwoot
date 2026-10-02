@@ -14,9 +14,10 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import AccountId from './components/AccountId.vue';
 import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
-import AutoResolve from './components/AutoResolve.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import SectionLayout from './components/SectionLayout.vue';
+import NextSwitch from 'next/switch/Switch.vue';
+import TextArea from 'next/textarea/TextArea.vue';
 
 export default {
   components: {
@@ -25,11 +26,12 @@ export default {
     AccountId,
     BuildInfo,
     AccountDelete,
-    AutoResolve,
     AudioTranscription,
     SectionLayout,
     WithLabel,
     NextInput,
+    NextSwitch,
+    TextArea,
   },
   setup() {
     const { updateUISettings, uiSettings } = useUISettings();
@@ -47,6 +49,12 @@ export default {
       domain: '',
       supportEmail: '',
       features: {},
+      activeChatLimitEnabled: false,
+      activeChatLimitValue: null,
+      queueEnabled: false,
+      queueMessage: '',
+      busyToOfflineEnabled: false,
+      busyToOfflineTimeout: null,
     };
   },
   validations: {
@@ -64,12 +72,6 @@ export default {
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
       isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
     }),
-    showAutoResolutionConfig() {
-      return this.isFeatureEnabledonAccount(
-        this.accountId,
-        FEATURE_FLAGS.AUTO_RESOLVE_CONVERSATIONS
-      );
-    },
     showAudioTranscriptionConfig() {
       return this.isFeatureEnabledonAccount(
         this.accountId,
@@ -102,24 +104,70 @@ export default {
       return this.getAccount(this.accountId) || {};
     },
   },
+  watch: {
+    'currentAccount.id'(id) {
+      if (id) {
+        this.initializeAccount();
+      }
+    },
+    activeChatLimitValue(val) {
+      if (val !== null && val < 0) {
+        this.activeChatLimitValue = 0;
+      }
+    },
+  },
   mounted() {
-    this.initializeAccount();
+    // Account already in the store (navigated in): seed immediately.
+    if (this.currentAccount.id) {
+      this.initializeAccount();
+    }
   },
   methods: {
     async initializeAccount() {
       try {
-        const { name, locale, id, domain, support_email, features } =
-          this.getAccount(this.accountId);
+        const {
+          name,
+          locale,
+          id,
+          domain,
+          support_email,
+          features,
+          queue_enabled,
+          queue_message,
+          active_chat_limit_enabled,
+          active_chat_limit_value,
+          busy_to_offline_timeout,
+        } = this.getAccount(this.accountId);
 
-        this.$root.$i18n.locale = this.uiSettings?.locale || locale;
+        const effectiveLocale = this.uiSettings?.locale || locale;
+        if (effectiveLocale) {
+          this.$root.$i18n.locale = effectiveLocale;
+        }
         this.name = name;
         this.locale = locale;
         this.id = id;
         this.domain = domain;
         this.supportEmail = support_email;
         this.features = features;
+        this.queueEnabled = queue_enabled;
+        this.queueMessage = queue_message || '';
+        this.activeChatLimitEnabled = active_chat_limit_enabled;
+        this.activeChatLimitValue = active_chat_limit_value;
+        this.busyToOfflineEnabled = !!busy_to_offline_timeout;
+        this.busyToOfflineTimeout = busy_to_offline_timeout;
       } catch (error) {
         // Ignore error
+      }
+    },
+
+    handleLimitKeydown(event) {
+      const blockedKeys = ['-', 'e', 'E', '+'];
+      if (blockedKeys.includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key === 'ArrowDown' && (this.activeChatLimitValue ?? 0) <= 0) {
+        event.preventDefault();
       }
     },
 
@@ -135,13 +183,18 @@ export default {
           name: this.name,
           domain: this.domain,
           support_email: this.supportEmail,
+          queue_enabled: this.queueEnabled,
+          queue_message: this.queueMessage,
+          active_chat_limit_enabled: this.activeChatLimitEnabled,
+          active_chat_limit_value: this.activeChatLimitValue,
+          busy_to_offline_timeout: this.busyToOfflineEnabled
+            ? this.busyToOfflineTimeout
+            : null,
         });
         // If user locale is set, update the locale with user locale
-        if (this.uiSettings?.locale) {
-          this.$root.$i18n.locale = this.uiSettings?.locale;
-        } else {
-          // If user locale is not set, update the locale with account locale
-          this.$root.$i18n.locale = this.locale;
+        const updatedLocale = this.uiSettings?.locale || this.locale;
+        if (updatedLocale) {
+          this.$root.$i18n.locale = updatedLocale;
         }
         this.getAccount(this.id).locale = this.locale;
         useAlert(this.$t('GENERAL_SETTINGS.UPDATE.SUCCESS'));
@@ -154,12 +207,13 @@ export default {
 </script>
 
 <template>
-  <div class="flex flex-col max-w-2xl mx-auto w-full">
+  <div class="flex flex-col w-full max-w-2xl ltr:mr-auto rtl:ml-auto">
     <BaseSettingsHeader :title="$t('GENERAL_SETTINGS.TITLE')" />
     <div class="flex-grow flex-shrink min-w-0 mt-3">
       <SectionLayout
         :title="$t('GENERAL_SETTINGS.FORM.GENERAL_SECTION.TITLE')"
         :description="$t('GENERAL_SETTINGS.FORM.GENERAL_SECTION.NOTE')"
+        class="!pt-0"
       >
         <form
           v-if="!uiFlags.isFetchingItem"
@@ -167,6 +221,7 @@ export default {
           @submit.prevent="updateAccount"
         >
           <WithLabel
+            name="account-name"
             :has-error="v$.name.$error"
             :label="$t('GENERAL_SETTINGS.FORM.NAME.LABEL')"
             :error-message="$t('GENERAL_SETTINGS.FORM.NAME.ERROR')"
@@ -180,6 +235,7 @@ export default {
             />
           </WithLabel>
           <WithLabel
+            name="site-language"
             :has-error="v$.locale.$error"
             :label="$t('GENERAL_SETTINGS.FORM.LANGUAGE.LABEL')"
             :error-message="$t('GENERAL_SETTINGS.FORM.LANGUAGE.ERROR')"
@@ -196,6 +252,7 @@ export default {
           </WithLabel>
           <WithLabel
             v-if="featureCustomReplyDomainEnabled"
+            name="custom-domain"
             :label="$t('GENERAL_SETTINGS.FORM.DOMAIN.LABEL')"
           >
             <NextInput
@@ -209,7 +266,6 @@ export default {
                 featureInboundEmailEnabled &&
                 $t('GENERAL_SETTINGS.FORM.FEATURES.INBOUND_EMAIL_ENABLED')
               }}
-
               {{
                 featureCustomReplyDomainEnabled &&
                 $t('GENERAL_SETTINGS.FORM.FEATURES.CUSTOM_EMAIL_DOMAIN_ENABLED')
@@ -218,6 +274,7 @@ export default {
           </WithLabel>
           <WithLabel
             v-if="featureCustomReplyEmailEnabled"
+            name="support-email"
             :label="$t('GENERAL_SETTINGS.FORM.SUPPORT_EMAIL.LABEL')"
           >
             <NextInput
@@ -229,6 +286,57 @@ export default {
               "
             />
           </WithLabel>
+          <div class="mb-2 text-sm font-medium leading-6 text-n-slate-12">
+            <div class="flex items-center justify-between">
+              <span>{{ $t('GENERAL_SETTINGS.FORM.LIMIT_ENABLED') }}</span>
+              <NextSwitch v-model="activeChatLimitEnabled" />
+            </div>
+            <div v-if="activeChatLimitEnabled" class="mt-2">
+              <NextInput
+                v-model.number="activeChatLimitValue"
+                type="number"
+                class="w-full"
+                :min="0"
+                :placeholder="$t('GENERAL_SETTINGS.FORM.LIMIT_VALUE')"
+                @keydown="handleLimitKeydown"
+              />
+            </div>
+          </div>
+          <div
+            class="flex items-center justify-between mb-2 text-sm font-medium leading-6 text-n-slate-12"
+          >
+            <span>{{ $t('GENERAL_SETTINGS.FORM.QUEUE_ENABLED') }}</span>
+            <NextSwitch v-model="queueEnabled" />
+          </div>
+          <TextArea
+            v-if="queueEnabled"
+            v-model="queueMessage"
+            class="mt-4"
+            :label="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.LABEL')"
+            :placeholder="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.PLACEHOLDER')"
+            :message="$t('GENERAL_SETTINGS.FORM.QUEUE_MESSAGE.HELP')"
+            :max-length="1000"
+            resize
+          />
+          <div class="mb-2 text-sm font-medium leading-6 text-n-slate-12">
+            <div class="flex items-center justify-between">
+              <span>{{
+                $t('GENERAL_SETTINGS.FORM.BUSY_TO_OFFLINE_ENABLED')
+              }}</span>
+              <NextSwitch v-model="busyToOfflineEnabled" />
+            </div>
+            <div v-if="busyToOfflineEnabled" class="mt-2">
+              <NextInput
+                v-model.number="busyToOfflineTimeout"
+                type="number"
+                class="w-full"
+                :min="1"
+                :placeholder="
+                  $t('GENERAL_SETTINGS.FORM.BUSY_TO_OFFLINE_TIMEOUT')
+                "
+              />
+            </div>
+          </div>
           <div>
             <NextButton blue :is-loading="isUpdating" type="submit">
               {{ $t('GENERAL_SETTINGS.SUBMIT') }}
@@ -239,7 +347,6 @@ export default {
 
       <woot-loading-state v-if="uiFlags.isFetchingItem" />
     </div>
-    <AutoResolve v-if="showAutoResolutionConfig" />
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">

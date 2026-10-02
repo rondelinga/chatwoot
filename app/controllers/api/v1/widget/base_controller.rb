@@ -21,7 +21,10 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def create_conversation
-    ::Conversation.create!(conversation_params)
+    ::ConversationBuilder.new(
+      params: ActionController::Parameters.new(conversation_params).permit!,
+      contact_inbox: @contact_inbox
+    ).perform
   end
 
   def inbox
@@ -29,7 +32,6 @@ class Api::V1::Widget::BaseController < ApplicationController
   end
 
   def conversation_params
-    # FIXME: typo referrer in additional attributes, will probably require a migration.
     {
       account_id: inbox.account_id,
       inbox_id: inbox.id,
@@ -57,6 +59,10 @@ class Api::V1::Widget::BaseController < ApplicationController
 
   def contact_phone_number
     permitted_params.dig(:contact, :phone_number)
+  end
+
+  def contact_custom_attributes
+    permitted_params.dig(:contact, :custom_attributes)&.to_h
   end
 
   def browser_params

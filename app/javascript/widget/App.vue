@@ -1,7 +1,7 @@
 <script>
 import { mapGetters, mapActions } from 'vuex';
 import { setHeader } from 'widget/helpers/axios';
-import addHours from 'date-fns/addHours';
+import { addHours } from 'date-fns';
 import { IFrameHelper, RNHelper } from 'widget/helpers/utils';
 import configMixin from './mixins/configMixin';
 import { getLocale } from './helpers/urlParamsHelper';
@@ -54,6 +54,7 @@ export default {
       unreadMessageCount: 'conversation/getUnreadMessageCount',
       isWidgetStyleFlat: 'appConfig/isWidgetStyleFlat',
       showUnreadMessagesDialog: 'appConfig/getShowUnreadMessagesDialog',
+      showOutboundNotification: 'conversation/getShowOutboundNotification',
     }),
     isIFrame() {
       return IFrameHelper.isIFrame();
@@ -66,10 +67,21 @@ export default {
         ? getLanguageDirection(this.$root.$i18n.locale)
         : false;
     },
+    isUnreadOrCampaignView() {
+      return ['unread-messages', 'campaigns'].includes(this.$route.name);
+    },
   },
   watch: {
     activeCampaign() {
       this.setCampaignView();
+    },
+    // Keep the notification dot in sync with the unread count. The SDK ignores
+    // dot updates while the bubble is hidden, so refresh it when it is back.
+    unreadMessageCount() {
+      this.handleUnreadNotificationDot();
+    },
+    hideMessageBubble() {
+      this.handleUnreadNotificationDot();
     },
     isRTL: {
       immediate: true,
@@ -82,6 +94,7 @@ export default {
     const { websiteToken, locale, widgetColor } = window.chatwootWebChannel;
     this.setLocale(locale);
     this.setWidgetColor(widgetColor);
+    this.setWidgetColorVariable(widgetColor);
     setHeader(window.authToken);
     if (this.isIFrame) {
       this.registerListeners();
@@ -114,6 +127,14 @@ export default {
       'resetCampaign',
     ]),
     ...mapActions('agent', ['fetchAvailableAgents']),
+    setWidgetColorVariable(widgetColor) {
+      if (widgetColor) {
+        document.documentElement.style.setProperty(
+          '--widget-color',
+          widgetColor
+        );
+      }
+    },
     scrollConversationToBottom() {
       const container = this.$el.querySelector('.conversation-wrap');
       container.scrollTop = container.scrollHeight;
@@ -156,6 +177,10 @@ export default {
         const { name: routeName } = this.$route;
         if ((this.isWidgetOpen || !this.isIFrame) && routeName === 'messages') {
           this.$store.dispatch('conversation/setUserLastSeen');
+        }
+        if (this.isWidgetOpen && routeName === 'home' && this.messageCount) {
+          this.router.replace({ name: 'messages' });
+          return;
         }
         this.setUnreadView();
       });
@@ -204,26 +229,30 @@ export default {
       }
     },
     setUnreadView() {
-      const { unreadMessageCount } = this;
-      if (!this.showUnreadMessagesDialog) {
-        this.handleUnreadNotificationDot();
-      } else if (
-        this.isIFrame &&
-        unreadMessageCount > 0 &&
+      const { unreadMessageCount, showOutboundNotification } = this;
+      if (!this.showUnreadMessagesDialog || !this.isIFrame) return;
+
+      // The unread view marks the widget as open, so only the route tells us it
+      // is already on screen. Resize it, else the new message gets cut off.
+      if (this.$route.name === 'unread-messages') {
+        this.setIframeHeight(true);
+        return;
+      }
+
+      if (
+        (unreadMessageCount > 0 || showOutboundNotification) &&
         !this.isWidgetOpen
       ) {
         this.router.replace({ name: 'unread-messages' }).then(() => {
           this.setIframeHeight(true);
           IFrameHelper.sendMessage({ event: 'setUnreadMode' });
         });
-        this.handleUnreadNotificationDot();
       }
     },
     unsetUnreadView() {
       if (this.isIFrame) {
         IFrameHelper.sendMessage({ event: 'resetUnreadMode' });
         this.setIframeHeight(false);
-        this.handleUnreadNotificationDot();
       }
     },
     handleUnreadNotificationDot() {
@@ -309,6 +338,17 @@ export default {
           this.setColorScheme(message.darkMode);
         } else if (message.event === 'toggle-open') {
           this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
+          // setUnreadMode opens the holder to show the overlay. Keep the outbound
+          // toast until the customer actually enters the full conversation view.
+          if (
+            message.isOpen &&
+            !['unread-messages', 'campaigns'].includes(this.$route.name)
+          ) {
+            this.$store.dispatch(
+              'conversation/setShowOutboundNotification',
+              false
+            );
+          }
 
           const shouldShowMessageView =
             ['home'].includes(this.$route.name) &&
@@ -365,6 +405,7 @@ export default {
       'is-widget-right': isRightAligned,
       'is-bubble-hidden': hideMessageBubble,
       'is-flat-design': isWidgetStyleFlat,
+      'bg-n-slate-2 dark:bg-n-solid-1': !isUnreadOrCampaignView,
       dark: prefersDarkMode,
     }"
   >

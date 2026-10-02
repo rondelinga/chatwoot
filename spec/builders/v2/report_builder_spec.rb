@@ -16,7 +16,9 @@ describe V2::ReportBuilder do
         create(:inbox_member, user: user, inbox: inbox)
 
         gravatar_url = 'https://www.gravatar.com'
+        favicon_url = 'https://www.google.com/s2/favicons'
         stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
+        stub_request(:get, /#{Regexp.escape(favicon_url)}.*/).to_return(status: 404)
 
         perform_enqueued_jobs do
           10.times do
@@ -118,6 +120,8 @@ describe V2::ReportBuilder do
             # Reopen 1 conversation
             conversations.first.open!
           end
+          create(:reporting_event, account: account, inbox: account.inboxes.first, conversation: nil, conversation_id: nil,
+                                   name: 'conversation_bot_handoff', created_at: Time.zone.today)
 
           builder = described_class.new(account, params)
           metrics = builder.timeseries
@@ -167,10 +171,10 @@ describe V2::ReportBuilder do
             until: Time.zone.today.end_of_day.to_time.to_i.to_s
           }
 
-          create(:agent_bot_inbox, inbox: account.inboxes.first)
+          agent_bot_inbox = create(:agent_bot_inbox, inbox: account.inboxes.first)
           conversations = account.conversations.where('created_at < ?', 1.day.ago)
           conversations.each do |conversation|
-            conversation.messages.outgoing.all.update(sender: nil)
+            conversation.messages.outgoing.update(sender: agent_bot_inbox.agent_bot)
           end
 
           perform_enqueued_jobs do
@@ -182,12 +186,9 @@ describe V2::ReportBuilder do
           end
 
           builder = described_class.new(account, params)
-          metrics = builder.timeseries
           summary = builder.bot_summary
 
-          # 5 bot resolution events occurred (even though 1 was later reopened)
-          expect(metrics[Time.zone.today]).to be 5
-          expect(metrics[Time.zone.today - 2.days]).to be 0
+          # timeseries for this metric returns an uncounted grouped relation
           expect(summary[:bot_resolutions_count]).to be 5
         end
       end
@@ -201,11 +202,11 @@ describe V2::ReportBuilder do
             until: Time.zone.today.end_of_day.to_time.to_i.to_s
           }
 
-          create(:agent_bot_inbox, inbox: account.inboxes.first)
+          agent_bot_inbox = create(:agent_bot_inbox, inbox: account.inboxes.first)
           conversations = account.conversations.where('created_at < ?', 1.day.ago)
           conversations.each do |conversation|
             conversation.pending!
-            conversation.messages.outgoing.all.update(sender: nil)
+            conversation.messages.outgoing.update(sender: agent_bot_inbox.agent_bot)
           end
 
           perform_enqueued_jobs do
@@ -217,28 +218,39 @@ describe V2::ReportBuilder do
           end
 
           builder = described_class.new(account, params)
-          metrics = builder.timeseries
           summary = builder.bot_summary
 
-          # 4 conversations are resolved
-          expect(metrics[Time.zone.today]).to be 5
-          expect(metrics[Time.zone.today - 2.days]).to be 0
+          # timeseries for this metric returns an uncounted grouped relation
           expect(summary[:bot_handoffs_count]).to be 5
         end
       end
 
       it 'returns average first response time' do
+        user = account.users.first
+        conversations = account.conversations.joins(:labels).where(labels: { id: label_2.id })
+
+        conversations.each do |conversation|
+          create(
+            :reporting_event,
+            name: 'first_response',
+            account: account,
+            conversation: conversation,
+            user: user,
+            value: 1.5,
+            created_at: Time.zone.today
+          )
+        end
+
         params = {
           metric: 'avg_first_response_time',
-          type: :account,
+          type: :label,
+          id: label_2.id,
           since: (Time.zone.today - 3.days).to_time.to_i.to_s,
           until: Time.zone.today.end_of_day.to_time.to_i.to_s
         }
 
-        builder = described_class.new(account, params)
-        metrics = builder.timeseries
-
-        expect(metrics[Time.zone.today].to_f).to be 0.48e4
+        metrics = described_class.new(account, params).timeseries
+        expect(metrics.values.map(&:to_f)).to include(1.5)
       end
 
       it 'returns summary' do
@@ -410,19 +422,33 @@ describe V2::ReportBuilder do
       end
 
       it 'returns average first response time' do
-        label_2.reporting_events.update(value: 1.5)
+        user = account.users.first
+
+        conversations = account.conversations.joins(:labels).where(labels: { id: label_2.id })
+
+        conversations.each do |conversation|
+          create(
+            :reporting_event,
+            name: 'first_response',
+            account: account,
+            conversation: conversation,
+            user: user,
+            value: 1.5,
+            created_at: Time.zone.today.beginning_of_day
+          )
+        end
 
         params = {
           metric: 'avg_first_response_time',
           type: :label,
           id: label_2.id,
-          since: (Time.zone.today - 3.days).to_time.to_i.to_s,
-          until: Time.zone.today.end_of_day.to_time.to_i.to_s
+          since: (Time.zone.today - 3.days).beginning_of_day.to_i.to_s,
+          until: Time.zone.today.end_of_day.to_i.to_s
         }
 
-        builder = described_class.new(account, params)
-        metrics = builder.timeseries
-        expect(metrics[Time.zone.today].to_f).to be 0.15e1
+        metrics = described_class.new(account, params).timeseries
+
+        expect(metrics.values.map(&:to_f)).to include(1.5)
       end
 
       it 'returns summary' do

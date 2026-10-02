@@ -17,12 +17,15 @@ import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
+import SharedFiles from './SharedFiles.vue';
+import QueueAction from './QueueAction.vue';
 import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 
 const props = defineProps({
   conversationId: {
@@ -40,7 +43,19 @@ const {
   isContactSidebarItemOpen,
   conversationSidebarItemsOrder,
   toggleSidebarUIState,
+  isOnExpandedLayout,
 } = useUISettings();
+
+const { isAdmin } = useAdmin();
+const currentUser = useMapGetter('getCurrentUser');
+const { currentAccount, isCloudFeatureEnabled } = useAccount();
+
+const isSuperAdmin = computed(() => currentUser.value?.type === 'SuperAdmin');
+const canManageQueue = computed(
+  () =>
+    (isAdmin.value || isSuperAdmin.value) &&
+    Boolean(currentAccount.value?.queue_enabled)
+);
 
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
@@ -53,8 +68,6 @@ const shopifyIntegration = useFunctionGetter(
 const isShopifyFeatureEnabled = computed(
   () => shopifyIntegration.value.enabled
 );
-
-const { isCloudFeatureEnabled } = useAccount();
 
 const isLinearFeatureEnabled = computed(() =>
   isCloudFeatureEnabled(FEATURE_FLAGS.LINEAR)
@@ -93,6 +106,14 @@ const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
 const contactAdditionalAttributes = computed(
   () => contact.value.additional_attributes || {}
+);
+
+const appliedContactFilter = useMapGetter('getAppliedContactFilter');
+
+const isListScopedToContact = computed(
+  () =>
+    !isOnExpandedLayout.value &&
+    appliedContactFilter.value?.id === contactId.value
 );
 
 const getContactDetails = () => {
@@ -167,6 +188,20 @@ onMounted(() => {
             </AccordionItem>
           </div>
           <div
+            v-else-if="element.name === 'queue_actions' && canManageQueue"
+            class="conversation--actions"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.QUEUE_ACTIONS')"
+              :is-open="isContactSidebarItemOpen('is_queue_actions_open')"
+              @toggle="
+                value => toggleSidebarUIState('is_queue_actions_open', value)
+              "
+            >
+              <QueueAction :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div
             v-else-if="element.name === 'conversation_participants'"
             class="conversation--actions"
           >
@@ -219,7 +254,11 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <div v-else-if="element.name === 'previous_conversation'">
+          <div
+            v-else-if="
+              element.name === 'previous_conversation' && !isListScopedToContact
+            "
+          >
             <AccordionItem
               v-if="contact.id"
               :title="
@@ -297,6 +336,18 @@ onMounted(() => {
               <ContactNotes :contact-id="contactId" />
             </AccordionItem>
           </div>
+          <div v-else-if="element.name === 'shared_files'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHARED_FILES')"
+              :is-open="isContactSidebarItemOpen('is_shared_files_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_shared_files_open', value)
+              "
+            >
+              <SharedFiles />
+            </AccordionItem>
+          </div>
         </template>
       </Draggable>
     </div>
@@ -304,21 +355,7 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-::v-deep {
-  .contact--profile {
-    @apply pb-3 border-b border-solid border-n-weak;
-  }
-
-  .conversation--actions .multiselect-wrap--small {
-    .multiselect {
-      @apply box-border pl-6;
-    }
-
-    .multiselect__element {
-      span {
-        @apply w-full;
-      }
-    }
-  }
+:deep(.contact--profile) {
+  @apply pb-3 border-b border-solid border-n-weak;
 }
 </style>

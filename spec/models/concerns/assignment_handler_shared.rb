@@ -25,7 +25,7 @@ shared_examples_for 'assignment_handler' do
         expect(conversation.update(team: nil)).to be true
         expect(Conversations::ActivityMessageJob).to(have_been_enqueued.at_least(:once)
           .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                                content: "Assigned to #{team.name} by #{agent.name}"  }))
+                                content: "#{agent.name} self-assigned this conversation" }))
         expect(Conversations::ActivityMessageJob).to(have_been_enqueued.at_least(:once)
           .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
                                 content: "Unassigned from #{team.name} by #{agent.name}" }))
@@ -36,7 +36,7 @@ shared_examples_for 'assignment_handler' do
 
         conversation.update(team: team)
 
-        expect(conversation.reload.assignee).to be_nil
+        expect(conversation.reload.assignee).to eq(agent)
       end
 
       it 'changes assignee to a team member if allow_auto_assign is enabled' do
@@ -48,6 +48,17 @@ shared_examples_for 'assignment_handler' do
         expect(Conversations::ActivityMessageJob).to(have_been_enqueued.at_least(:once)
           .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
                                 content: "Assigned to #{conversation.assignee.name} via #{team.name} by #{agent.name}" }))
+      end
+
+      it 'keeps AgentBot ownership when assigning an auto-assigning team' do
+        team.update!(allow_auto_assign: true)
+        agent_bot = create(:agent_bot, account: conversation.account)
+        conversation.update!(assignee: nil, ai_assignee: agent_bot)
+
+        conversation.update!(team: team)
+
+        expect(conversation.reload.assigned_entity).to eq(agent)
+        expect(conversation.assignee).to eq(agent)
       end
 
       it 'wont change assignee if he is already a team member' do

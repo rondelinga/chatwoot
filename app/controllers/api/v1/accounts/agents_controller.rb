@@ -1,8 +1,6 @@
 class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
   before_action :check_authorization
-  before_action :validate_limit, only: [:create]
-  before_action :validate_limit_for_bulk_create, only: [:bulk_create]
 
   def index
     @agents = agents
@@ -20,11 +18,14 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     )
 
     @agent = builder.perform
+  rescue AgentBuilder::LimitExceededError => e
+    render_payment_required(e.message)
   end
 
   def update
-    @agent.update!(agent_params.slice(:name).compact)
-    @agent.current_account_user.update!(agent_params.slice(*account_user_attributes).compact)
+    update_agent_basic_info
+    update_teams if agent_params[:team_ids]
+    update_inboxes if agent_params[:inbox_ids]
   end
 
   def destroy
@@ -36,28 +37,43 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   def bulk_create
     emails = params[:emails]
 
-    emails.each do |email|
-      builder = AgentBuilder.new(
-        email: email,
-        name: email.split('@').first,
-        inviter: current_user,
-        account: Current.account
-      )
-      begin
-        builder.perform
-      rescue ActiveRecord::RecordInvalid => e
-        Rails.logger.info "[Agent#bulk_create] ignoring email #{email}, errors: #{e.record.errors}"
-      end
-    end
-
+    bulk_create_agents(emails)
     # This endpoint is used to bulk create agents during onboarding
     # onboarding_step key in present in Current account custom attributes, since this is a one time operation
-    Current.account.custom_attributes.delete('onboarding_step')
-    Current.account.save!
+    clear_onboarding_step
     head :ok
+  rescue AgentBuilder::LimitExceededError => e
+    render_payment_required(e.message)
+  end
+
+  def inboxes
+    render json: { inboxes: @agent.assigned_inboxes }
+  end
+
+  def teams
+    render json: { teams: @agent.teams }
   end
 
   private
+
+  def update_agent_basic_info
+    @agent.update!(agent_params.slice(:name).compact)
+    @agent.current_account_user.update!(
+      agent_params.slice(*account_user_attributes).compact
+    )
+  end
+
+  def update_teams
+    ids = agent_params[:team_ids].map(&:to_i)
+    @agent.team_members.where.not(team_id: ids).destroy_all
+    ids.each { |team_id| @agent.team_members.find_or_create_by(team_id: team_id) }
+  end
+
+  def update_inboxes
+    ids = agent_params[:inbox_ids].map(&:to_i)
+    @agent.inbox_members.where.not(inbox_id: ids).destroy_all
+    ids.each { |inbox_id| @agent.inbox_members.find_or_create_by(inbox_id: inbox_id) }
+  end
 
   def check_authorization
     super(User)
@@ -72,7 +88,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def allowed_agent_params
-    [:name, :email, :role, :availability, :auto_offline]
+    [:name, :email, :role, :availability, :auto_offline, { inbox_ids: [] }, { team_ids: [] }]
   end
 
   def agent_params
@@ -87,22 +103,41 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     @agents ||= Current.account.users.order_by_full_name.includes(:account_users, { avatar_attachment: [:blob] })
   end
 
-  def validate_limit_for_bulk_create
-    limit_available = params[:emails].count <= available_agent_count
+  def bulk_create_agents(emails)
+    email_limit_error = nil
 
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless limit_available
+    Current.account.with_lock do
+      raise AgentBuilder::LimitExceededError if emails.count > available_agent_count
+
+      emails.each do |email|
+        create_agent_from_email(email)
+      rescue CustomExceptions::Account::EmailLimitExceeded => e
+        email_limit_error = e
+      end
+    end
+
+    raise email_limit_error if email_limit_error
   end
 
-  def validate_limit
-    render_payment_required('Account limit exceeded. Please purchase more licenses') unless can_add_agent?
+  def create_agent_from_email(email)
+    builder = AgentBuilder.new(
+      email: email,
+      name: email.split('@').first,
+      inviter: current_user,
+      account: Current.account
+    )
+    builder.perform
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.info "[Agent#bulk_create] ignoring email #{email}, errors: #{e.record.errors}"
+  end
+
+  def clear_onboarding_step
+    Current.account.custom_attributes.delete('onboarding_step')
+    Current.account.save!
   end
 
   def available_agent_count
-    Current.account.usage_limits[:agents] - agents.count
-  end
-
-  def can_add_agent?
-    available_agent_count.positive?
+    Current.account.usage_limits[:agents] - Current.account.account_users.count
   end
 
   def delete_user_record(agent)

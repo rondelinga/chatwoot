@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAlert } from 'dashboard/composables';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
@@ -7,14 +8,18 @@ import {
   getSortedAgentsByAvailability,
   getAgentsByUpdatedPresence,
 } from 'dashboard/helper/agentHelper.js';
+import { picoSearch } from '@chatwoot/pico-search';
 import MenuItem from './menuItem.vue';
 import MenuItemWithSubmenu from './menuItemWithSubmenu.vue';
 import wootConstants from 'dashboard/constants/globals';
 import AgentLoadingPlaceholder from './agentLoadingPlaceholder.vue';
+import NextInput from 'dashboard/components-next/input/Input.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const MENU = {
   MARK_AS_READ: 'mark-as-read',
   MARK_AS_UNREAD: 'mark-as-unread',
+  MUTE: 'mute',
   PRIORITY: 'priority',
   STATUS: 'status',
   SNOOZE: 'snooze',
@@ -31,6 +36,8 @@ export default {
     MenuItem,
     MenuItemWithSubmenu,
     AgentLoadingPlaceholder,
+    NextInput,
+    Icon,
   },
   props: {
     chatId: {
@@ -53,6 +60,10 @@ export default {
       type: String,
       default: null,
     },
+    conversationLabels: {
+      type: Array,
+      default: () => [],
+    },
     conversationUrl: {
       type: String,
       default: '',
@@ -70,18 +81,23 @@ export default {
     'assignAgent',
     'assignTeam',
     'assignLabel',
+    'removeLabel',
     'deleteConversation',
     'close',
   ],
   setup() {
     const { isAdmin } = useAdmin();
+    const { isMuted, toggleMute } = useMutedConversations();
     return {
       isAdmin,
+      isMuted,
+      toggleMute,
     };
   },
   data() {
     return {
       MENU,
+      labelSearchQuery: '',
       STATUS_TYPE: wootConstants.STATUS_TYPE,
       readOption: {
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.MARK_AS_READ'),
@@ -211,6 +227,23 @@ export default {
       // Don't show snooze if the conversation is already snoozed/resolved/pending
       return this.status === wootConstants.STATUS_TYPE.OPEN;
     },
+    filteredLabels() {
+      const labels = this.labelSearchQuery
+        ? picoSearch(this.labels, this.labelSearchQuery, ['title'])
+        : this.labels;
+      // Assigned labels first, keeping each group's existing order.
+      const isAssigned = label => this.conversationLabels.includes(label.title);
+      return [...labels].sort((a, b) => isAssigned(b) - isAssigned(a));
+    },
+    muteOption() {
+      const muted = this.isMuted(this.chatId);
+      return {
+        label: muted
+          ? this.$t('CONVERSATION.CARD_CONTEXT_MENU.UNMUTE')
+          : this.$t('CONVERSATION.CARD_CONTEXT_MENU.MUTE'),
+        icon: muted ? 'alert-off' : 'alert',
+      };
+    },
   },
   mounted() {
     this.$store.dispatch('inboxAssignableAgents/fetch', [this.inboxId]);
@@ -251,6 +284,10 @@ export default {
       } catch (error) {
         // error
       }
+    },
+    onToggleMute() {
+      this.toggleMute(this.chatId);
+      this.$emit('close');
     },
     show(key) {
       // If the conversation status is same as the action, then don't display the option
@@ -293,6 +330,14 @@ export default {
       />
       <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
     </template>
+    <template v-if="isAllowed([MENU.MUTE])">
+      <MenuItem
+        :option="muteOption"
+        variant="icon"
+        @click.stop="onToggleMute"
+      />
+      <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
+    </template>
     <template v-if="isAllowed([MENU.STATUS, MENU.SNOOZE])">
       <template v-for="option in statusMenuConfig">
         <MenuItem
@@ -330,13 +375,49 @@ export default {
         :option="labelMenuConfig"
         :sub-menu-available="!!labels.length"
       >
-        <MenuItem
-          v-for="label in labels"
-          :key="label.id"
-          :option="generateMenuLabelConfig(label, 'label')"
-          variant="label"
-          @click.stop="$emit('assignLabel', label)"
-        />
+        <div class="pb-1 w-[12.5rem]">
+          <NextInput
+            v-model="labelSearchQuery"
+            type="search"
+            size="sm"
+            class="w-full"
+            custom-input-class="!ps-8 !text-xs"
+            :placeholder="$t('CONVERSATION.CARD_CONTEXT_MENU.SEARCH_LABELS')"
+            @click.stop
+            @keydown.stop
+          >
+            <template #prefix>
+              <Icon
+                icon="i-lucide-search"
+                class="absolute z-10 -translate-y-1/2 pointer-events-none size-3.5 text-n-slate-10 top-1/2 start-2"
+              />
+            </template>
+          </NextInput>
+        </div>
+        <div class="overflow-x-hidden overflow-y-auto max-h-[12.5rem]">
+          <MenuItem
+            v-for="label in filteredLabels"
+            :key="label.id"
+            :option="generateMenuLabelConfig(label, 'label')"
+            :variant="
+              conversationLabels.includes(label.title)
+                ? 'label-assigned'
+                : 'label'
+            "
+            @mousedown.prevent
+            @click.stop="
+              conversationLabels.includes(label.title)
+                ? $emit('removeLabel', label)
+                : $emit('assignLabel', label)
+            "
+          />
+          <p
+            v-if="!filteredLabels.length"
+            class="px-2 py-2 m-0 text-xs text-center text-n-slate-11"
+          >
+            {{ $t('CONVERSATION.CARD_CONTEXT_MENU.NO_LABELS_FOUND') }}
+          </p>
+        </div>
       </MenuItemWithSubmenu>
       <MenuItemWithSubmenu
         v-if="isAllowed([MENU.AGENT])"

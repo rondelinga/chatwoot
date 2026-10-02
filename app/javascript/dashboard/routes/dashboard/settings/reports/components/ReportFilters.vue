@@ -1,19 +1,14 @@
 <script>
-import endOfDay from 'date-fns/endOfDay';
-import getUnixTime from 'date-fns/getUnixTime';
-import startOfDay from 'date-fns/startOfDay';
-import subDays from 'date-fns/subDays';
-import Avatar from 'next/avatar/Avatar.vue';
+import { endOfDay, getUnixTime, startOfDay, subDays } from 'date-fns';
 import WootDateRangePicker from 'dashboard/components/ui/DateRangePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 
 import { GROUP_BY_FILTER } from '../constants';
-const CUSTOM_DATE_RANGE_ID = 5;
+const CUSTOM_DATE_RANGE_ID = 6;
 
 export default {
   components: {
     WootDateRangePicker,
-    Avatar,
     ToggleSwitch,
   },
   props: {
@@ -49,7 +44,7 @@ export default {
       currentSelectedFilter: this.currentFilter || null,
       currentDateRangeSelection: {
         id: 0,
-        name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_7_DAYS'),
+        name: this.$t('REPORT.DATE_RANGE_OPTIONS.TODAY'),
       },
       customDateRange: [new Date(), new Date()],
       currentSelectedGroupByFilter: null,
@@ -59,16 +54,20 @@ export default {
   computed: {
     dateRange() {
       return [
-        { id: 0, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_7_DAYS') },
-        { id: 1, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_30_DAYS') },
-        { id: 2, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_3_MONTHS') },
-        { id: 3, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_6_MONTHS') },
-        { id: 4, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_YEAR') },
-        { id: 5, name: this.$t('REPORT.DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE') },
+        { id: 0, name: this.$t('REPORT.DATE_RANGE_OPTIONS.TODAY') },
+        { id: 1, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_7_DAYS') },
+        { id: 2, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_30_DAYS') },
+        { id: 3, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_3_MONTHS') },
+        { id: 4, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_6_MONTHS') },
+        { id: 5, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_YEAR') },
+        { id: 6, name: this.$t('REPORT.DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE') },
       ];
     },
     isDateRangeSelected() {
       return this.currentDateRangeSelection.id === CUSTOM_DATE_RANGE_ID;
+    },
+    isTodaySelected() {
+      return this.currentDateRangeSelection.id === 0;
     },
     to() {
       if (this.isDateRangeSelected) {
@@ -80,13 +79,10 @@ export default {
       if (this.isDateRangeSelected) {
         return this.fromCustomDate(this.customDateRange[0]);
       }
-      const dateRange = {
-        0: 6,
-        1: 29,
-        2: 89,
-        3: 179,
-        4: 364,
-      };
+      if (this.currentDateRangeSelection.id === 0) {
+        return this.fromCustomDate(new Date());
+      }
+      const dateRange = { 1: 6, 2: 29, 3: 89, 4: 179, 5: 364 };
       const diff = dateRange[this.currentDateRangeSelection.id];
       const fromDate = subDays(new Date(), diff);
       return this.fromCustomDate(fromDate);
@@ -102,19 +98,34 @@ export default {
     },
     groupBy() {
       if (this.isDateRangeSelected) {
-        return GROUP_BY_FILTER[4].period;
+        return GROUP_BY_FILTER[4]?.period || 'day';
+      }
+      if (this.currentDateRangeSelection.id === 0) {
+        return GROUP_BY_FILTER[5]?.period || 'hour';
       }
       const groupRange = {
-        0: GROUP_BY_FILTER[1].period,
-        1: GROUP_BY_FILTER[2].period,
-        2: GROUP_BY_FILTER[3].period,
-        3: GROUP_BY_FILTER[3].period,
-        4: GROUP_BY_FILTER[4].period,
+        1: GROUP_BY_FILTER[1]?.period,
+        2: GROUP_BY_FILTER[2]?.period,
+        3: GROUP_BY_FILTER[3]?.period,
+        4: GROUP_BY_FILTER[3]?.period,
+        5: GROUP_BY_FILTER[4]?.period,
       };
-      return groupRange[this.currentDateRangeSelection.id];
+      return groupRange[this.currentDateRangeSelection.id] || 'day';
     },
     notLast7Days() {
-      return this.groupBy !== GROUP_BY_FILTER[1].period;
+      return this.groupBy !== GROUP_BY_FILTER[1]?.period;
+    },
+    showGroupByFilter() {
+      return !this.isTodaySelected && this.notLast7Days;
+    },
+    selectedFilterId() {
+      return this.currentSelectedFilter?.id ?? null;
+    },
+    selectedDateRangeId() {
+      return this.currentDateRangeSelection.id;
+    },
+    selectedGroupById() {
+      return this.currentSelectedGroupByFilter?.id ?? null;
     },
   },
   watch: {
@@ -148,19 +159,33 @@ export default {
     toCustomDate(date) {
       return getUnixTime(endOfDay(date));
     },
-    changeDateSelection(selectedRange) {
-      this.currentDateRangeSelection = selectedRange;
-      this.onDateRangeChange();
+    changeDateSelection(id) {
+      const found = this.dateRange.find(d => d.id === Number(id));
+      if (found) {
+        this.currentDateRangeSelection = found;
+        this.onDateRangeChange();
+      }
     },
     changeFilterSelection() {
       this.$emit('filterChange', this.currentSelectedFilter);
+    },
+    onFilterSelectChange(id) {
+      const found = this.filterItemsList.find(f => f.id === Number(id));
+      if (found) {
+        this.currentSelectedFilter = found;
+        this.changeFilterSelection();
+      }
     },
     onChange(value) {
       this.customDateRange = value;
       this.onDateRangeChange();
     },
-    changeGroupByFilterSelection() {
-      this.$emit('groupByFilterChange', this.currentSelectedGroupByFilter);
+    onGroupBySelectChange(id) {
+      const found = this.groupByFilterItemsList.find(f => f.id === Number(id));
+      if (found) {
+        this.currentSelectedGroupByFilter = found;
+        this.$emit('groupByFilterChange', found);
+      }
     },
   },
 };
@@ -168,95 +193,40 @@ export default {
 
 <template>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-y-0.5 gap-x-2">
-    <div v-if="type === 'agent'" class="multiselect-wrap--small">
+    <!-- Agent filter -->
+    <div v-if="type === 'agent'">
       <p class="mb-2 text-xs font-medium">
         {{ $t('AGENT_REPORTS.FILTER_DROPDOWN_LABEL') }}
       </p>
-      <multiselect
-        v-model="currentSelectedFilter"
-        :placeholder="multiselectLabel"
-        label="name"
-        track-by="id"
-        :options="filterItemsList"
-        :option-height="24"
-        :show-labels="false"
-        @update:model-value="changeFilterSelection"
+      <select
+        :value="selectedFilterId"
+        class="no-margin"
+        @change="e => onFilterSelectChange(e.target.value)"
       >
-        <template #singleLabel="props">
-          <div class="flex min-w-0 items-center gap-2">
-            <Avatar
-              :src="props.option.thumbnail"
-              :status="props.option.availability_status"
-              :name="props.option.name"
-              :size="22"
-              hide-offline-status
-              rounded-full
-            />
-            <span class="my-0 text-n-slate-12 truncate">{{
-              props.option.name
-            }}</span>
-          </div>
-        </template>
-        <template #options="props">
-          <div class="flex items-center gap-2">
-            <Avatar
-              :src="props.option.thumbnail"
-              :status="props.option.availability_status"
-              :name="props.option.name"
-              :size="22"
-              hide-offline-status
-              rounded-full
-            />
-            <p class="my-0 text-n-slate-12">
-              {{ props.option.name }}
-            </p>
-          </div>
-        </template>
-      </multiselect>
+        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
+          {{ item.name }}
+        </option>
+      </select>
     </div>
 
-    <div v-else-if="type === 'label'" class="multiselect-wrap--small">
+    <!-- Label filter -->
+    <div v-else-if="type === 'label'">
       <p class="mb-2 text-xs font-medium">
         {{ $t('LABEL_REPORTS.FILTER_DROPDOWN_LABEL') }}
       </p>
-      <multiselect
-        v-model="currentSelectedFilter"
-        :placeholder="multiselectLabel"
-        label="title"
-        track-by="id"
-        :options="filterItemsList"
-        :option-height="24"
-        :show-labels="false"
-        @update:model-value="changeFilterSelection"
+      <select
+        :value="selectedFilterId"
+        class="no-margin"
+        @change="e => onFilterSelectChange(e.target.value)"
       >
-        <template #singleLabel="props">
-          <div class="flex items-center min-w-0 gap-2">
-            <div
-              :style="{ backgroundColor: props.option.color }"
-              class="w-5 h-5 rounded-full"
-            />
-
-            <span class="my-0 text-n-slate-12 truncate">
-              {{ props.option.title }}
-            </span>
-          </div>
-        </template>
-        <template #option="props">
-          <div class="flex items-center min-w-0 gap-2">
-            <div
-              :style="{ backgroundColor: props.option.color }"
-              class="flex-shrink-0 w-5 h-5 border border-solid rounded-full border-n-weak"
-            />
-
-            <span class="my-0 text-n-slate-12 truncate">
-              {{ props.option.title }}
-            </span>
-          </div>
-        </template>
-      </multiselect>
+        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
+          {{ item.title }}
+        </option>
+      </select>
     </div>
 
-    <div v-else class="multiselect-wrap--small">
+    <!-- Inbox / Team filter -->
+    <div v-else>
       <p class="mb-2 text-xs font-medium">
         <template v-if="type === 'inbox'">
           {{ $t('INBOX_REPORTS.FILTER_DROPDOWN_LABEL') }}
@@ -268,54 +238,47 @@ export default {
           {{ $t('FORMS.MULTISELECT.SELECT_ONE') }}
         </template>
       </p>
-      <multiselect
-        v-model="currentSelectedFilter"
-        track-by="id"
-        label="name"
-        :placeholder="multiselectLabel"
-        selected-label
-        :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-        deselect-label=""
-        :options="filterItemsList"
-        :searchable="false"
-        :allow-empty="false"
-        @update:model-value="changeFilterSelection"
-      />
+      <select
+        :value="selectedFilterId"
+        class="no-margin"
+        @change="e => onFilterSelectChange(e.target.value)"
+      >
+        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
+          {{ item.name }}
+        </option>
+      </select>
     </div>
 
-    <div class="multiselect-wrap--small">
+    <!-- Date range -->
+    <div>
       <p class="mb-2 text-xs font-medium">
         {{ $t('REPORT.DURATION_FILTER_LABEL') }}
       </p>
-      <multiselect
-        v-model="currentDateRangeSelection"
-        track-by="name"
-        label="name"
-        :placeholder="$t('FORMS.MULTISELECT.SELECT_ONE')"
-        selected-label
-        :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-        deselect-label=""
-        :options="dateRange"
-        :searchable="false"
-        :allow-empty="false"
-        @select="changeDateSelection"
-      />
+      <select
+        :value="selectedDateRangeId"
+        class="no-margin"
+        @change="e => changeDateSelection(e.target.value)"
+      >
+        <option v-for="d in dateRange" :key="d.id" :value="d.id">
+          {{ d.name }}
+        </option>
+      </select>
     </div>
 
+    <!-- Business hours toggle -->
     <div
       class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end"
     >
       <span class="mr-2 text-sm whitespace-nowrap">
         {{ $t('REPORT.BUSINESS_HOURS') }}
       </span>
-      <span>
-        <ToggleSwitch
-          v-model="businessHoursSelected"
-          @change="onBusinessHoursToggle"
-        />
-      </span>
+      <ToggleSwitch
+        v-model="businessHoursSelected"
+        @change="onBusinessHoursToggle"
+      />
     </div>
 
+    <!-- Custom date range picker -->
     <div v-if="isDateRangeSelected" class="order-3 md:order-4">
       <p class="mb-2 text-xs font-medium">
         {{ $t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER') }}
@@ -330,20 +293,24 @@ export default {
       />
     </div>
 
-    <div v-if="notLast7Days" class="multiselect-wrap--small order-4 md:order-5">
+    <!-- Group by filter -->
+    <div v-if="showGroupByFilter" class="order-4 md:order-5">
       <p class="mb-2 text-xs font-medium">
         {{ $t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL') }}
       </p>
-      <multiselect
-        v-model="currentSelectedGroupByFilter"
-        track-by="id"
-        label="groupBy"
-        :placeholder="$t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL')"
-        :options="groupByFilterItemsList"
-        :allow-empty="false"
-        :show-labels="false"
-        @update:model-value="changeGroupByFilterSelection"
-      />
+      <select
+        :value="selectedGroupById"
+        class="no-margin"
+        @change="e => onGroupBySelectChange(e.target.value)"
+      >
+        <option
+          v-for="item in groupByFilterItemsList"
+          :key="item.id"
+          :value="item.id"
+        >
+          {{ item.groupBy }}
+        </option>
+      </select>
     </div>
   </div>
 </template>

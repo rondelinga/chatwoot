@@ -6,7 +6,12 @@ const RECONNECT_INTERVAL = 1000;
 class BaseActionCableConnector {
   static isDisconnected = false;
 
-  constructor(app, pubsubToken, websocketHost = '') {
+  constructor(
+    app,
+    pubsubToken,
+    websocketHost = '',
+    presenceInterval = PRESENCE_INTERVAL
+  ) {
     const websocketURL = websocketHost ? `${websocketHost}/cable` : undefined;
 
     this.consumer = createConsumer(websocketURL);
@@ -30,14 +35,16 @@ class BaseActionCableConnector {
       }
     );
     this.app = app;
-    this.events = {};
+    this.events = {
+      'agent.updated': this.onAgentUpdated,
+    };
     this.reconnectTimer = null;
     this.isAValidEvent = () => true;
     this.triggerPresenceInterval = () => {
       setTimeout(() => {
         this.subscription.updatePresence();
         this.triggerPresenceInterval();
-      }, PRESENCE_INTERVAL);
+      }, presenceInterval);
     };
     this.triggerPresenceInterval();
   }
@@ -78,6 +85,13 @@ class BaseActionCableConnector {
   disconnect() {
     this.consumer.disconnect();
   }
+
+  onAgentUpdated = data => {
+    const currentUserId = this.app.$store.getters.getCurrentUserID;
+    if (data.id !== currentUserId) return;
+
+    this.app.$store.dispatch('inboxes/get');
+  };
 
   onReceived = ({ event, data } = {}) => {
     if (this.isAValidEvent(data)) {

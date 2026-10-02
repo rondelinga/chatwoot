@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { messageTimestamp } from 'shared/helpers/timeHelper';
+import { useExactTimestamp } from 'shared/composables/useExactTimestamp';
 
 import MessageStatus from './MessageStatus.vue';
 import Icon from 'next/icon/Icon.vue';
@@ -8,6 +9,8 @@ import { useInbox } from 'dashboard/composables/useInbox';
 import { useMessageContext } from './provider.js';
 
 import { MESSAGE_STATUS, MESSAGE_TYPES } from './constants';
+
+const exactTimestamp = useExactTimestamp();
 
 const {
   isAFacebookInbox,
@@ -33,7 +36,13 @@ const {
 } = useMessageContext();
 
 const readableTime = computed(() =>
-  messageTimestamp(createdAt.value, 'LLL d, h:mm a')
+  messageTimestamp(createdAt.value, 'LLL d, h:mm:ss a')
+);
+
+const exactTime = computed(() => exactTimestamp(createdAt.value));
+
+const isDeletedAuditNote = computed(
+  () => contentAttributes.value?.deletedAuditNote
 );
 
 const showStatusIndicator = computed(() => {
@@ -67,6 +76,9 @@ const isSent = computed(() => {
     return sourceId.value && status.value === MESSAGE_STATUS.SENT;
   }
 
+  // API inbox messages use real sent/delivered/read status values from the external system.
+  if (isAPIInbox.value) return status.value === MESSAGE_STATUS.SENT;
+
   // All messages will be mark as sent for the Line channel, as there is no source ID.
   if (isALineChannel.value) return true;
 
@@ -81,12 +93,15 @@ const isDelivered = computed(() => {
     isATwilioChannel.value ||
     isASmsInbox.value ||
     isAFacebookInbox.value ||
+    isAnInstagramChannel.value ||
     isATiktokChannel.value
   ) {
     return sourceId.value && status.value === MESSAGE_STATUS.DELIVERED;
   }
-  // All messages marked as delivered for the web widget inbox and API inbox once they are sent.
-  if (isAWebWidgetInbox.value || isAPIInbox.value) {
+  // API inbox messages use real delivered status from the external system.
+  if (isAPIInbox.value) return status.value === MESSAGE_STATUS.DELIVERED;
+  // All messages marked as delivered for the web widget inbox once they are sent.
+  if (isAWebWidgetInbox.value) {
     return status.value === MESSAGE_STATUS.SENT;
   }
   if (isALineChannel.value) {
@@ -128,9 +143,23 @@ const statusToShow = computed(() => {
 <template>
   <div class="text-xs flex items-center gap-1.5">
     <div class="inline">
-      <time class="inline">{{ readableTime }}</time>
+      <time
+        v-tooltip.top="{
+          content: exactTime,
+          delay: { show: 500, hide: 0 },
+        }"
+        class="inline"
+      >
+        {{ readableTime }}
+      </time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
+    <span
+      v-if="isDeletedAuditNote"
+      class="px-1.5 rounded-md text-label-small bg-n-ruby-3 text-n-ruby-11"
+    >
+      {{ $t('CONVERSATION.DELETED_AUDIT_NOTE.BADGE') }}
+    </span>
     <MessageStatus v-if="showStatusIndicator" :status="statusToShow" />
   </div>
 </template>

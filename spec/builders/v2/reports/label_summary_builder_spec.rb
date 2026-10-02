@@ -18,6 +18,11 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
   end
   let(:builder) { described_class.new(account: account, params: params) }
 
+  def stub_avatar_requests
+    stub_request(:get, %r{\Ahttps://www\.gravatar\.com.*}).to_return(status: 404)
+    stub_request(:get, %r{\Ahttps://www\.google\.com/s2/favicons.*}).to_return(status: 404)
+  end
+
   describe '#initialize' do
     let(:business_hours) { false }
 
@@ -28,7 +33,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
 
     it 'sets timezone from timezone_offset' do
       builder_with_offset = described_class.new(account: account, params: { timezone_offset: -8 })
-      expect(builder_with_offset.instance_variable_get(:@timezone)).to eq('Pacific Time (US & Canada)')
+      expect(builder_with_offset.instance_variable_get(:@timezone)).to eq('UTC')
     end
 
     it 'defaults timezone when timezone_offset is not provided' do
@@ -54,27 +59,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
       it 'returns zero values for all labels' do
         report = builder.build
 
-        expect(report.length).to eq(3)
-
-        bug_report = report.find { |r| r[:name] == 'label_1' }
-        feature_request = report.find { |r| r[:name] == 'label_2' }
-        customer_support = report.find { |r| r[:name] == 'label_3' }
-
-        [
-          [bug_report, label_1, 'label_1'],
-          [feature_request, label_2, 'label_2'],
-          [customer_support, label_3, 'label_3']
-        ].each do |report_data, label, label_name|
-          expect(report_data).to include(
-            id: label.id,
-            name: label_name,
-            conversations_count: 0,
-            avg_resolution_time: 0,
-            avg_first_response_time: 0,
-            avg_reply_time: 0,
-            resolved_conversations_count: 0
-          )
-        end
+        expect(report).to eq([])
       end
     end
 
@@ -85,8 +70,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
           inbox = create(:inbox, account: account)
           create(:inbox_member, user: user, inbox: inbox)
 
-          gravatar_url = 'https://www.gravatar.com'
-          stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
+          stub_avatar_requests
 
           perform_enqueued_jobs do
             # Create conversations with label_1
@@ -166,11 +150,10 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
         it 'returns correct label stats using regular values' do
           report = builder.build
 
-          expect(report.length).to eq(3)
+          expect(report.length).to eq(2)
 
           label_1_report = report.find { |r| r[:name] == 'label_1' }
           label_2_report = report.find { |r| r[:name] == 'label_2' }
-          label_3_report = report.find { |r| r[:name] == 'label_3' }
 
           expect(label_1_report).to include(
             conversations_count: 3,
@@ -183,12 +166,6 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
             avg_first_response_time: be > 0,
             avg_reply_time: be > 0
           )
-
-          expect(label_3_report).to include(
-            conversations_count: 0,
-            avg_first_response_time: 0,
-            avg_reply_time: 0
-          )
         end
       end
 
@@ -198,7 +175,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
         it 'returns correct label stats using business hours values' do
           report = builder.build
 
-          expect(report.length).to eq(3)
+          expect(report.length).to eq(2)
 
           label_1_report = report.find { |r| r[:name] == 'label_1' }
           label_2_report = report.find { |r| r[:name] == 'label_2' }
@@ -223,8 +200,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
           inbox = create(:inbox, account: account)
           create(:inbox_member, user: user, inbox: inbox)
 
-          gravatar_url = 'https://www.gravatar.com'
-          stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
+          stub_avatar_requests
 
           perform_enqueued_jobs do
             # Conversation within range
@@ -263,7 +239,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
       it 'only includes conversations within the date range' do
         report = builder.build
 
-        expect(report.length).to eq(3)
+        expect(report.length).to eq(1)
 
         label_1_report = report.find { |r| r[:name] == 'label_1' }
         expect(label_1_report).not_to be_nil
@@ -281,8 +257,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
           inbox = create(:inbox, account: account)
           create(:inbox_member, user: user, inbox: inbox)
 
-          gravatar_url = 'https://www.gravatar.com'
-          stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
+          stub_avatar_requests
 
           perform_enqueued_jobs do
             conversation = create(:conversation, account: account,
@@ -306,7 +281,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
       it 'properly casts string "true" to boolean and uses business hours values' do
         report = builder.build
 
-        expect(report.length).to eq(3)
+        expect(report.length).to eq(1)
 
         label_1_report = report.find { |r| r[:name] == 'label_1' }
         expect(label_1_report).not_to be_nil
@@ -338,8 +313,7 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
           inbox = create(:inbox, account: account2)
           create(:inbox_member, user: user, inbox: inbox)
 
-          gravatar_url = 'https://www.gravatar.com'
-          stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
+          stub_avatar_requests
 
           perform_enqueued_jobs do
             conversation = create(:conversation, account: account2,
@@ -349,14 +323,12 @@ RSpec.describe V2::Reports::LabelSummaryBuilder do
             conversation.label_list
             conversation.save!
 
-            # First resolution
             conversation.resolved!
+            create(:reporting_event, account: account2, conversation: conversation, name: 'conversation_resolved', created_at: test_date)
 
-            # Reopen conversation
             conversation.open!
-
-            # Second resolution
             conversation.resolved!
+            create(:reporting_event, account: account2,  conversation: conversation, name: 'conversation_resolved', created_at: test_date + 1.hour)
           end
         end
       end

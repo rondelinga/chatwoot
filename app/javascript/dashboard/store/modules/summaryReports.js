@@ -22,21 +22,28 @@ const typeMap = {
     apiMethod: 'getLabelReports',
     mutationKey: 'setLabelSummaryReport',
   },
+  bot: {
+    flagKey: 'isFetchingBotSummaryReports',
+    apiMethod: 'getBotSummaryReports',
+    mutationKey: 'setBotSummaryReport',
+  },
 };
 
 async function fetchSummaryReports(type, params, { commit }) {
   const config = typeMap[type];
   if (!config) return;
 
+  let error = null;
   try {
     commit('setUIFlags', { [config.flagKey]: true });
     const response = await SummaryReportsAPI[config.apiMethod](params);
     commit(config.mutationKey, camelcaseKeys(response.data, { deep: true }));
-  } catch (error) {
-    // Ignore error
+  } catch (e) {
+    error = e;
   } finally {
     commit('setUIFlags', { [config.flagKey]: false });
   }
+  if (error) throw error;
 }
 
 export const initialState = {
@@ -44,11 +51,13 @@ export const initialState = {
   agentSummaryReports: [],
   teamSummaryReports: [],
   labelSummaryReports: [],
+  botSummaryReports: [],
   uiFlags: {
     isFetchingInboxSummaryReports: false,
     isFetchingAgentSummaryReports: false,
     isFetchingTeamSummaryReports: false,
     isFetchingLabelSummaryReports: false,
+    isFetchingBotSummaryReports: false,
   },
 };
 
@@ -64,6 +73,9 @@ export const getters = {
   },
   getLabelSummaryReports(state) {
     return state.labelSummaryReports;
+  },
+  getBotSummaryReports(state) {
+    return state.botSummaryReports;
   },
   getUIFlags(state) {
     return state.uiFlags;
@@ -86,6 +98,9 @@ export const actions = {
   fetchLabelSummaryReports({ commit }, params) {
     return fetchSummaryReports('label', params, { commit });
   },
+  fetchBotSummaryReports({ commit }, params) {
+    return fetchSummaryReports('bot', params, { commit });
+  },
 };
 
 export const mutations = {
@@ -100,6 +115,9 @@ export const mutations = {
   },
   setLabelSummaryReport(state, data) {
     state.labelSummaryReports = data;
+  },
+  setBotSummaryReport(state, data) {
+    state.botSummaryReports = data;
   },
   setUIFlags(state, uiFlag) {
     state.uiFlags = { ...state.uiFlags, ...uiFlag };

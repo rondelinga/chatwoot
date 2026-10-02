@@ -27,11 +27,13 @@ describe('Summary Reports Store', () => {
         agentSummaryReports: [],
         teamSummaryReports: [],
         labelSummaryReports: [],
+        botSummaryReports: [],
         uiFlags: {
           isFetchingInboxSummaryReports: false,
           isFetchingAgentSummaryReports: false,
           isFetchingTeamSummaryReports: false,
           isFetchingLabelSummaryReports: false,
+          isFetchingBotSummaryReports: false,
         },
       });
     });
@@ -141,12 +143,14 @@ describe('Summary Reports Store', () => {
         });
       });
 
-      it('should handle errors gracefully', async () => {
+      it('should reset uiFlags and rethrow error on failure', async () => {
         SummaryReportsAPI.getInboxReports.mockRejectedValue(
           new Error('API Error')
         );
 
-        await store.actions.fetchInboxSummaryReports({ commit }, {});
+        await expect(
+          store.actions.fetchInboxSummaryReports({ commit }, {})
+        ).rejects.toThrow('API Error');
 
         expect(commit).toHaveBeenCalledWith('setUIFlags', {
           isFetchingInboxSummaryReports: false,

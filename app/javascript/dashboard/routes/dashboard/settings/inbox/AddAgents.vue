@@ -3,8 +3,9 @@
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 
-import InboxMembersAPI from '../../../../api/inboxMembers';
+import InboxTeamsAPI from '../../../../api/inboxTeams';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 import router from '../../../index';
 import PageHeader from '../SettingsSubPageHeader.vue';
 import { useVuelidate } from '@vuelidate/core';
@@ -13,11 +14,12 @@ export default {
   components: {
     PageHeader,
     NextButton,
+    TagInput,
   },
   validations: {
-    selectedAgents: {
+    selectedTeamIds: {
       isEmpty() {
-        return !!this.selectedAgents.length;
+        return !!this.selectedTeamIds.length;
       },
     },
   },
@@ -26,26 +28,50 @@ export default {
   },
   data() {
     return {
-      selectedAgents: [],
+      selectedTeamIds: [],
       isCreating: false,
     };
   },
   computed: {
     ...mapGetters({
-      agentList: 'agents/getAgents',
+      teamList: 'teams/getTeams',
     }),
+    selectedTeamNames() {
+      return this.selectedTeamIds.map(
+        id => this.teamList.find(team => team.id === id)?.name ?? ''
+      );
+    },
+    teamMenuItems() {
+      return this.teamList
+        .filter(({ id }) => !this.selectedTeamIds.includes(id))
+        .map(({ id, name }) => ({
+          label: name,
+          value: id,
+          action: 'select',
+        }));
+    },
   },
-  mounted() {
-    this.$store.dispatch('agents/get');
+  async mounted() {
+    await this.$store.dispatch('teams/get');
   },
   methods: {
-    async addAgents() {
+    handleTeamAdd({ value }) {
+      if (!this.selectedTeamIds.includes(value)) {
+        this.selectedTeamIds.push(value);
+      }
+    },
+    handleTeamRemove(index) {
+      this.selectedTeamIds.splice(index, 1);
+    },
+    async addTeams() {
       this.isCreating = true;
       const inboxId = this.$route.params.inbox_id;
-      const selectedAgents = this.selectedAgents.map(x => x.id);
 
       try {
-        await InboxMembersAPI.update({ inboxId, agentList: selectedAgents });
+        await InboxTeamsAPI.update({
+          inboxId,
+          teamList: this.selectedTeamIds,
+        });
         router.replace({
           name: 'settings_inbox_finish',
           params: {
@@ -64,34 +90,33 @@ export default {
 
 <template>
   <div class="h-full w-full p-6 col-span-6">
-    <form class="flex flex-wrap flex-col mx-0" @submit.prevent="addAgents()">
+    <form class="flex flex-wrap flex-col mx-0" @submit.prevent="addTeams()">
       <div class="w-full">
         <PageHeader
-          :header-title="$t('INBOX_MGMT.ADD.AGENTS.TITLE')"
-          :header-content="$t('INBOX_MGMT.ADD.AGENTS.DESC')"
+          :header-title="$t('INBOX_MGMT.TEAMS.ADD_TITLE')"
+          :header-content="$t('INBOX_MGMT.TEAMS.ADD_DESC')"
         />
       </div>
       <div>
-        <div class="w-full">
-          <label :class="{ error: v$.selectedAgents.$error }">
-            {{ $t('INBOX_MGMT.ADD.AGENTS.TITLE') }}
-            <multiselect
-              v-model="selectedAgents"
-              :options="agentList"
-              track-by="id"
-              label="name"
-              multiple
-              :close-on-select="false"
-              :clear-on-select="false"
-              hide-selected
-              selected-label
-              :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-              :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-              :placeholder="$t('INBOX_MGMT.ADD.AGENTS.PICK_AGENTS')"
-              @select="v$.selectedAgents.$touch"
-            />
-            <span v-if="v$.selectedAgents.$error" class="message">
-              {{ $t('INBOX_MGMT.ADD.AGENTS.VALIDATION_ERROR') }}
+        <div class="w-full mb-4">
+          <label :class="{ error: v$.selectedTeamIds.$error }">
+            {{ $t('INBOX_MGMT.TEAMS.TITLE') }}
+            <div
+              data-testid="agent-selector"
+              class="rounded-xl outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong px-2 py-2"
+            >
+              <TagInput
+                :model-value="selectedTeamNames"
+                :placeholder="$t('INBOX_MGMT.TEAMS.PICK_TEAMS')"
+                :menu-items="teamMenuItems"
+                show-dropdown
+                skip-label-dedup
+                @add="handleTeamAdd"
+                @remove="handleTeamRemove"
+              />
+            </div>
+            <span v-if="v$.selectedTeamIds.$error" class="message">
+              {{ $t('INBOX_MGMT.TEAMS.VALIDATION_ERROR') }}
             </span>
           </label>
         </div>
@@ -101,7 +126,7 @@ export default {
             :is-loading="isCreating"
             solid
             blue
-            :label="$t('INBOX_MGMT.AGENTS.BUTTON_TEXT')"
+            :label="$t('INBOX_MGMT.TEAMS.BUTTON_TEXT')"
           />
         </div>
       </div>

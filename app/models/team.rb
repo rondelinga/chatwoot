@@ -3,8 +3,10 @@
 # Table name: teams
 #
 #  id                :bigint           not null, primary key
-#  allow_auto_assign :boolean          default(TRUE)
+#  allow_auto_assign :boolean          default(FALSE)
 #  description       :text
+#  icon              :string           default("")
+#  icon_color        :string           default("")
 #  name              :string           not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
@@ -21,14 +23,19 @@ class Team < ApplicationRecord
   belongs_to :account
   has_many :team_members, dependent: :destroy_async
   has_many :members, through: :team_members, source: :user
+  has_many :inbox_teams, dependent: :destroy_async
+  has_many :inboxes, through: :inbox_teams
   has_many :conversations, dependent: :nullify
+
+  before_destroy :capture_filtered_unread_count_member_ids, prepend: true
+  after_destroy_commit :invalidate_filtered_unread_counts_after_destroy
 
   validates :name,
             presence: { message: I18n.t('errors.validations.presence') },
             uniqueness: { scope: :account_id }
 
   before_validation do
-    self.name = name.downcase if attribute_present?('name')
+    self.name = name.gsub(/[[:cntrl:]]/, '').strip.downcase if attribute_present?('name')
   end
 
   # Adds multiple members to the team
@@ -41,6 +48,31 @@ class Team < ApplicationRecord
 
     update_account_cache
     added_users
+  end
+
+  def sync_members(primary_user_ids:, backup_user_ids:)
+    primary_ids = Array(primary_user_ids).map(&:to_i)
+    backup_ids = Array(backup_user_ids).map(&:to_i)
+    all_user_ids = (primary_ids + backup_ids).uniq
+
+    transaction do
+      remove_members(members.pluck(:id) - all_user_ids)
+
+      primary_ids.each do |user_id|
+        member = team_members.find_or_initialize_by(user_id: user_id)
+        member.assignment_tier = :primary
+        member.save!
+      end
+
+      backup_ids.each do |user_id|
+        member = team_members.find_or_initialize_by(user_id: user_id)
+        member.assignment_tier = :backup
+        member.save!
+      end
+    end
+
+    update_account_cache
+    team_members.includes(:user)
   end
 
   # Removes multiple members from the team
@@ -62,8 +94,22 @@ class Team < ApplicationRecord
   def push_event_data
     {
       id: id,
-      name: name
+      name: name,
+      icon: icon,
+      icon_color: icon_color
     }
+  end
+
+  private
+
+  def capture_filtered_unread_count_member_ids
+    @filtered_unread_count_member_ids = team_members.pluck(:user_id)
+  end
+
+  def invalidate_filtered_unread_counts_after_destroy
+    invalidator = ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account)
+    invalidator.conversation_changed!
+    invalidator.users_visibility_changed!(user_ids: @filtered_unread_count_member_ids)
   end
 end
 

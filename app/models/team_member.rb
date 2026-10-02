@@ -2,11 +2,12 @@
 #
 # Table name: team_members
 #
-#  id         :bigint           not null, primary key
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  team_id    :bigint           not null
-#  user_id    :bigint           not null
+#  id              :bigint           not null, primary key
+#  assignment_tier :integer          default("primary"), not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  team_id         :bigint           not null
+#  user_id         :bigint           not null
 #
 # Indexes
 #
@@ -17,7 +18,25 @@
 class TeamMember < ApplicationRecord
   belongs_to :user
   belongs_to :team
+
+  enum assignment_tier: { primary: 0, backup: 1 }
+
   validates :user_id, uniqueness: { scope: :team_id }
+
+  after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
+  after_commit :sync_linked_inbox_members, on: [:create, :destroy]
+
+  private
+
+  def invalidate_filtered_unread_count_visibility
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(team&.account).user_visibility_changed!(user_id: user_id)
+  end
+
+  def sync_linked_inbox_members
+    team.inboxes.find_each do |inbox|
+      Inboxes::MembersSyncService.new(inbox: inbox).perform
+    end
+  end
 end
 
 TeamMember.include_mod_with('Audit::TeamMember')

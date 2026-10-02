@@ -54,6 +54,11 @@
     "COMPANY_FROM": "from",
     "BOT": "Bot"
   },
+  "OUTBOUND_NOTIFICATION": {
+    "MANAGER": "Manager",
+    "REPLY": "Reply",
+    "CLOSE": "Close"
+  },
   "BUBBLE": {
     "LABEL": "Chat with us"
   },
@@ -106,10 +111,18 @@
     "NOT_FOUND": "No emoji match your search",
     "ARIA_LABEL": "Emoji picker"
   },
+  "EMOJI_ICON_PICKER": {
+    "SEARCH_EMOJI": "Search emoji…",
+    "FREQUENTLY_USED": "Frequently used",
+    "NO_EMOJI": "No emoji match your search"
+  },
   "CSAT": {
     "TITLE": "Rate your conversation",
     "SUBMITTED_TITLE": "Thank you for submitting the rating",
-    "PLACEHOLDER": "Tell us more..."
+    "PLACEHOLDER": "Tell us more...",
+    "DISLIKE_PLACEHOLDER": "Tell us what went wrong",
+    "CHANGE_RATING_HINT": "You can change your rating.",
+    "RATE_CHAT_BUTTON": "Rate chat"
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Request a conversation transcript",

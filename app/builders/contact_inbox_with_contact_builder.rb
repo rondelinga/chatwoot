@@ -35,6 +35,10 @@ class ContactInboxWithContactBuilder
     @account ||= inbox.account
   end
 
+  def contacts_in_inbox
+    @contacts_in_inbox ||= account.contacts.in_inbox(inbox.id)
+  end
+
   def create_contact_inbox
     ContactInboxBuilder.new(
       contact: @contact,
@@ -50,7 +54,7 @@ class ContactInboxWithContactBuilder
 
   def create_contact
     account.contacts.create!(
-      name: contact_attributes[:name] || ::Haikunator.haikunate(1000),
+      name: contact_name,
       phone_number: contact_attributes[:phone_number],
       email: contact_attributes[:email],
       identifier: contact_attributes[:identifier],
@@ -59,10 +63,16 @@ class ContactInboxWithContactBuilder
     )
   end
 
+  def contact_name
+    name = contact_attributes[:name] || ::Haikunator.haikunate(1000)
+    name.truncate(ApplicationRecord::MAX_STRING_COLUMN_LENGTH, omission: '')
+  end
+
   def find_contact
-    contact = find_contact_by_identifier(contact_attributes[:identifier])
-    contact ||= find_contact_by_email(contact_attributes[:email])
-    contact ||= find_contact_by_phone_number(contact_attributes[:phone_number])
+    return find_contact_by_identifier(contact_attributes[:identifier]) if contact_attributes[:identifier].present?
+
+    contact = find_contact_by_email(contact_attributes[:email])
+    contact ||= find_contact_by_phone_numbers
     contact ||= find_contact_by_instagram_source_id(source_id) if instagram_channel?
 
     contact
@@ -93,18 +103,19 @@ class ContactInboxWithContactBuilder
   def find_contact_by_identifier(identifier)
     return if identifier.blank?
 
-    account.contacts.find_by(identifier: identifier)
+    contacts_in_inbox.find_by(identifier: identifier)
   end
 
   def find_contact_by_email(email)
     return if email.blank?
 
-    account.contacts.from_email(email)
+    contacts_in_inbox.from_email(email)
   end
 
-  def find_contact_by_phone_number(phone_number)
-    return if phone_number.blank?
+  def find_contact_by_phone_numbers
+    phone_numbers = [contact_attributes[:phone_number], *Array(contact_attributes[:phone_number_candidates])].compact_blank.uniq
+    return if phone_numbers.empty?
 
-    account.contacts.find_by(phone_number: phone_number)
+    contacts_in_inbox.where(phone_number: phone_numbers).first
   end
 end

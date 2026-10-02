@@ -106,10 +106,18 @@
     "NOT_FOUND": "По Вашему запросу не было найдено эмодзи",
     "ARIA_LABEL": "Выбор эмодзи"
   },
+  "EMOJI_ICON_PICKER": {
+    "SEARCH_EMOJI": "Search emoji…",
+    "FREQUENTLY_USED": "Часто используемые",
+    "NO_EMOJI": "Эмодзи не соответствуют вашему запросу"
+  },
   "CSAT": {
     "TITLE": "Оцените разговор",
     "SUBMITTED_TITLE": "Спасибо за оценку",
-    "PLACEHOLDER": "Расскажите подробнее..."
+    "PLACEHOLDER": "Расскажите подробнее...",
+    "DISLIKE_PLACEHOLDER": "Расскажите, что пошло не так",
+    "CHANGE_RATING_HINT": "Вы можете изменить свою оценку.",
+    "RATE_CHAT_BUTTON": "Оценить разговор"
   },
   "EMAIL_TRANSCRIPT": {
     "BUTTON_TEXT": "Запросить историю разговора",

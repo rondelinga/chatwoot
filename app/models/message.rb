@@ -7,8 +7,10 @@
 #  content                   :text
 #  content_attributes        :json
 #  content_type              :integer          default("text"), not null
+#  deleted_at                :datetime
 #  external_source_ids       :jsonb
 #  message_type              :integer          not null
+#  original_content          :text
 #  private                   :boolean          default(FALSE), not null
 #  processed_message_content :text
 #  sender_type               :string
@@ -17,7 +19,9 @@
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  account_id                :integer          not null
+#  audit_private_note_id     :integer
 #  conversation_id           :integer          not null
+#  deleted_by_id             :integer
 #  inbox_id                  :integer          not null
 #  sender_id                 :bigint
 #  source_id                 :text
@@ -33,9 +37,16 @@
 #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
 #  index_messages_on_conversation_id                    (conversation_id)
 #  index_messages_on_created_at                         (created_at)
+#  index_messages_on_deleted_at                         (deleted_at)
 #  index_messages_on_inbox_id                           (inbox_id)
+#  index_messages_on_sender_and_created                 (sender_type,sender_id,created_at)
 #  index_messages_on_sender_type_and_sender_id          (sender_type,sender_id)
 #  index_messages_on_source_id                          (source_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (audit_private_note_id => messages.id)
+#  fk_rails_...  (deleted_by_id => users.id)
 #
 
 class Message < ApplicationRecord
@@ -55,6 +66,7 @@ class Message < ApplicationRecord
           'category': { 'type': 'string' },
           'language': { 'type': 'string' },
           'namespace': { 'type': 'string' },
+          'content_mode': { 'type': 'string', 'enum': %w[raw_template rendered] },
           'processed_params': { 'type': 'object' }
         },
         'required': %w[name]
@@ -79,8 +91,12 @@ class Message < ApplicationRecord
   validates :content, length: { maximum: 150_000 }
   validates :processed_message_content, length: { maximum: 150_000 }
 
+  validate :check_conversation_status, on: :create
+
   # when you have a temperory id in your frontend and want it echoed back via action cable
   attr_accessor :echo_id
+  # Transient flag used to skip waiting_since clearing for specific bot/system messages.
+  attr_accessor :preserve_waiting_since
 
   enum message_type: { incoming: 0, outgoing: 1, activity: 2, template: 3 }
   enum content_type: {
@@ -113,11 +129,15 @@ class Message < ApplicationRecord
   store :external_source_ids, accessors: [:slack], coder: JSON, prefix: :external_source_id
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }
-  scope :chat, -> { where.not(message_type: :activity).where(private: false) }
-  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('id desc') }
+  scope :not_deleted, -> { where(deleted_at: nil) }
+  scope :chat, -> { where.not(message_type: :activity).where(private: false, deleted_at: nil) }
+  scope :non_activity_messages, -> { where.not(message_type: :activity).where(deleted_at: nil).reorder('created_at desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
+  scope :not_forwarded, -> { where("(messages.content_attributes #>> '{}')::jsonb -> 'forwarded_message_id' IS NULL") }
   scope :voice_calls, -> { where(content_type: :voice_call) }
-
+  scope :from_operator, -> { where(sender_type: 'User') }
+  scope :before, ->(time) { where('created_at < ?', time) }
+  scope :after, ->(time) { where('created_at >= ?', time) }
   # TODO: Get rid of default scope
   # https://stackoverflow.com/a/1834250/939299
   # if you want to change order, use `reorder`
@@ -125,8 +145,10 @@ class Message < ApplicationRecord
 
   belongs_to :account
   belongs_to :inbox
-  belongs_to :conversation, touch: true
+  belongs_to :conversation
   belongs_to :sender, polymorphic: true, optional: true
+  belongs_to :deleted_by, class_name: 'User', optional: true
+  belongs_to :audit_private_note, class_name: 'Message', optional: true
 
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
   has_one :csat_survey_response, dependent: :destroy_async
@@ -156,6 +178,8 @@ class Message < ApplicationRecord
   def conversation_push_event_data
     {
       assignee_id: conversation.assignee_id,
+      assignee_agent_bot_id: conversation.assignee_agent_bot_id,
+      assignee_type: conversation.assignee_type,
       unread_count: conversation.unread_incoming_messages.count,
       last_activity_at: conversation.last_activity_at.to_i,
       contact_inbox: { source_id: conversation.contact_inbox.source_id }
@@ -168,13 +192,20 @@ class Message < ApplicationRecord
     data
   end
 
+  def webhook_push_event_data
+    push_event_data.merge(
+      content: Messages::WebhookContentNormalizer.normalize(content),
+      processed_message_content: Messages::WebhookContentNormalizer.normalize(processed_message_content)
+    )
+  end
+
   def webhook_data
     data = {
       account: account.webhook_data,
       additional_attributes: additional_attributes,
       content_attributes: content_attributes,
       content_type: content_type,
-      content: outgoing_content,
+      content: webhook_content,
       conversation: conversation.webhook_data,
       created_at: created_at,
       id: id,
@@ -193,12 +224,21 @@ class Message < ApplicationRecord
     MessageContentPresenter.new(self).outgoing_content
   end
 
+  # Raw content with survey URL (no markdown rendering) for webhook consumers
+  def webhook_content
+    MessageContentPresenter.new(self).webhook_content
+  end
+
   def email_notifiable_message?
     return false if private?
     return false if %w[outgoing template].exclude?(message_type)
     return false if template? && %w[input_csat text].exclude?(content_type)
 
     true
+  end
+
+  def forwarded?
+    content_attributes['forwarded_message_id'].present?
   end
 
   def auto_reply_email?
@@ -209,11 +249,16 @@ class Message < ApplicationRecord
 
   def valid_first_reply?
     return false unless human_response? && !private?
-    return false if conversation.first_reply_created_at.present?
-    return false if conversation.messages.outgoing
-                                .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
-                                .where.not(private: true)
-                                .where("(additional_attributes->'campaign_id') is null").count > 1
+
+    participant = assigned_participant
+    return false unless participant
+
+    return false if conversation.reporting_events.exists?(
+      name: 'first_response',
+      user_id: sender_id,
+      event_start_time: participant.created_at
+    )
+    return false unless valid_outgoing_count?(participant)
 
     true
   end
@@ -271,6 +316,52 @@ class Message < ApplicationRecord
 
   private
 
+  def check_conversation_status
+    return unless conversation&.resolved?
+    return if conversation.inbox.allow_messages_after_resolved
+    return unless incoming?
+
+    errors.add(:base, 'Conversation is resolved. Please start a new conversation.')
+  end
+
+  def handle_incoming_waiting_since
+    if conversation.waiting_since.blank?
+      conversation.update(waiting_since: created_at)
+      return
+    end
+
+    bot_message_exists = conversation.messages.where('created_at > ?', conversation.waiting_since).where('created_at < ?', created_at)
+                                     .where(message_type: :outgoing).exists?(sender_type: ['AgentBot', 'Captain::Assistant'])
+
+    conversation.update(waiting_since: created_at) if bot_message_exists
+  end
+
+  def handle_first_reply_events
+    Rails.configuration.dispatcher.dispatch(FIRST_REPLY_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
+
+    if conversation.waiting_since.present? && !private && human_response? && conversation.first_reply_created_at.present?
+      Rails.configuration.dispatcher.dispatch(REPLY_CREATED, Time.zone.now, waiting_since: conversation.waiting_since, message: self)
+    end
+
+    conversation.update(first_reply_created_at: created_at, waiting_since: nil)
+  end
+
+  def assigned_participant
+    participant = conversation.conversation_participants.find_by(user_id: sender_id, left_at: nil)
+    return if participant&.created_at.blank?
+
+    participant
+  end
+
+  def valid_outgoing_count?(participant)
+    conversation.messages.outgoing
+                .where(sender_type: 'User', sender_id: sender_id)
+                .where.not(private: true)
+                .where('created_at >= ?', participant.created_at)
+                .where("(additional_attributes->'campaign_id') is null")
+                .count <= 1
+  end
+
   def prevent_message_flooding
     # Added this to cover the validation specs in messages
     # We can revisit and see if we can remove this later
@@ -310,6 +401,7 @@ class Message < ApplicationRecord
   def execute_after_create_commit_callbacks
     # rails issue with order of active record callbacks being executed https://github.com/rails/rails/issues/20911
     reopen_conversation
+    mark_pending_conversation_as_open_for_human_response
     set_conversation_activity
     dispatch_create_events
     send_reply
@@ -322,12 +414,25 @@ class Message < ApplicationRecord
   end
 
   def update_waiting_since
-    if human_response? && !private && conversation.waiting_since.present?
+    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && !private
+    set_waiting_since_on_incoming_message
+  end
+
+  def clear_waiting_since_on_outgoing_response
+    if human_response?
       Rails.configuration.dispatcher.dispatch(
         REPLY_CREATED, Time.zone.now, waiting_since: conversation.waiting_since, message: self
       )
       conversation.update(waiting_since: nil)
+      return
     end
+
+    # Bot responses also clear waiting_since (simpler than checking on next customer message)
+    conversation.update(waiting_since: nil) if bot_response? && !preserve_waiting_since
+  end
+
+  def set_waiting_since_on_incoming_message
+    # Set waiting_since when customer sends a message (if currently blank)
     conversation.update(waiting_since: created_at) if incoming? && conversation.waiting_since.blank?
   end
 
@@ -335,21 +440,26 @@ class Message < ApplicationRecord
     # if the sender is not a user, it's not a human response
     # if automation rule id is present, it's not a human response
     # if campaign id is present, it's not a human response
+    # external echo messages are responses sent from the native app (WhatsApp Business, Instagram)
+    # forwarded emails go to a third party, not to the contact
     outgoing? &&
+      !forwarded? &&
       content_attributes['automation_rule_id'].blank? &&
       additional_attributes['campaign_id'].blank? &&
-      sender.is_a?(User)
+      (sender.is_a?(User) || content_attributes['external_echo'].present?)
+  end
+
+  def bot_response?
+    # Check if this is a response from AgentBot or Captain::Assistant
+    outgoing? && sender_type.in?(['AgentBot', 'Captain::Assistant'])
   end
 
   def dispatch_create_events
     Rails.configuration.dispatcher.dispatch(MESSAGE_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
 
-    if valid_first_reply?
-      Rails.configuration.dispatcher.dispatch(FIRST_REPLY_CREATED, Time.zone.now, message: self, performed_by: Current.executed_by)
-      conversation.update(first_reply_created_at: created_at, waiting_since: nil)
-    else
-      update_waiting_since
-    end
+    return update_waiting_since unless valid_first_reply?
+
+    handle_first_reply_events
   end
 
   def dispatch_update_event
@@ -375,9 +485,23 @@ class Message < ApplicationRecord
     reopen_resolved_conversation if conversation.resolved?
   end
 
+  def mark_pending_conversation_as_open_for_human_response
+    return unless captain_pending_conversation?
+    return unless human_response?
+    return if private?
+
+    conversation.open!
+  end
+
+  def captain_pending_conversation?
+    false
+  end
+
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
-    if conversation.inbox.active_bot?
+    return unless conversation.inbox.allow_messages_after_resolved
+
+    if conversation.pending_for_bot?
       conversation.pending!
     elsif conversation.inbox.api?
       Current.executed_by = sender if reopened_by_contact?
@@ -401,13 +525,16 @@ class Message < ApplicationRecord
 
   def set_conversation_activity
     # rubocop:disable Rails/SkipsModelValidations
-    conversation.update_columns(last_activity_at: created_at)
+    conversation.update_columns(last_activity_at: created_at, updated_at: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
   end
 
   def reindex_for_search
+    return unless respond_to?(:reindex)
+
     reindex(mode: :async)
   end
 end
 
 Message.prepend_mod_with('Message')
+Message.include_mod_with('Concerns::Message')

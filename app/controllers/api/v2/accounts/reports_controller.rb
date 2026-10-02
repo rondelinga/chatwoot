@@ -1,13 +1,25 @@
 class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   include Api::V2::Accounts::ReportsHelper
   include Api::V2::Accounts::HeatmapHelper
+  include Api::V2::Accounts::ReportResponseFormatter
+  include Api::V2::Accounts::ReportsDownloadParams
+  include Api::V2::Accounts::ReportsMetricParams
 
   before_action :check_authorization
 
+  OUTGOING_MESSAGES_ALLOWED_GROUP_BY = %w[agent team inbox label].freeze
+
   def index
     builder = V2::Reports::Conversations::ReportBuilder.new(Current.account, report_params)
-    data = builder.timeseries
-    render json: data
+    render json: builder.timeseries
+  end
+
+  def all_conversation_metrics_download
+    filter_params = build_filter_params
+    return handle_email_delivery(filter_params) if params[:send_email] == 'true'
+
+    @report_data = V2::Reports::AllConversationMetricsBuilder.new(Current.account, filter_params).build
+    respond_with_report_download('all_conversation_metrics', 'api/v2/accounts/reports/all_conversation_metrics')
   end
 
   def summary
@@ -18,32 +30,61 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
     render json: build_summary(:bot_summary)
   end
 
+  def agent_activity
+    return render_missing_params_error unless valid_agent_activity_params?
+
+    build_agent_activity_data
+    respond_with_report_download('agent_activity_report', 'api/v2/accounts/reports/agent_activity')
+  end
+
+  def bot_summary_download
+    @report_data = generate_bots_report
+    @date_range = format_date_range
+    respond_with_report_download('bot_summary', 'api/v2/accounts/reports/bot_summary')
+  end
+
+  def overview_summary
+    assign_overview_summary
+    respond_with_report_download('overview_summary', 'api/v2/accounts/reports/overview_summary')
+  end
+
   def agents
     @report_data = generate_agents_report
-    generate_csv('agents_report', 'api/v2/accounts/reports/agents')
+    respond_with_report_download('agents_report', 'api/v2/accounts/reports/agents')
   end
 
   def inboxes
     @report_data = generate_inboxes_report
-    generate_csv('inboxes_report', 'api/v2/accounts/reports/inboxes')
+    respond_with_report_download('inboxes_report', 'api/v2/accounts/reports/inboxes')
   end
 
   def labels
     @report_data = generate_labels_report
-    generate_csv('labels_report', 'api/v2/accounts/reports/labels')
+    respond_with_report_download('labels_report', 'api/v2/accounts/reports/labels')
   end
 
   def teams
     @report_data = generate_teams_report
-    generate_csv('teams_report', 'api/v2/accounts/reports/teams')
+    respond_with_report_download('teams_report', 'api/v2/accounts/reports/teams')
+  end
+
+  def conversations_summary
+    @report_data = generate_conversations_report
+    respond_with_report_download('conversations_summary_report', 'api/v2/accounts/reports/conversations_summary')
   end
 
   def conversation_traffic
     @report_data = generate_conversations_heatmap_report
     timezone_offset = (params[:timezone_offset] || 0).to_f
     @timezone = ActiveSupport::TimeZone[timezone_offset]
+    respond_with_report_download('conversation_traffic_reports', 'api/v2/accounts/reports/conversation_traffic')
+  end
 
-    generate_csv('conversation_traffic_reports', 'api/v2/accounts/reports/conversation_traffic')
+  def drilldown
+    return head :unauthorized unless Current.account_user.administrator?
+    return head :unprocessable_entity unless valid_drilldown_params?
+
+    render json: V2::Reports::DrilldownBuilder.new(Current.account, drilldown_params).build
   end
 
   def conversations
@@ -53,85 +94,46 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   end
 
   def bot_metrics
-    bot_metrics = V2::Reports::BotMetricsBuilder.new(Current.account, params).metrics
-    render json: bot_metrics
+    render json: V2::Reports::BotMetricsBuilder.new(Current.account, bot_metrics_params).metrics
+  end
+
+  def inbox_label_matrix
+    builder = V2::Reports::InboxLabelMatrixBuilder.new(account: Current.account, params: inbox_label_matrix_params)
+    render json: builder.build
+  end
+
+  def first_response_time_distribution
+    builder = V2::Reports::FirstResponseTimeDistributionBuilder.new(
+      account: Current.account,
+      params: first_response_time_distribution_params
+    )
+    render json: builder.build
+  end
+
+  def outgoing_messages_count
+    return head :unprocessable_entity unless OUTGOING_MESSAGES_ALLOWED_GROUP_BY.include?(params[:group_by])
+
+    render json: V2::Reports::OutgoingMessagesCountBuilder.new(Current.account, outgoing_messages_count_params).build
+  end
+
+  def queued_customers
+    render json: V2::Reports::QueuedCustomersBuilder.new(Current.account, queued_customers_params).build
   end
 
   private
 
-  def generate_csv(filename, template)
-    response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = "attachment; filename=#{filename}.csv"
-    render layout: false, template: template, formats: [:csv]
+  def assign_overview_summary
+    filter_params = build_filter_params.merge(overview_summary_params)
+    log_overview_summary_window
+    result = V2::Reports::OverviewSummaryBuilder.new(Current.account, filter_params).build
+    @conversation_metrics = result[:conversation_metrics]
+    @agent_status = result[:agent_status]
+    @summary = result[:summary]
+    @date_range = result[:date_range]
   end
 
-  def check_authorization
-    authorize :report, :view?
-  end
-
-  def common_params
-    {
-      type: params[:type].to_sym,
-      id: params[:id],
-      group_by: params[:group_by],
-      business_hours: ActiveModel::Type::Boolean.new.cast(params[:business_hours])
-    }
-  end
-
-  def current_summary_params
-    common_params.merge({
-                          since: range[:current][:since],
-                          until: range[:current][:until],
-                          timezone_offset: params[:timezone_offset]
-                        })
-  end
-
-  def previous_summary_params
-    common_params.merge({
-                          since: range[:previous][:since],
-                          until: range[:previous][:until],
-                          timezone_offset: params[:timezone_offset]
-                        })
-  end
-
-  def report_params
-    common_params.merge({
-                          metric: params[:metric],
-                          since: params[:since],
-                          until: params[:until],
-                          timezone_offset: params[:timezone_offset]
-                        })
-  end
-
-  def conversation_params
-    {
-      type: params[:type].to_sym,
-      user_id: params[:user_id],
-      page: params[:page].presence || 1
-    }
-  end
-
-  def range
-    {
-      current: {
-        since: params[:since],
-        until: params[:until]
-      },
-      previous: {
-        since: (params[:since].to_i - (params[:until].to_i - params[:since].to_i)).to_s,
-        until: params[:since]
-      }
-    }
-  end
-
-  def build_summary(method)
-    builder = V2::Reports::Conversations::MetricBuilder
-    current_summary = builder.new(Current.account, current_summary_params).send(method)
-    previous_summary = builder.new(Current.account, previous_summary_params).send(method)
-    current_summary.merge(previous: previous_summary)
-  end
-
-  def conversation_metrics
-    V2::ReportBuilder.new(Current.account, conversation_params).conversation_metrics
+  def log_overview_summary_window
+    Rails.logger.info "1PARAMS: #{params[:since]}, #{params[:until]}, offset: #{params[:timezone_offset]}"
+    Rails.logger.info "1UTC TIME: #{Time.at(params[:since].to_i).utc} - #{Time.at(params[:until].to_i).utc}"
   end
 end

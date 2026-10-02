@@ -2,20 +2,25 @@
 #
 # Table name: accounts
 #
-#  id                    :integer          not null, primary key
-#  auto_resolve_duration :integer
-#  custom_attributes     :jsonb
-#  domain                :string(100)
-#  feature_flags         :bigint           default(0), not null
-#  internal_attributes   :jsonb            not null
-#  limits                :jsonb
-#  locale                :integer          default("en")
-#  name                  :string           not null
-#  settings              :jsonb
-#  status                :integer          default("active")
-#  support_email         :string(100)
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
+#  id                        :integer          not null, primary key
+#  active_chat_limit_enabled :boolean          default(FALSE), not null
+#  active_chat_limit_value   :integer          default(7)
+#  auto_resolve_duration     :integer
+#  custom_attributes         :jsonb
+#  domain                    :string(100)
+#  feature_flags             :bigint           default(0), not null
+#  feature_flags_ext_1       :bigint           default(0), not null
+#  internal_attributes       :jsonb            not null
+#  limits                    :jsonb
+#  locale                    :integer          default("en")
+#  name                      :string           not null
+#  queue_enabled             :boolean          default(FALSE), not null
+#  queue_message             :text
+#  settings                  :jsonb
+#  status                    :integer          default("active")
+#  support_email             :string(100)
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
 #
 # Indexes
 #
@@ -23,97 +28,54 @@
 #
 
 class Account < ApplicationRecord
-  # used for single column multi flags
+  # used for multi-flag bitset columns
   include FlagShihTzu
   include Reportable
   include Featurable
   include CacheKeys
-
-  SETTINGS_PARAMS_SCHEMA = {
-    'type': 'object',
-    'properties':
-      {
-        'auto_resolve_after': { 'type': %w[integer null], 'minimum': 10, 'maximum': 1_439_856 },
-        'auto_resolve_message': { 'type': %w[string null] },
-        'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
-        'audio_transcriptions': { 'type': %w[boolean null] },
-        'auto_resolve_label': { 'type': %w[string null] },
-        'conversation_required_attributes': {
-          'type': %w[array null],
-          'items': { 'type': 'string' }
-        }
-      },
-    'required': [],
-    'additionalProperties': true
-  }.to_json.freeze
+  include CaptainFeaturable
+  include AccountEmailRateLimitable
+  include AccountSettingsSchema
+  include AccountSettingsAccessors
+  include AccountAssociations
+  include AccountChannelAssociations
+  include AccountWorkspaceAssociations
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
     check_for_column: false
   }.freeze
+  SUSPENSION_CATEGORIES = %w[spam non_payment other].freeze
+
+  attr_accessor :suspension_category, :suspension_reason
 
   validates :name, presence: true
+  validates :active_chat_limit_value, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
+  # `domain` is the inbound email domain used to construct reply addresses
+  # (see `inbound_email_domain`). Do not repurpose it for a website or any
+  # non-mail-related domain.
   validates :domain, length: { maximum: 100 }
   validates_with JsonSchemaValidator,
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
+  validate :validate_reporting_timezone
+  validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
-  store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label, :conversation_required_attributes
+  before_validation :validate_limit_keys
+  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
+  after_destroy :remove_account_sequences
+  after_commit :process_queue_when_limit_changed, if: :active_chat_limit_settings_changed?
 
-  has_many :account_users, dependent: :destroy_async
-  has_many :agent_bot_inboxes, dependent: :destroy_async
-  has_many :agent_bots, dependent: :destroy_async
-  has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
-  has_many :articles, dependent: :destroy_async, class_name: '::Article'
-  has_many :assignment_policies, dependent: :destroy_async
-  has_many :automation_rules, dependent: :destroy_async
-  has_many :macros, dependent: :destroy_async
-  has_many :campaigns, dependent: :destroy_async
-  has_many :canned_responses, dependent: :destroy_async
-  has_many :categories, dependent: :destroy_async, class_name: '::Category'
-  has_many :contacts, dependent: :destroy_async
-  has_many :conversations, dependent: :destroy_async
-  has_many :csat_survey_responses, dependent: :destroy_async
-  has_many :custom_attribute_definitions, dependent: :destroy_async
-  has_many :custom_filters, dependent: :destroy_async
-  has_many :dashboard_apps, dependent: :destroy_async
-  has_many :data_imports, dependent: :destroy_async
-  has_many :email_channels, dependent: :destroy_async, class_name: '::Channel::Email'
-  has_many :facebook_pages, dependent: :destroy_async, class_name: '::Channel::FacebookPage'
-  has_many :instagram_channels, dependent: :destroy_async, class_name: '::Channel::Instagram'
-  has_many :tiktok_channels, dependent: :destroy_async, class_name: '::Channel::Tiktok'
-  has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
-  has_many :inboxes, dependent: :destroy_async
-  has_many :labels, dependent: :destroy_async
-  has_many :line_channels, dependent: :destroy_async, class_name: '::Channel::Line'
-  has_many :mentions, dependent: :destroy_async
-  has_many :messages, dependent: :destroy_async
-  has_many :notes, dependent: :destroy_async
-  has_many :notification_settings, dependent: :destroy_async
-  has_many :notifications, dependent: :destroy_async
-  has_many :portals, dependent: :destroy_async, class_name: '::Portal'
-  has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
-  has_many :teams, dependent: :destroy_async
-  has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
-  has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
-  has_many :twitter_profiles, dependent: :destroy_async, class_name: '::Channel::TwitterProfile'
-  has_many :users, through: :account_users
-  has_many :web_widgets, dependent: :destroy_async, class_name: '::Channel::WebWidget'
-  has_many :webhooks, dependent: :destroy_async
-  has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
-  has_many :working_hours, dependent: :destroy_async
-
-  has_one_attached :contacts_export
+  include AccountCaptainAutoResolve
 
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
   enum :status, { active: 0, suspended: 1 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :with_auto_resolve_pending, -> { where("(settings ->> 'auto_resolve_pending_after')::int IS NOT NULL") }
 
-  before_validation :validate_limit_keys
   after_create_commit :notify_creation
-  after_destroy :remove_account_sequences
+  after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
 
   def agents
     users.where(account_users: { role: :agent })
@@ -140,13 +102,8 @@ class Account < ApplicationRecord
     }
   end
 
-  def inbound_email_domain
-    domain.presence || GlobalConfig.get('MAILER_INBOUND_EMAIL_DOMAIN')['MAILER_INBOUND_EMAIL_DOMAIN'] || ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN',
-                                                                                                                   false)
-  end
-
-  def support_email
-    super.presence || ENV.fetch('MAILER_SENDER_EMAIL') { GlobalConfig.get('MAILER_SUPPORT_EMAIL')['MAILER_SUPPORT_EMAIL'] }
+  def suspension_history
+    internal_attributes['suspensions'] || []
   end
 
   def usage_limits
@@ -154,6 +111,10 @@ class Account < ApplicationRecord
       agents: ChatwootApp.max_limit.to_i,
       inboxes: ChatwootApp.max_limit.to_i
     }
+  end
+
+  def api_and_webhooks_enabled?
+    true
   end
 
   def locale_english_name
@@ -164,10 +125,45 @@ class Account < ApplicationRecord
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
   end
 
+  def active_chat_limit
+    active_chat_limit_value
+  end
+
+  def active_chat_limit_settings_changed?
+    saved_change_to_active_chat_limit_enabled? || saved_change_to_active_chat_limit_value?
+  end
+
+  def process_queue_when_limit_changed
+    return unless queue_enabled?
+
+    ChatQueue::ProcessQueueJob.perform_later(id)
+  end
+
+  def onboarding_step
+    step = custom_attributes['onboarding_step']
+    return nil if step.blank?
+
+    enrichment_key = format(Redis::Alfred::ACCOUNT_ONBOARDING_ENRICHMENT, account_id: id)
+    Redis::Alfred.exists?(enrichment_key) ? 'enrichment' : step
+  end
+
+  def reset_cache_keys
+    super
+    clear_unread_conversation_counts_cache
+  end
+
   private
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def clear_unread_conversation_counts_cache
+    ::Conversations::UnreadCounts::Store.clear_account!(id)
+  end
+
+  def resume_delayed_automations
+    AutomationRulePendingExecution.reschedule_paused(self)
   end
 
   trigger.after(:insert).for_each(:row) do
@@ -190,5 +186,6 @@ end
 
 Account.prepend_mod_with('Account')
 Account.prepend_mod_with('Account::PlanUsageAndLimits')
+Account.include_mod_with('AccountBillingIdentity')
 Account.include_mod_with('Concerns::Account')
 Account.include_mod_with('Audit::Account')

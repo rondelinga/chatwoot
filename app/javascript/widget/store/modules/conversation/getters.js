@@ -33,7 +33,19 @@ export const getters = {
       messages: groupConversationBySender(conversationGroupedByDate[date]),
     }));
   },
+  getPendingCustomAttributes: _state => _state.pendingCustomAttributes,
+  getPendingLabels: _state => _state.pendingLabels,
   getIsFetchingList: _state => _state.uiFlags.isFetchingList,
+  getShowOutboundNotification: _state =>
+    _state.uiFlags.showOutboundNotification,
+  getLatestOutgoingMessage: _state => {
+    return (
+      Object.values(_state.conversations)
+        .slice()
+        .reverse()
+        .find(message => message.message_type === MESSAGE_TYPE.OUTGOING) || {}
+    );
+  },
   getMessageCount: _state => {
     return Object.values(_state.conversations).length;
   },

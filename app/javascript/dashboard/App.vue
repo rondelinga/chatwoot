@@ -3,8 +3,11 @@ import { mapGetters } from 'vuex';
 import LoadingState from './components/widgets/LoadingState.vue';
 import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
+import ImpersonationBanner from './components/app/ImpersonationBanner.vue';
+import StatusBanner from './components/app/StatusBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
+import LowBackupCodesBanner from './components/app/LowBackupCodesBanner.vue';
 import vueActionCable from './helper/actionCable';
 import { useRouter } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
@@ -13,6 +16,7 @@ import { setColorTheme } from './helper/themeHelper';
 import { isOnOnboardingView } from 'v3/helpers/RouteHelper';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useFontSize } from 'dashboard/composables/useFontSize';
+import InAppNotificationToast from 'dashboard/components/InAppNotificationToast.vue';
 import {
   registerSubscription,
   verifyServiceWorkerExistence,
@@ -26,10 +30,14 @@ export default {
   components: {
     LoadingState,
     NetworkNotification,
+    ImpersonationBanner,
     UpdateBanner,
+    StatusBanner,
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
+    LowBackupCodesBanner,
+    InAppNotificationToast,
   },
   setup() {
     const router = useRouter();
@@ -59,7 +67,6 @@ export default {
       isRTL: 'accounts/isRTL',
       currentUser: 'getCurrentUser',
       authUIFlags: 'getAuthUIFlags',
-      accountUIFlags: 'accounts/getUIFlags',
     }),
     hideOnOnboardingView() {
       return !isOnOnboardingView(this.$route);
@@ -98,15 +105,18 @@ export default {
       mql.onchange = e => setColorTheme(e.matches);
     },
     setLocale(locale) {
-      this.$root.$i18n.locale = locale;
+      if (locale) {
+        this.$root.$i18n.locale = locale;
+      }
     },
     async initializeAccount() {
       await this.$store.dispatch('accounts/get');
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
       });
+      const account = this.getAccount(this.currentAccountId);
       const { locale, latest_chatwoot_version: latestChatwootVersion } =
-        this.getAccount(this.currentAccountId);
+        account;
       const { pubsub_token: pubsubToken } = this.currentUser || {};
       // If user locale is set, use it; otherwise use account locale
       this.setLocale(this.uiSettings?.locale || locale);
@@ -129,15 +139,18 @@ export default {
 
 <template>
   <div
-    v-if="!authUIFlags.isFetching && !accountUIFlags.isFetchingItem"
+    v-if="!authUIFlags.isFetching"
     id="app"
-    class="flex flex-col w-full h-screen min-h-0"
+    class="flex flex-col w-full h-screen min-h-0 bg-n-background"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
+    <ImpersonationBanner />
     <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
+    <StatusBanner />
     <template v-if="currentAccountId">
       <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
       <PaymentPendingBanner v-if="hideOnOnboardingView" />
+      <LowBackupCodesBanner v-if="hideOnOnboardingView" />
     </template>
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
@@ -145,6 +158,7 @@ export default {
       </transition>
     </router-view>
     <WootSnackbarBox />
+    <InAppNotificationToast />
     <NetworkNotification />
   </div>
   <LoadingState v-else />
@@ -164,10 +178,4 @@ export default {
 .v-popper--theme-tooltip .v-popper__arrow-container {
   display: none;
 }
-
-.multiselect__input {
-  margin-bottom: 0px !important;
-}
 </style>
-
-<style src="vue-multiselect/dist/vue-multiselect.css"></style>

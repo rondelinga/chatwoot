@@ -1,5 +1,6 @@
 require 'rails_helper'
 
+# rubocop:disable Rails/SkipsModelValidations -- backdate conversation timestamps for date-range filter specs
 RSpec.describe 'CSAT Survey Responses API', type: :request do
   let(:account) { create(:account) }
   let!(:csat_survey_response) { create(:csat_survey_response, account: account) }
@@ -16,12 +17,12 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      it 'returns unauthorized for agents' do
+      it 'returns csat survey responses for agents' do
         get "/api/v1/accounts/#{account.id}/csat_survey_responses",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns all the csat survey responses for administrators' do
@@ -34,8 +35,11 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
       end
 
       it 'filters csat responses based on a date range' do
-        csat_10_days_ago = create(:csat_survey_response, account: account, created_at: 10.days.ago)
-        csat_3_days_ago = create(:csat_survey_response, account: account, created_at: 3.days.ago)
+        csat_10_days_ago = create(:csat_survey_response, account: account, created_at: 1.day.ago)
+        csat_10_days_ago.conversation.update_column(:created_at, 10.days.ago)
+
+        csat_3_days_ago = create(:csat_survey_response, account: account, created_at: 10.days.ago)
+        csat_3_days_ago.conversation.update_column(:created_at, 3.days.ago)
 
         get "/api/v1/accounts/#{account.id}/csat_survey_responses",
             params: { since: 5.days.ago.to_time.to_i.to_s, until: Time.zone.today.to_time.to_i.to_s },
@@ -52,9 +56,14 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         csat1_assigned_agent = create(:user, account: account, role: :agent)
         csat2_assigned_agent = create(:user, account: account, role: :agent)
 
-        create(:csat_survey_response, account: account, created_at: 10.days.ago, assigned_agent: csat1_assigned_agent)
-        create(:csat_survey_response, account: account, created_at: 3.days.ago, assigned_agent: csat2_assigned_agent)
-        create(:csat_survey_response, account: account, created_at: 5.days.ago)
+        csat1_response = create(:csat_survey_response, account: account, created_at: 1.day.ago, assigned_agent: csat1_assigned_agent)
+        csat1_response.conversation.update_column(:created_at, 10.days.ago)
+
+        csat2_response = create(:csat_survey_response, account: account, created_at: 10.days.ago, assigned_agent: csat2_assigned_agent)
+        csat2_response.conversation.update_column(:created_at, 3.days.ago)
+
+        csat3_response = create(:csat_survey_response, account: account, created_at: 1.day.ago)
+        csat3_response.conversation.update_column(:created_at, 5.days.ago)
 
         get "/api/v1/accounts/#{account.id}/csat_survey_responses",
             params: { since: 11.days.ago.to_time.to_i.to_s, until: Time.zone.today.to_time.to_i.to_s,
@@ -90,12 +99,12 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      it 'returns unauthorized for agents' do
+      it 'returns csat metrics for agents' do
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns csat metrics for administrators' do
@@ -114,8 +123,11 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         # clearing any existing csat responses
         CsatSurveyResponse.destroy_all
 
-        create(:csat_survey_response, account: account, created_at: 10.days.ago)
-        create(:csat_survey_response, account: account, created_at: 3.days.ago)
+        csat_in_range = create(:csat_survey_response, account: account, created_at: 10.days.ago)
+        csat_in_range.conversation.update_column(:created_at, 3.days.ago)
+
+        csat_out_of_range = create(:csat_survey_response, account: account, created_at: 1.day.ago)
+        csat_out_of_range.conversation.update_column(:created_at, 10.days.ago)
 
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
             params: { since: 5.days.ago.to_time.to_i.to_s, until: Time.zone.today.to_time.to_i.to_s },
@@ -133,9 +145,14 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         csat1_assigned_agent = create(:user, account: account, role: :agent)
         csat2_assigned_agent = create(:user, account: account, role: :agent)
 
-        create(:csat_survey_response, account: account, created_at: 10.days.ago, assigned_agent: csat1_assigned_agent)
-        create(:csat_survey_response, account: account, created_at: 3.days.ago, assigned_agent: csat2_assigned_agent)
-        create(:csat_survey_response, account: account, created_at: 5.days.ago)
+        csat1_response = create(:csat_survey_response, account: account, created_at: 1.day.ago, assigned_agent: csat1_assigned_agent)
+        csat1_response.conversation.update_column(:created_at, 10.days.ago)
+
+        csat2_response = create(:csat_survey_response, account: account, created_at: 10.days.ago, assigned_agent: csat2_assigned_agent)
+        csat2_response.conversation.update_column(:created_at, 3.days.ago)
+
+        csat3_response = create(:csat_survey_response, account: account, created_at: 1.day.ago)
+        csat3_response.conversation.update_column(:created_at, 5.days.ago)
 
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
             params: { since: 11.days.ago.to_time.to_i.to_s, until: Time.zone.today.to_time.to_i.to_s,
@@ -172,6 +189,10 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
       end
 
       it 'returns summary' do
+        chat_created_at = 2.days.ago.change(usec: 0)
+        csat_survey_response.update_column(:created_at, 10.days.ago.change(usec: 0))
+        csat_survey_response.conversation.update_column(:created_at, chat_created_at)
+
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/download",
             params: params,
             headers: administrator.create_new_auth_token
@@ -181,8 +202,23 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         content = CSV.parse(response.body)
         # Check rating from CSAT Row
         expect(content[1][1]).to eq '1'
+        expect(content[0][7]).to eq I18n.t('reports.csat.headers.chat_created_at')
+        expect(Time.parse(content[1][7]).to_i).to eq chat_created_at.to_i
         expect(content.length).to eq 3
+      end
+
+      it 'neutralises formula-leading characters in the feedback column' do
+        create(:csat_survey_response, account: account, feedback_message: '=1+1', created_at: 1.day.ago)
+
+        get "/api/v1/accounts/#{account.id}/csat_survey_responses/download",
+            params: params,
+            headers: administrator.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        injected = CSV.parse(response.body).map { |row| row[2] }.find { |value| value.to_s.include?('1+1') }
+        expect(injected).to start_with("'")
       end
     end
   end
 end
+# rubocop:enable Rails/SkipsModelValidations

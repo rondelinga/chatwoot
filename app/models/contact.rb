@@ -7,6 +7,7 @@
 #  id                    :integer          not null, primary key
 #  additional_attributes :jsonb
 #  blocked               :boolean          default(FALSE), not null
+#  blocked_until         :datetime
 #  contact_type          :integer          default("visitor")
 #  country_code          :string           default("")
 #  custom_attributes     :jsonb
@@ -25,17 +26,18 @@
 #
 # Indexes
 #
+#  email_per_account_contact                             (account_id,email)
 #  index_contacts_on_account_id                          (account_id)
 #  index_contacts_on_account_id_and_contact_type         (account_id,contact_type)
 #  index_contacts_on_account_id_and_last_activity_at     (account_id,last_activity_at DESC NULLS LAST)
 #  index_contacts_on_blocked                             (blocked)
+#  index_contacts_on_blocked_until                       (blocked_until)
 #  index_contacts_on_company_id                          (company_id)
 #  index_contacts_on_lower_email_account_id              (lower((email)::text), account_id)
 #  index_contacts_on_name_email_phone_number_identifier  (name,email,phone_number,identifier) USING gin
 #  index_contacts_on_nonempty_fields                     (account_id,email,phone_number,identifier) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
 #  index_contacts_on_phone_number_and_account_id         (phone_number,account_id)
 #  index_resolved_contact_account_id                     (account_id) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
-#  uniq_email_per_account_contact                        (email,account_id) UNIQUE
 #  uniq_identifier_per_account_contact                   (identifier,account_id) UNIQUE
 #
 
@@ -46,14 +48,15 @@ class Contact < ApplicationRecord
   include AvailabilityStatusable
   include Labelable
   include LlmFormattable
+  include EmailUniquePerInbox
 
   validates :account_id, presence: true
-  validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
+  validates :email, allow_blank: true,
                     format: { with: Devise.email_regexp, message: I18n.t('errors.contacts.email.invalid') }
   validates :identifier, allow_blank: true, uniqueness: { scope: [:account_id] }
   validates :phone_number,
             allow_blank: true, uniqueness: { scope: [:account_id] },
-            format: { with: /\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
+            format: { with: /\A\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
 
   belongs_to :account
   has_many :conversations, dependent: :destroy_async
@@ -66,7 +69,9 @@ class Contact < ApplicationRecord
   after_create_commit :dispatch_create_event, :ip_lookup
   after_update_commit :dispatch_update_event
   after_destroy_commit :dispatch_destroy_event
+  after_validation :email_unique_per_inbox, if: :email_changed?
   before_save :sync_contact_attributes
+  include ContactCompanyAssociation
 
   enum contact_type: { visitor: 0, lead: 1, customer: 2 }
 
@@ -83,16 +88,6 @@ class Contact < ApplicationRecord
       Arel::Nodes::SqlLiteral.new(
         sanitize_sql_for_order("\"contacts\".\"created_at\" #{direction}
           NULLS LAST")
-      )
-    )
-  }
-  scope :order_on_company_name, lambda { |direction|
-    order(
-      Arel::Nodes::SqlLiteral.new(
-        sanitize_sql_for_order(
-          "\"contacts\".\"additional_attributes\"->>'company_name' #{direction}
-          NULLS LAST"
-        )
       )
     )
   }
@@ -115,6 +110,10 @@ class Contact < ApplicationRecord
         )
       )
     )
+  }
+
+  scope :in_inbox, lambda { |inbox_id|
+    joins(:contact_inboxes).where(contact_inboxes: { inbox_id: inbox_id })
   }
 
   scope :order_on_name, lambda { |direction|
@@ -148,7 +147,7 @@ class Contact < ApplicationRecord
   end
 
   def push_event_data
-    {
+    data = {
       additional_attributes: additional_attributes,
       custom_attributes: custom_attributes,
       email: email,
@@ -160,6 +159,8 @@ class Contact < ApplicationRecord
       blocked: blocked,
       type: 'contact'
     }
+    data[:company_id] = company_id if account.feature_enabled?('companies')
+    data
   end
 
   def webhook_data
@@ -179,11 +180,9 @@ class Contact < ApplicationRecord
   end
 
   def self.resolved_contacts(use_crm_v2: false)
-    if use_crm_v2
-      where(contact_type: 'lead')
-    else
-      where("contacts.email <> '' OR contacts.phone_number <> '' OR contacts.identifier <> ''")
-    end
+    return where(contact_type: 'lead') if use_crm_v2
+
+    where("contacts.email <> '' OR contacts.phone_number <> '' OR contacts.identifier <> ''")
   end
 
   def discard_invalid_attrs
@@ -206,7 +205,7 @@ class Contact < ApplicationRecord
   def phone_number_format
     return if phone_number.blank?
 
-    self.phone_number = phone_number_was unless phone_number.match?(/\+[1-9]\d{1,14}\z/)
+    self.phone_number = phone_number_was unless phone_number.match?(/\A\+[1-9]\d{1,14}\z/)
   end
 
   def email_format
@@ -230,6 +229,16 @@ class Contact < ApplicationRecord
     self.custom_attributes = {} if custom_attributes.blank?
   end
 
+  def email_unique_per_inbox
+    return if email.blank?
+
+    conflict = contact_inboxes.any? do |contact_inbox|
+      email_conflict_in_inbox?(email: email, inbox_id: contact_inbox.inbox_id, except_contact_id: id)
+    end
+
+    errors.add(:email, I18n.t('errors.contacts.email.already_exists_in_inbox')) if conflict
+  end
+
   def sync_contact_attributes
     ::Contacts::SyncAttributes.new(self).perform
   end
@@ -243,7 +252,9 @@ class Contact < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(CONTACT_DELETED, Time.zone.now, contact: self)
+    # Pass serialized data instead of ActiveRecord object to avoid DeserializationError
+    # when the async EventDispatcherJob runs after the contact has been deleted
+    Rails.configuration.dispatcher.dispatch(CONTACT_DELETED, Time.zone.now, contact_data: push_event_data.merge(account_id: account_id))
   end
 end
 Contact.include_mod_with('Concerns::Contact')

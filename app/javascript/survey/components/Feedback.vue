@@ -15,16 +15,27 @@ export default {
       type: Boolean,
       default: false,
     },
+    initialFeedback: {
+      type: String,
+      default: '',
+    },
+    placeholder: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['sendFeedback'],
+  emits: ['sendFeedback', 'updateFeedback'],
   data() {
     return {
-      feedback: '',
+      feedback: this.initialFeedback,
     };
   },
   methods: {
     onClick() {
       this.$emit('sendFeedback', this.feedback);
+    },
+    onInput(value) {
+      this.$emit('updateFeedback', value);
     },
   },
 };
@@ -38,10 +49,11 @@ export default {
     <TextArea
       v-model="feedback"
       class="my-5"
-      :placeholder="$t('SURVEY.FEEDBACK.PLACEHOLDER')"
+      :placeholder="placeholder || $t('SURVEY.FEEDBACK.PLACEHOLDER')"
+      @update:model-value="onInput"
     />
     <div class="flex items-center float-right font-medium">
-      <CustomButton @click="onClick">
+      <CustomButton :disabled="isUpdating" @click="onClick">
         <Spinner v-if="isUpdating" class="p-0" />
         {{ $t('SURVEY.FEEDBACK.BUTTON_TEXT') }}
       </CustomButton>

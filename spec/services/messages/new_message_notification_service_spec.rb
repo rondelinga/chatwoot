@@ -2,8 +2,14 @@ require 'rails_helper'
 
 describe Messages::NewMessageNotificationService do
   context 'when message is not notifiable' do
-    it 'will not create any notifications' do
+    it 'will not create any notifications for activity messages' do
       message = build(:message, message_type: :activity)
+      expect(NotificationBuilder).not_to receive(:new)
+      described_class.new(message: message).perform
+    end
+
+    it 'will not create any notifications for private messages' do
+      message = build(:message, message_type: :outgoing, private: true)
       expect(NotificationBuilder).not_to receive(:new)
       described_class.new(message: message).perform
     end
@@ -33,9 +39,9 @@ describe Messages::NewMessageNotificationService do
         described_class.new(message: message).perform
       end
 
-      it 'creates notifications for other participating users' do
+      it 'does not notify participating users who cannot access the assigned conversation' do
         expect(participating_agent_2.notifications.where(notification_type: 'participating_conversation_new_message', account: account,
-                                                         primary_actor: message.conversation, secondary_actor: message)).to exist
+                                                         primary_actor: message.conversation, secondary_actor: message)).not_to exist
       end
 
       it 'creates notifications for assignee' do
@@ -62,13 +68,13 @@ describe Messages::NewMessageNotificationService do
                                             primary_actor: message.conversation, secondary_actor: message)).to exist
       end
 
-      it 'creates notifications for all participating users' do
+      it 'does not notify participating users who cannot access the assigned conversation' do
         expect(participating_agent_1.notifications.where(notification_type: 'participating_conversation_new_message',
                                                          account: account, primary_actor: message.conversation,
-                                                         secondary_actor: message)).to exist
+                                                         secondary_actor: message)).not_to exist
         expect(participating_agent_2.notifications.where(notification_type: 'participating_conversation_new_message',
                                                          account: account, primary_actor: message.conversation,
-                                                         secondary_actor: message)).to exist
+                                                         secondary_actor: message)).not_to exist
       end
     end
 

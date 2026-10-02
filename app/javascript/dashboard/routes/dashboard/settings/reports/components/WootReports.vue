@@ -1,6 +1,7 @@
 <script>
 import V4Button from 'dashboard/components-next/button/Button.vue';
 import { useAlert, useTrack } from 'dashboard/composables';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
 import ReportFilters from './ReportFilters.vue';
 import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
@@ -9,6 +10,7 @@ import { REPORTS_EVENTS } from '../../../../../helper/AnalyticsHelper/events';
 import ReportHeader from './ReportHeader.vue';
 
 const GROUP_BY_OPTIONS = {
+  HOUR: [{ id: 5, groupByKey: 'REPORT.GROUPING_OPTIONS.HOUR' }],
   DAY: [{ id: 1, groupByKey: 'REPORT.GROUPING_OPTIONS.DAY' }],
   WEEK: [
     { id: 1, groupByKey: 'REPORT.GROUPING_OPTIONS.DAY' },
@@ -63,6 +65,11 @@ export default {
       default: null,
     },
   },
+  setup() {
+    const { canExportData } = useRestrictedAgent();
+
+    return { canExportData };
+  },
   data() {
     return {
       from: 0,
@@ -81,6 +88,9 @@ export default {
     isAgentType() {
       return this.type === 'agent';
     },
+    selectedFilterId() {
+      return this.selectedFilter?.id || null;
+    },
     reportKeys() {
       return {
         CONVERSATIONS: 'conversations_count',
@@ -92,6 +102,9 @@ export default {
         RESOLUTION_TIME: 'avg_resolution_time',
         RESOLUTION_COUNT: 'resolutions_count',
         REPLY_TIME: 'reply_time',
+        ...(this.isAgentType
+          ? { AGENT_CHAT_DURATION: 'agent_chat_duration' }
+          : {}),
       };
     },
   },
@@ -146,7 +159,6 @@ export default {
       }
     },
     onDateRangeChange({ from, to, groupBy }) {
-      // do not track filter change on inital load
       if (this.from !== 0 && this.to !== 0) {
         useTrack(REPORTS_EVENTS.FILTER_REPORT, {
           filterType: 'date',
@@ -186,6 +198,8 @@ export default {
     },
     fetchFilterItems(groupBy) {
       switch (groupBy) {
+        case GROUP_BY_FILTER[5].period:
+          return GROUP_BY_OPTIONS.HOUR.map(this.translateOptions);
         case GROUP_BY_FILTER[2].period:
           return GROUP_BY_OPTIONS.WEEK.map(this.translateOptions);
         case GROUP_BY_FILTER[3].period:
@@ -197,7 +211,20 @@ export default {
       }
     },
     translateOptions(opts) {
-      return { id: opts.id, groupBy: this.$t(opts.groupByKey) };
+      const translations = {
+        'REPORT.GROUPING_OPTIONS.HOUR': this.$t('REPORT.GROUPING_OPTIONS.HOUR'),
+        'REPORT.GROUPING_OPTIONS.DAY': this.$t('REPORT.GROUPING_OPTIONS.DAY'),
+        'REPORT.GROUPING_OPTIONS.WEEK': this.$t('REPORT.GROUPING_OPTIONS.WEEK'),
+        'REPORT.GROUPING_OPTIONS.MONTH': this.$t(
+          'REPORT.GROUPING_OPTIONS.MONTH'
+        ),
+        'REPORT.GROUPING_OPTIONS.YEAR': this.$t('REPORT.GROUPING_OPTIONS.YEAR'),
+      };
+
+      return {
+        id: opts.id,
+        groupBy: translations[opts.groupByKey] || opts.groupByKey,
+      };
     },
     onBusinessHoursToggle(value) {
       this.businessHours = value;
@@ -216,12 +243,14 @@ export default {
 <template>
   <ReportHeader :header-title="reportTitle" :has-back-button="hasBackButton">
     <V4Button
+      v-if="canExportData"
       :label="downloadButtonLabel"
       icon="i-ph-download-simple"
       size="sm"
       @click="downloadReports"
     />
   </ReportHeader>
+
   <ReportFilters
     v-if="filterItemsList"
     :type="type"
@@ -238,5 +267,10 @@ export default {
     v-if="filterItemsList.length"
     :group-by="groupBy"
     :report-keys="reportKeys"
+    :from="from"
+    :to="to"
+    :report-type="type"
+    :selected-item-id="selectedFilterId"
+    :business-hours="businessHours"
   />
 </template>

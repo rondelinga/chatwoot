@@ -14,33 +14,28 @@ export default {
     },
   },
   emits: ['onGroupingChange'],
-  data() {
-    return {
-      currentSelectedFilter: null,
-    };
-  },
   computed: {
     translatedOptions() {
-      return this.validGroupOptions.map(option => ({
-        ...option,
-        groupBy: this.$t(option.translationKey),
+      const translations = {
+        HOUR: this.$t('REPORT.GROUPING_OPTIONS.HOUR'),
+        DAY: this.$t('REPORT.GROUPING_OPTIONS.DAY'),
+        WEEK: this.$t('REPORT.GROUPING_OPTIONS.WEEK'),
+        MONTH: this.$t('REPORT.GROUPING_OPTIONS.MONTH'),
+        YEAR: this.$t('REPORT.GROUPING_OPTIONS.YEAR'),
+      };
+      return this.validGroupOptions.map(o => ({
+        ...o,
+        groupBy: translations[o.id] || o.id,
       }));
     },
-  },
-  watch: {
-    selectedOption: {
-      handler() {
-        this.currentSelectedFilter = {
-          ...this.selectedOption,
-          groupBy: this.$t(this.selectedOption.translationKey),
-        };
+    currentId: {
+      get() {
+        return this.selectedOption?.id;
       },
-      immediate: true,
-    },
-  },
-  methods: {
-    changeFilterSelection(selectedFilter) {
-      this.groupByOptions = this.$emit('onGroupingChange', selectedFilter);
+      set(id) {
+        const found = this.translatedOptions.find(o => o.id === id);
+        if (found) this.$emit('onGroupingChange', found);
+      },
     },
   },
 };
@@ -48,19 +43,10 @@ export default {
 
 <template>
   <div class="multiselect-wrap--small">
-    <p aria-hidden="true" class="hidden">
-      {{ $t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL') }}
-    </p>
-    <multiselect
-      v-model="currentSelectedFilter"
-      class="no-margin"
-      track-by="id"
-      label="groupBy"
-      :placeholder="$t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL')"
-      :options="translatedOptions"
-      :allow-empty="false"
-      :show-labels="false"
-      @select="changeFilterSelection"
-    />
+    <select v-model="currentId" class="no-margin">
+      <option v-for="o in translatedOptions" :key="o.id" :value="o.id">
+        {{ o.groupBy }}
+      </option>
+    </select>
   </div>
 </template>

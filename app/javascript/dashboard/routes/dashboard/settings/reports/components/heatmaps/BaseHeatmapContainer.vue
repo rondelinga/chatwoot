@@ -6,17 +6,20 @@ import BaseHeatmap from './BaseHeatmap.vue';
 import HeatmapDateRangeSelector from './HeatmapDateRangeSelector.vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
-import differenceInCalendarDays from 'date-fns/differenceInCalendarDays';
-import endOfDay from 'date-fns/endOfDay';
-import format from 'date-fns/format';
-import getUnixTime from 'date-fns/getUnixTime';
-import startOfDay from 'date-fns/startOfDay';
-import startOfMonth from 'date-fns/startOfMonth';
-import subDays from 'date-fns/subDays';
+import {
+  differenceInCalendarDays,
+  endOfDay,
+  format,
+  getUnixTime,
+  startOfDay,
+  startOfMonth,
+  subDays,
+} from 'date-fns';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { useI18n } from 'vue-i18n';
 import { downloadCsvFile } from 'dashboard/helper/downloadHelper';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
 
 const props = defineProps({
   metric: {
@@ -52,6 +55,8 @@ const props = defineProps({
     default: 'blue',
   },
 });
+
+const { canExportData } = useRestrictedAgent();
 
 const store = useStore();
 const { t } = useI18n();
@@ -113,6 +118,34 @@ const selectedInboxFilter = computed(() => {
 });
 
 const isLoading = computed(() => uiFlags.value[props.uiFlagKey]);
+const isResolutionHeatmap = computed(
+  () => props.metric === 'resolutions_count'
+);
+const heatmapAriaLabel = computed(() =>
+  t('OVERVIEW_REPORTS.HEATMAP_ARIA_LABEL', { metric: props.title })
+);
+
+const formatHeatmapValue = value => {
+  if (isResolutionHeatmap.value) {
+    if (!value) {
+      return t('OVERVIEW_REPORTS.RESOLUTION_HEATMAP.NO_CONVERSATIONS');
+    }
+    return value === 1
+      ? t('OVERVIEW_REPORTS.RESOLUTION_HEATMAP.CONVERSATION', { count: value })
+      : t('OVERVIEW_REPORTS.RESOLUTION_HEATMAP.CONVERSATIONS', {
+          count: value,
+        });
+  }
+
+  if (!value) {
+    return t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.NO_CONVERSATIONS');
+  }
+  return value === 1
+    ? t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.CONVERSATION', { count: value })
+    : t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.CONVERSATIONS', {
+        count: value,
+      });
+};
 
 // Keeps relative presets (last 7 days / this month) aligned with "now" during live refreshes.
 const resolveActiveRange = () => {
@@ -160,15 +193,18 @@ const downloadHeatmapData = () => {
     return;
   }
 
-  // Create CSV headers
-  const headers = ['Date', 'Hour', props.title];
+  const headers = ['Date (UTC)', 'Hour (UTC)', props.title];
   const rows = [headers];
 
-  // Convert heatmap data to rows
   heatmapData.value.forEach(item => {
     const date = new Date(item.timestamp * 1000);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const hour = date.getHours();
+
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    const hour = date.getUTCHours();
     rows.push([dateStr, `${hour}:00 - ${hour + 1}:00`, item.value]);
   });
 
@@ -293,6 +329,7 @@ onMounted(() => {
           />
         </div>
         <Button
+          v-if="canExportData"
           v-tooltip="t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.DOWNLOAD_REPORT')"
           sm
           slate
@@ -307,6 +344,8 @@ onMounted(() => {
         :number-of-rows="numberOfRows"
         :is-loading="isLoading"
         :color-scheme="colorScheme"
+        :aria-label="heatmapAriaLabel"
+        :format-value="formatHeatmapValue"
       />
     </MetricCard>
   </div>

@@ -1,143 +1,158 @@
 class ReportingEventListener < BaseListener
   include ReportingEventHelper
+  include ReportingEventPersistHelpers
+  include ReportingEventRecordBuilders
+  include ReportingEventLifecycleRecords
 
   def conversation_resolved(event)
     conversation = extract_conversation_and_account(event)[0]
-    time_to_resolve = conversation.updated_at.to_i - conversation.created_at.to_i
+    return if conversation.resolved_at.blank?
 
-    reporting_event = ReportingEvent.new(
-      name: 'conversation_resolved',
-      value: time_to_resolve,
-      value_in_business_hours: business_hours(conversation.inbox, conversation.created_at,
-                                              conversation.updated_at),
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      user_id: conversation.assignee_id,
-      conversation_id: conversation.id,
-      event_start_time: conversation.created_at,
-      event_end_time: conversation.updated_at
-    )
+    start_time = conversation.created_at
+    end_time = conversation.resolved_at
+    time_to_resolve = end_time - start_time
+    return if time_to_resolve <= 0
 
-    create_bot_resolved_event(conversation, reporting_event)
-    reporting_event.save!
+    create_conversation_resolved_events(conversation, start_time, end_time, time_to_resolve)
+    record_resolution_without_bot(conversation, start_time, end_time, time_to_resolve)
   end
 
   def first_reply_created(event)
     message = extract_message_and_account(event)[0]
     conversation = message.conversation
-    first_response_time = message.created_at.to_i - last_non_human_activity(conversation).to_i
 
-    reporting_event = ReportingEvent.new(
-      name: 'first_response',
-      value: first_response_time,
-      value_in_business_hours: business_hours(conversation.inbox, last_non_human_activity(conversation),
-                                              message.created_at),
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      user_id: message.sender_id,
+    return unless message.message_type == 'outgoing'
+    return unless message.sender_type == 'User'
+
+    participant = ConversationParticipant.find_by(
       conversation_id: conversation.id,
-      event_start_time: last_non_human_activity(conversation),
-      event_end_time: message.created_at
+      user_id: message.sender_id,
+      left_at: nil
     )
+    return if participant.blank?
+    return if participant.created_at.blank?
 
-    reporting_event.save!
+    create_first_response_event(conversation, message, participant)
+
+    create_first_response_from_open_event(conversation, message)
   end
 
   def reply_created(event)
     message = extract_message_and_account(event)[0]
+    return unless message.sender_type == 'User'
+
     conversation = message.conversation
-    waiting_since = event.data[:waiting_since]
+    operator_id = message.sender_id
 
-    return if waiting_since.blank?
+    participant = ConversationParticipant.find_by(conversation_id: conversation.id, user_id: operator_id, left_at: nil)
+    return if participant&.created_at.blank?
 
-    # When waiting_since is nil, set reply_time to 0
-    reply_time = message.created_at.to_i - waiting_since.to_i
+    client_message = last_client_message(conversation, participant, message)
+    return unless client_message
 
-    reporting_event = ReportingEvent.new(
-      name: 'reply_time',
-      value: reply_time,
-      value_in_business_hours: business_hours(conversation.inbox, waiting_since, message.created_at),
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      user_id: conversation.assignee_id,
-      conversation_id: conversation.id,
-      event_start_time: waiting_since,
-      event_end_time: message.created_at
-    )
-    reporting_event.save!
+    waiting_time = message.created_at.to_i - client_message.created_at.to_i
+    return if waiting_time <= 0
+
+    create_reply_time_event(conversation, operator_id, client_message, message, waiting_time)
   end
 
   def conversation_bot_handoff(event)
     conversation = extract_conversation_and_account(event)[0]
-
-    # check if a conversation_bot_handoff event exists for this conversation
-    bot_handoff_event = ReportingEvent.find_by(conversation_id: conversation.id, name: 'conversation_bot_handoff')
-    return if bot_handoff_event.present?
-
-    time_to_handoff = conversation.updated_at.to_i - conversation.created_at.to_i
-
-    reporting_event = ReportingEvent.new(
-      name: 'conversation_bot_handoff',
-      value: time_to_handoff,
-      value_in_business_hours: business_hours(conversation.inbox, conversation.created_at, conversation.updated_at),
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      user_id: conversation.assignee_id,
-      conversation_id: conversation.id,
-      event_start_time: conversation.created_at,
-      event_end_time: conversation.updated_at
-    )
-    reporting_event.save!
+    persist_bot_handoff(conversation, event.timestamp)
   end
 
   def conversation_opened(event)
     conversation = extract_conversation_and_account(event)[0]
+    record_conversation_opened(conversation, event.timestamp)
+  end
 
-    # Find the most recent resolved event for this conversation
-    last_resolved_event = ReportingEvent.where(
-      conversation_id: conversation.id,
-      name: 'conversation_resolved'
-    ).order(event_end_time: :desc).first
+  def message_created(event)
+    message = extract_message_and_account(event)[0]
+    conversation = message.conversation
 
-    # For first-time openings, value is 0
-    # For reopenings, calculate time since resolution
-    if last_resolved_event
-      time_since_resolved = conversation.updated_at.to_i - last_resolved_event.event_end_time.to_i
-      business_hours_value = business_hours(conversation.inbox, last_resolved_event.event_end_time, conversation.updated_at)
-      start_time = last_resolved_event.event_end_time
-    else
-      time_since_resolved = 0
-      business_hours_value = 0
-      start_time = conversation.created_at
-    end
+    return unless bot_message_applicable?(message)
 
-    create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time)
+    # Bot first response
+    handle_bot_first_response(conversation, message) if bot_first_response_applicable?(conversation, message)
+
+    # Bot reply time
+    handle_bot_reply_time(conversation, message)
   end
 
   private
 
-  def create_conversation_opened_event(conversation, time_since_resolved, business_hours_value, start_time)
-    reporting_event = ReportingEvent.new(
-      name: 'conversation_opened',
-      value: time_since_resolved,
-      value_in_business_hours: business_hours_value,
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      user_id: conversation.assignee_id,
-      conversation_id: conversation.id,
-      event_start_time: start_time,
-      event_end_time: conversation.updated_at
+  def resolution_without_bot_start_time(conversation, opened_time, log_prefix)
+    unless conversation.inbox.active_bot?
+      Rails.logger.info("#{log_prefix} | has_bot=false | without_bot_start_time=conversation_start=#{opened_time.iso8601}")
+      return opened_time
+    end
+
+    operator_first_message_at = first_operator_message_at(conversation)
+    if operator_first_message_at
+      Rails.logger.info(
+        "#{log_prefix} | has_bot=true | source=first_operator_message | " \
+        "without_bot_start_time=#{operator_first_message_at.iso8601}"
+      )
+      return operator_first_message_at
+    end
+
+    Rails.logger.warn(
+      "#{log_prefix} | has_bot=true | WITHOUT_BOT_EVENT_SKIPPED | " \
+      'reason=no_operator_ever_replied | fallback=no_event_created'
     )
-    reporting_event.save!
+    nil
   end
 
-  def create_bot_resolved_event(conversation, reporting_event)
-    return unless conversation.inbox.active_bot?
-    # We don't want to create a bot_resolved event if there is user interaction on the conversation
-    return if conversation.messages.exists?(message_type: :outgoing, sender_type: 'User')
+  def first_operator_message_at(conversation)
+    conversation.messages
+                .where(message_type: :outgoing, sender_type: 'User')
+                .minimum(:created_at)
+  end
 
-    bot_resolved_event = reporting_event.dup
-    bot_resolved_event.name = 'conversation_bot_resolved'
-    bot_resolved_event.save!
+  def last_client_message(conversation, participant, message)
+    client_message = conversation.messages.incoming.where('created_at >= ?', participant.created_at)
+                                 .where('created_at < ?', message.created_at).last
+    return unless client_message
+
+    operator_replied_between = conversation.messages.where(message_type: :outgoing, sender_type: 'User', sender_id: message.sender_id)
+                                           .where('created_at > ?', client_message.created_at)
+                                           .exists?(['created_at < ?', message.created_at])
+
+    return if operator_replied_between
+
+    client_message
+  end
+
+  def safe_rollup(reporting_event)
+    # Rollups are derived from the raw reporting event. If a transient rollup write
+    # failure bubbles out here, Sidekiq retries the dispatcher job and can insert the
+    # same raw event again. That can temporarily under-report rollups, but the source
+    # event is preserved and rollup data can be rebuilt or re-applied later.
+    ReportingEvents::RollupService.perform(reporting_event)
+  rescue StandardError => e
+    ChatwootExceptionTracker.new(e, account: reporting_event.account).capture_exception
+  end
+
+  def bot_message_applicable?(message)
+    return false unless message.message_type == 'outgoing'
+    return false unless message.sender_type.in?(['AgentBot', 'Captain::Assistant'])
+
+    true
+  end
+
+  def bot_first_response_applicable?(conversation, message)
+    # Check if this is the first bot response in the conversation
+    return false if ReportingEvent.exists?(
+      conversation_id: conversation.id,
+      name: 'bot_first_response'
+    )
+
+    # Ensure there's no prior bot message
+    prior_bot_message = conversation.messages
+                                    .where(message_type: :outgoing)
+                                    .where(sender_type: ['AgentBot', 'Captain::Assistant'])
+                                    .exists?(['created_at < ?', message.created_at])
+
+    !prior_bot_message
   end
 end

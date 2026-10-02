@@ -1,42 +1,52 @@
-<script>
-import { mapGetters } from 'vuex';
+<script setup>
+import { ref, computed } from 'vue';
+import { useStore } from 'vuex';
+import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 
-export default {
-  name: 'ReportsFiltersInboxes',
-  emits: ['inboxFilterSelection'],
-  data() {
-    return {
-      selectedOption: null,
-    };
-  },
-  computed: {
-    ...mapGetters({
-      options: 'inboxes/getInboxes',
-    }),
-  },
-  mounted() {
-    this.$store.dispatch('inboxes/get');
-  },
-  methods: {
-    handleInput() {
-      this.$emit('inboxFilterSelection', this.selectedOption);
-    },
-  },
+const props = defineProps({
+  selectedInbox: { type: Array, default: () => [] },
+});
+const emit = defineEmits(['inboxFilterSelection']);
+const store = useStore();
+
+store.dispatch('inboxes/get');
+
+const options = computed(() => store.getters['inboxes/getInboxes']);
+const selectedItems = ref([...props.selectedInbox]);
+
+const tags = computed(() => selectedItems.value.map(i => i.name));
+const menuItems = computed(() =>
+  options.value
+    .filter(o => !selectedItems.value.find(s => s.id === o.id))
+    .map(o => ({ action: 'select', value: String(o.id), label: o.name }))
+);
+
+const handleAdd = ({ value }) => {
+  const item = options.value.find(o => String(o.id) === value);
+  if (item) {
+    selectedItems.value = [...selectedItems.value, item];
+    emit('inboxFilterSelection', selectedItems.value);
+  }
+};
+const handleRemove = index => {
+  selectedItems.value = selectedItems.value.filter((_, i) => i !== index);
+  emit('inboxFilterSelection', selectedItems.value);
 };
 </script>
 
 <template>
-  <div class="multiselect-wrap--small">
-    <multiselect
-      v-model="selectedOption"
-      class="no-margin"
+  <div
+    class="rounded-xl outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong px-2 py-2"
+  >
+    <TagInput
+      :model-value="tags"
+      :menu-items="menuItems"
+      show-dropdown
+      :allow-create="false"
+      :auto-open-dropdown="false"
       :placeholder="$t('INBOX_REPORTS.FILTER_DROPDOWN_LABEL')"
-      label="name"
-      track-by="id"
-      :options="options"
-      :option-height="24"
-      :show-labels="false"
-      @update:model-value="handleInput"
+      @add="handleAdd"
+      @remove="handleRemove"
     />
   </div>
 </template>

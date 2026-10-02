@@ -1,6 +1,6 @@
 <script>
 import SLAFilter from '../SLA/SLAFilter.vue';
-import subDays from 'date-fns/subDays';
+import { subDays } from 'date-fns';
 import { DATE_RANGE_OPTIONS } from '../../constants';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 

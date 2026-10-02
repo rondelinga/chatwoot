@@ -44,7 +44,10 @@ unless Rails.env.production?
   web_widget = Channel::WebWidget.create!(account: account, website_url: 'https://acme.inc')
 
   inbox = Inbox.create!(channel: web_widget, account: account, name: 'Acme Support')
-  InboxMember.create!(user: user, inbox: inbox)
+  team = Team.create!(account: account, name: 'acme support team', description: 'Acme Support collaborators')
+  team.add_members([user.id])
+  InboxTeam.create!(inbox: inbox, team: team)
+  Inboxes::MembersSyncService.new(inbox: inbox).perform
 
   contact_inbox = ContactInboxWithContactBuilder.new(
     source_id: user.id,

@@ -19,7 +19,7 @@ describe('ReportsFiltersInboxes.vue', () => {
     inboxesModule = {
       namespaced: true,
       getters: {
-        getInboxes: () => () => [
+        getInboxes: () => [
           { id: 1, name: 'Inbox 1' },
           { id: 2, name: 'Inbox 2' },
         ],
@@ -46,7 +46,7 @@ describe('ReportsFiltersInboxes.vue', () => {
     expect(inboxesModule.actions.get).toHaveBeenCalled();
   });
 
-  it('emits "inbox-filter-selection" event when handleInput is called', async () => {
+  it('emits "inbox-filter-selection" event when an inbox is added', async () => {
     const wrapper = shallowMount(ReportsFiltersInboxes, {
       global: {
         plugins: [store],
@@ -54,12 +54,11 @@ describe('ReportsFiltersInboxes.vue', () => {
       },
     });
 
-    const selectedInbox = { id: 1, name: 'Inbox 1' };
-    await wrapper.setData({ selectedOption: selectedInbox });
-
-    await wrapper.vm.handleInput();
+    await wrapper.vm.handleAdd({ value: '1' });
 
     expect(wrapper.emitted('inboxFilterSelection')).toBeTruthy();
-    expect(wrapper.emitted('inboxFilterSelection')[0]).toEqual([selectedInbox]);
+    expect(wrapper.emitted('inboxFilterSelection')[0]).toEqual([
+      [{ id: 1, name: 'Inbox 1' }],
+    ]);
   });
 });

@@ -20,7 +20,7 @@ import {
 export default function useAutomationValues() {
   const getters = useStoreGetters();
   const { t } = useI18n();
-  const agents = useMapGetter('agents/getAgents');
+  const agents = useMapGetter('agents/getVerifiedAgents');
   const campaigns = useMapGetter('campaigns/getAllCampaigns');
   const contacts = useMapGetter('contacts/getContacts');
   const inboxes = useMapGetter('inboxes/getInboxes');
@@ -44,6 +44,9 @@ export default function useAutomationValues() {
       pending: {
         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.pending.TEXT'),
       },
+      queued: {
+        TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.queued.TEXT'),
+      },
       snoozed: {
         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
       },
@@ -55,13 +58,10 @@ export default function useAutomationValues() {
 
   const statusFilterOptions = computed(() => {
     const statusFilters = statusFilterItems.value;
-    return [
-      ...Object.keys(statusFilters).map(status => ({
-        id: status,
-        name: statusFilters[status].TEXT,
-      })),
-      { id: 'all', name: t('CHAT_LIST.FILTER_ALL') },
-    ];
+    return Object.keys(statusFilters).map(status => ({
+      id: status,
+      name: statusFilters[status].TEXT,
+    }));
   });
 
   const messageTypeOptions = computed(() =>
@@ -121,8 +121,19 @@ export default function useAutomationValues() {
    * @returns {Array} An array of action dropdown values.
    */
   const getActionDropdownValues = type => {
+    let agentsList = agents.value;
+    if (type === 'assign_agent') {
+      agentsList = [
+        {
+          id: 'last_responding_agent',
+          name: t('AUTOMATION.LAST_RESPONDING_AGENT'),
+        },
+        ...agentsList,
+      ];
+    }
+
     return getActionOptions({
-      agents: agents.value,
+      agents: agentsList,
       labels: labels.value,
       teams: teams.value,
       slaPolicies: slaPolicies.value,

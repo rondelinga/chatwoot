@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
+import { useExactTimestamp } from 'shared/composables/useExactTimestamp';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -20,6 +21,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['goToContactsList']);
+
+const exactTimestamp = useExactTimestamp();
 
 const { t } = useI18n();
 const store = useStore();
@@ -81,6 +84,24 @@ const updateContact = async () => {
   }
 };
 
+const blockedUntilText = computed(() => {
+  if (!props.selectedContact?.blocked) return '';
+
+  const until =
+    props.selectedContact?.blocked_until || props.selectedContact?.blockedUntil;
+
+  if (!until) {
+    return t('CONTACT_PANEL.BLOCKED_PERMANENTLY');
+  }
+  const date = new Date(until).toLocaleString([], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${t('CONTACT_PANEL.BLOCKED_UNTIL')} ${date}`;
+});
 const openConfirmDeleteContactDialog = () => {
   confirmDeleteContactDialogRef.value?.dialogRef.open();
 };
@@ -148,17 +169,40 @@ const handleAvatarDelete = async () => {
               v-if="selectedContact?.identifier"
               class="i-ph-activity text-n-slate-10 size-4"
             />
-            {{ $t('CONTACTS_LAYOUT.DETAILS.CREATED_AT', { date: createdAt }) }}
+            <span
+              v-tooltip.top="{
+                content: exactTimestamp(contactData?.createdAt),
+                delay: { show: 500, hide: 0 },
+              }"
+            >
+              {{
+                $t('CONTACTS_LAYOUT.DETAILS.CREATED_AT', { date: createdAt })
+              }}
+            </span>
             •
-            {{
-              $t('CONTACTS_LAYOUT.DETAILS.LAST_ACTIVITY', {
-                date: lastActivityAt,
-              })
-            }}
+            <span
+              v-tooltip.top="{
+                content: exactTimestamp(contactData?.lastActivityAt),
+                delay: { show: 500, hide: 0 },
+              }"
+            >
+              {{
+                $t('CONTACTS_LAYOUT.DETAILS.LAST_ACTIVITY', {
+                  date: lastActivityAt,
+                })
+              }}
+            </span>
           </span>
         </div>
       </div>
       <ContactLabels :contact-id="selectedContact?.id" />
+      <div
+        v-if="selectedContact?.blocked"
+        class="inline-flex items-center gap-1.5 px-2 py-1 text-sm text-red-500 rounded-md bg-red-50 dark:bg-red-900/20"
+      >
+        <span class="i-lucide-ban size-4" />
+        {{ blockedUntilText }}
+      </div>
     </div>
     <div class="flex flex-col items-start gap-6">
       <ContactsForm

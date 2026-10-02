@@ -1,14 +1,53 @@
 import { CONVERSATION_PRIORITY_ORDER } from 'shared/constants/messages';
 
-export const findPendingMessageIndex = (chat, message) => {
-  const { echo_id: tempMessageId } = message;
-  return chat.messages.findIndex(
-    m => m.id === message.id || m.id === tempMessageId
-  );
+/**
+ * Appends a message to a chat's message list, keeping the list ordered by
+ * `created_at`. Messages are usually delivered in order, but a message can
+ * arrive late (e.g. a backlogged websocket broadcast for a note written by
+ * another agent while the conversation was assigned to them) after messages
+ * created after it were already appended (e.g. the current agent's own
+ * optimistically-added message). Sorting on insert avoids showing messages
+ * out of chronological order until the page is reloaded.
+ */
+export const pushMessageInOrder = (chat, message) => {
+  chat.messages.push(message);
+  chat.messages.sort((a, b) => a.created_at - b.created_at);
 };
 
-export const filterByStatus = (chatStatus, filterStatus) =>
-  filterStatus === 'all' ? true : chatStatus === filterStatus;
+/**
+ * Resolves where an incoming message belongs in a chat's message list.
+ *
+ * A pending (optimistically added) message and its "real" counterpart can
+ * briefly coexist: the real message may arrive over websocket before the
+ * pending send request resolves, leaving a stale pending entry (matched by
+ * `echo_id`) alongside it. Returning both indices lets the caller update the
+ * correct entry and drop the stale one instead of ending up with duplicates.
+ *
+ * @returns {{ index: number, staleIndex: number }} `index` is where the
+ * message should be written (-1 if it should be appended). `staleIndex` is
+ * a leftover pending entry to remove, if any (-1 if none).
+ */
+export const findPendingMessageIndex = (chat, message) => {
+  const { echo_id: tempMessageId } = message;
+  const realIndex = chat.messages.findIndex(m => m.id === message.id);
+  const pendingIndex =
+    tempMessageId != null
+      ? chat.messages.findIndex(m => m.id === tempMessageId)
+      : -1;
+
+  if (realIndex !== -1) {
+    const staleIndex = pendingIndex !== realIndex ? pendingIndex : -1;
+    return { index: realIndex, staleIndex };
+  }
+  return { index: pendingIndex, staleIndex: -1 };
+};
+
+export const filterByStatus = (chatStatus, filterStatus) => {
+  if (filterStatus === 'all') return true;
+  if (filterStatus === 'open')
+    return chatStatus === 'open' || chatStatus === 'resolved';
+  return chatStatus === filterStatus;
+};
 
 export const filterByInbox = (shouldFilter, inboxId, chatInboxId) => {
   const isOnInbox = Number(inboxId) === chatInboxId;
@@ -77,12 +116,15 @@ export const applyRoleFilter = (
   permissions,
   currentUserId
 ) => {
-  // the role === "agent" check is typically not correct on it's own
-  // the backend handles this by checking the custom_role_id at the user model
-  // here however, the `getUserRole` returns "custom_role" if the id is present,
-  // so we can check the role === "agent" directly
-  if (['administrator', 'agent'].includes(role)) {
+  if (role === 'administrator') {
     return true;
+  }
+
+  if (role === 'agent') {
+    const conversationAssignee = conversation.meta?.assignee;
+    const isUnassigned = !conversationAssignee;
+    const isAssignedToUser = conversationAssignee?.id === currentUserId;
+    return isUnassigned || isAssignedToUser;
   }
 
   // Check for full conversation management permission
@@ -104,6 +146,10 @@ export const applyRoleFilter = (
     return isAssignedToUser;
   }
 
+  if (permissions.includes('conversation_outbound')) {
+    return isAssignedToUser;
+  }
+
   return false;
 };
 
@@ -116,6 +162,8 @@ const SORT_OPTIONS = {
   priority_desc: ['sortOnPriority', 'desc'],
   waiting_since_asc: ['sortOnWaitingSince', 'asc'],
   waiting_since_desc: ['sortOnWaitingSince', 'desc'],
+  priority_desc_created_at_asc: ['sortOnPriorityCreatedAt', 'desc'],
+  unread: ['sortOnUnread', 'desc'],
 };
 const sortAscending = (valueA, valueB) => valueA - valueB;
 const sortDescending = (valueA, valueB) => valueB - valueA;
@@ -128,27 +176,45 @@ const sortConfig = {
     getSortOrderFunction(sortDirection)(a.last_activity_at, b.last_activity_at),
 
   sortOnCreatedAt: (a, b, sortDirection) =>
-    getSortOrderFunction(sortDirection)(a.created_at, b.created_at),
+    getSortOrderFunction(sortDirection)(a.created_at, b.created_at) ||
+    getSortOrderFunction(sortDirection)(a.id, b.id),
 
   sortOnPriority: (a, b, sortDirection) => {
     const DEFAULT_FOR_NULL = sortDirection === 'asc' ? 5 : 0;
 
     const p1 = CONVERSATION_PRIORITY_ORDER[a.priority] || DEFAULT_FOR_NULL;
     const p2 = CONVERSATION_PRIORITY_ORDER[b.priority] || DEFAULT_FOR_NULL;
+    const priorityDiff = getSortOrderFunction(sortDirection)(p1, p2);
+    if (priorityDiff !== 0) return priorityDiff;
 
-    return getSortOrderFunction(sortDirection)(p1, p2);
+    return sortDescending(a.last_activity_at, b.last_activity_at);
+  },
+
+  sortOnPriorityCreatedAt: (a, b) => {
+    const DEFAULT_FOR_NULL = 0;
+    const p1 = CONVERSATION_PRIORITY_ORDER[a.priority] || DEFAULT_FOR_NULL;
+    const p2 = CONVERSATION_PRIORITY_ORDER[b.priority] || DEFAULT_FOR_NULL;
+    if (p1 !== p2) return p2 - p1;
+    return a.created_at - b.created_at;
   },
 
   sortOnWaitingSince: (a, b, sortDirection) => {
     const sortFunc = getSortOrderFunction(sortDirection);
     if (!a.waiting_since || !b.waiting_since) {
       if (!a.waiting_since && !b.waiting_since) {
-        return sortFunc(a.created_at, b.created_at);
+        return sortAscending(a.created_at, b.created_at);
       }
-      return sortFunc(a.waiting_since ? 0 : 1, b.waiting_since ? 0 : 1);
+      return a.waiting_since ? -1 : 1;
     }
 
     return sortFunc(a.waiting_since, b.waiting_since);
+  },
+
+  sortOnUnread: (a, b) => {
+    const unreadCountDiff = (b.unread_count || 0) - (a.unread_count || 0);
+    if (unreadCountDiff !== 0) return unreadCountDiff;
+
+    return (b.last_activity_at || 0) - (a.last_activity_at || 0);
   },
 };
 

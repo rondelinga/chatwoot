@@ -11,6 +11,7 @@
 #  current_sign_in_at     :datetime
 #  current_sign_in_ip     :string
 #  custom_attributes      :jsonb
+#  device_trust_version   :integer          default(0), not null
 #  display_name           :string
 #  email                  :string
 #  encrypted_password     :string           default(""), not null
@@ -19,7 +20,7 @@
 #  message_signature      :text
 #  name                   :string           not null
 #  otp_backup_codes       :text
-#  otp_required_for_login :boolean          default(FALSE)
+#  otp_required_for_login :boolean          default(FALSE), not null
 #  otp_secret             :string
 #  provider               :string           default("email"), not null
 #  pubsub_token           :string
@@ -69,15 +70,16 @@ class User < ApplicationRecord
 
   # TODO: remove in a future version once online status is moved to account users
   # remove the column availability from users
-  enum availability: { online: 0, offline: 1, busy: 2 }
+  enum :availability, { online: 0, offline: 1, busy: 2 }
 
   # The validation below has been commented out as it does not
   # work because :validatable in devise overrides this.
   # validates_uniqueness_of :email, scope: :account_id
 
+  validates :name, presence: true
   validates :email, presence: true
 
-  serialize :otp_backup_codes, type: Array
+  serialize :otp_backup_codes, coder: YAML, type: Array
 
   # Encrypt sensitive MFA fields
   encrypts :otp_secret, deterministic: true
@@ -88,8 +90,10 @@ class User < ApplicationRecord
   accepts_nested_attributes_for :account_users
 
   has_many :assigned_conversations, foreign_key: 'assignee_id', class_name: 'Conversation', dependent: :nullify, inverse_of: :assignee
-  alias_attribute :conversations, :assigned_conversations
+  alias conversations assigned_conversations
   has_many :csat_survey_responses, foreign_key: 'assigned_agent_id', dependent: :nullify, inverse_of: :assigned_agent
+  has_many :reviewed_csat_survey_responses, foreign_key: 'review_notes_updated_by_id', class_name: 'CsatSurveyResponse',
+                                            dependent: :nullify, inverse_of: :review_notes_updated_by
   has_many :conversation_participants, dependent: :destroy_async
   has_many :participating_conversations, through: :conversation_participants, source: :conversation
 
@@ -97,17 +101,23 @@ class User < ApplicationRecord
   has_many :inboxes, through: :inbox_members, source: :inbox
   has_many :messages, as: :sender, dependent: :nullify
   has_many :invitees, through: :account_users, class_name: 'User', foreign_key: 'inviter_id', source: :inviter, dependent: :nullify
-
+  has_many :user_sessions, dependent: :destroy
+  has_many :created_canned_responses, class_name: 'CannedResponse', foreign_key: 'created_by_id', dependent: :nullify,
+                                      inverse_of: :created_by
   has_many :custom_filters, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :nullify
   has_many :mentions, dependent: :destroy_async
   has_many :notes, dependent: :nullify
   has_many :notification_settings, dependent: :destroy_async
+  has_many :notification_sounds, dependent: :destroy_async
   has_many :notification_subscriptions, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :team_members, dependent: :destroy_async
   has_many :teams, through: :team_members
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
+  has_many :user_pinned_labels, dependent: :destroy_async
+  has_many :pinned_labels, through: :user_pinned_labels, source: :label
+
   # rubocop:disable Rails/HasManyOrHasOneDependent
   # we are handling this in `remove_macros` callback
   has_many :macros, foreign_key: 'created_by_id', inverse_of: :created_by
@@ -115,6 +125,7 @@ class User < ApplicationRecord
 
   before_validation :set_password_and_uid, on: :create
   after_destroy :remove_macros
+  after_save :sync_user_sessions, if: :saved_change_to_tokens?
 
   scope :order_by_full_name, -> { order('lower(name) ASC') }
 
@@ -190,7 +201,53 @@ class User < ApplicationRecord
     Chatwoot.mfa_enabled?
   end
 
+  def mfa_enforced?
+    mfa_feature_available? && accounts.any?(&:enforce_mfa?)
+  end
+
+  def mfa_enforcement_pending?
+    !mfa_enabled? && mfa_enforced?
+  end
+
+  # Workaround for Devise 4.9.x race condition vulnerability (GHSA-57hq-95w6-v4fc).
+  #
+  # The Confirmable module's reconfirmable flow has a race condition where concurrent
+  # email change requests can desynchronize confirmation tokens, allowing an attacker
+  # to confirm an email they don't own. Fixed in Devise 5.0.3 by persisting
+  # unconfirmed_email before regenerating the confirmation token.
+  #
+  # We can't upgrade to Devise 5.0.3 because devise-two-factor only added Devise 5
+  # support in v6.4.0, which simultaneously raised its Rails minimum to 7.2+.
+  # No released version supports both Devise 5 and Rails 7.1.
+  #
+  # This override applies the same fix locally: force-mark unconfirmed_email
+  # as dirty before assignment so ActiveRecord always writes it, keeping it
+  # in sync with the regenerated confirmation token. Remove once on Devise 5+.
+  def postpone_email_change_until_confirmation_and_regenerate_confirmation_token
+    unconfirmed_email_will_change!
+    super
+  end
+
+  def pin_label(label)
+    user_pinned_labels.find_or_create_by(label: label) do |upl|
+      upl.position = user_pinned_labels.maximum(:position).to_i + 1
+    end
+  end
+
+  def unpin_label(label)
+    user_pinned_labels.find_by(label: label)&.destroy
+  end
+
+  def label_pinned?(label_id)
+    user_pinned_labels.exists?(label_id: label_id)
+  end
+
   private
+
+  def sync_user_sessions
+    active_client_ids = (tokens || {}).keys
+    user_sessions.where.not(client_id: active_client_ids).destroy_all
+  end
 
   def remove_macros
     macros.personal.destroy_all

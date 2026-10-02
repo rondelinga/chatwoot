@@ -19,7 +19,7 @@ describe('ReportsFiltersTeams.vue', () => {
     teamsModule = {
       namespaced: true,
       getters: {
-        getTeams: () => () => [
+        getTeams: () => [
           { id: 1, name: 'Team 1' },
           { id: 2, name: 'Team 2' },
         ],
@@ -46,7 +46,7 @@ describe('ReportsFiltersTeams.vue', () => {
     expect(teamsModule.actions.get).toHaveBeenCalled();
   });
 
-  it('emits "team-filter-selection" event when handleInput is called', async () => {
+  it('emits "teamFilterSelection" event when a team is added', async () => {
     const wrapper = shallowMount(ReportsFiltersTeams, {
       global: {
         plugins: [store],
@@ -54,12 +54,11 @@ describe('ReportsFiltersTeams.vue', () => {
       },
     });
 
-    await wrapper.setData({ selectedOption: { id: 1, name: 'Team 1' } });
-    await wrapper.vm.handleInput();
+    await wrapper.vm.handleAdd({ value: '1' });
 
     expect(wrapper.emitted('teamFilterSelection')).toBeTruthy();
     expect(wrapper.emitted('teamFilterSelection')[0]).toEqual([
-      { id: 1, name: 'Team 1' },
+      [{ id: 1, name: 'Team 1' }],
     ]);
   });
 });

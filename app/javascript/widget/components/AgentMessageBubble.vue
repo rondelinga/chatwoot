@@ -99,7 +99,7 @@ export default {
     >
       <div
         v-dompurify-html="formatMessage(message, false)"
-        class="message-content text-n-slate-12"
+        class="message-content text-n-slate-12 [&>ul:not(:last-child)]:mb-4 [&>ol:not(:last-child)]:mb-4"
       />
       <EmailInput
         v-if="isTemplateEmail"
@@ -144,6 +144,7 @@ export default {
     <CustomerSatisfaction
       v-if="isCSAT"
       :message-content-attributes="messageContentAttributes.submitted_values"
+      :allow-update="messageContentAttributes.allow_update"
       :display-type="messageContentAttributes.display_type"
       :message="message"
       :message-id="messageId"

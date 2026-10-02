@@ -1,4 +1,8 @@
 class SearchService
+  include Search::TimeWindow
+  include Search::InboxAccess
+  include Search::MessageFilters
+
   pattr_initialize [:current_user!, :current_account!, :params!, :search_type!]
 
   def account_user
@@ -16,7 +20,12 @@ class SearchService
     when 'Article'
       { articles: filter_articles }
     else
-      { contacts: filter_contacts, messages: filter_messages, conversations: filter_conversations, articles: filter_articles }
+      {
+        contacts: filter_contacts,
+        messages: filter_messages,
+        conversations: filter_conversations,
+        articles: filter_articles
+      }
     end
   end
 
@@ -31,96 +40,54 @@ class SearchService
   end
 
   def filter_conversations
-    @conversations = current_account.conversations.where(inbox_id: accessable_inbox_ids)
-                                    .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
-                                    .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
-                            ILIKE :search OR contacts.phone_number ILIKE :search OR contacts.identifier ILIKE :search", search: "%#{search_query}%")
-                                    .order('conversations.created_at DESC')
-                                    .page(params[:page])
-                                    .per(15)
-  end
+    conversations_query = current_account.conversations.where(inbox_id: accessable_inbox_ids)
+                                         .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
+                                         .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
+                            ILIKE :search OR contacts.phone_number ILIKE :search OR contacts.identifier ILIKE :search
+                            OR conversations.additional_attributes->>'mail_subject' ILIKE :search", search: "%#{search_query}%")
 
-  def filter_messages
-    @messages = if use_gin_search
-                  filter_messages_with_gin
-                elsif should_run_advanced_search?
-                  advanced_search
-                else
-                  filter_messages_with_like
-                end
-  end
+    conversations_query = Conversations::AgentAccessService.apply_scope(conversations_query, current_user, current_account)
 
-  def should_run_advanced_search?
-    ChatwootApp.advanced_search_allowed? && current_account.feature_enabled?('advanced_search')
-  end
-
-  def advanced_search; end
-
-  def filter_messages_with_gin
-    base_query = message_base_query
-
-    if search_query.present?
-      # Use the @@ operator with to_tsquery for better GIN index utilization
-      # Convert search query to tsquery format with prefix matching
-
-      # Use this if we wanna match splitting the words
-      # split_query = search_query.split.map { |term| "#{term} | #{term}:*" }.join(' & ')
-
-      # This will do entire sentence matching using phrase distance operator
-      tsquery = search_query.split.join(' <-> ')
-
-      # Apply the text search using the GIN index
-      base_query.where('content @@ to_tsquery(?)', tsquery)
-                .reorder('created_at DESC')
-                .page(params[:page])
-                .per(15)
-    else
-      base_query.reorder('created_at DESC')
-                .page(params[:page])
-                .per(15)
+    if current_account.feature_enabled?('advanced_search')
+      conversations_query = apply_time_filter(conversations_query,
+                                              'conversations.last_activity_at')
     end
-  end
 
-  def filter_messages_with_like
-    message_base_query
-      .where('messages.content ILIKE :search', search: "%#{search_query}%")
-      .reorder('created_at DESC')
-      .page(params[:page])
-      .per(15)
-  end
-
-  def message_base_query
-    query = current_account.messages.where('created_at >= ?', 3.months.ago)
-    query = query.where(inbox_id: accessable_inbox_ids) unless should_skip_inbox_filtering?
-    query
-  end
-
-  def should_skip_inbox_filtering?
-    account_user.administrator? || user_has_access_to_all_inboxes?
-  end
-
-  def user_has_access_to_all_inboxes?
-    accessable_inbox_ids.sort == current_account.inboxes.pluck(:id).sort
-  end
-
-  def use_gin_search
-    current_account.feature_enabled?('search_with_gin')
+    @conversations = conversations_query.order('conversations.created_at DESC')
+                                        .page(params[:page])
+                                        .per(15)
   end
 
   def filter_contacts
-    @contacts = current_account.contacts.where(
+    return Contact.none.page(params[:page]).per(15) if restricted_agent?
+
+    contacts_query = current_account.contacts.where(
       "name ILIKE :search OR email ILIKE :search OR phone_number
       ILIKE :search OR identifier ILIKE :search", search: "%#{search_query}%"
-    ).resolved_contacts(
+    )
+
+    contacts_query = apply_time_filter(contacts_query, 'last_activity_at') if current_account.feature_enabled?('advanced_search')
+
+    contacts_query = apply_contact_access_scope(contacts_query)
+
+    @contacts = contacts_query.resolved_contacts(
       use_crm_v2: current_account.feature_enabled?('crm_v2')
     ).order_on_last_activity_at('desc').page(params[:page]).per(15)
   end
 
+  def apply_contact_access_scope(contacts_query)
+    contacts_query
+  end
+
+  def restricted_agent?
+    Conversations::AgentAccessService.restricted_agent?(account_user)
+  end
+
   def filter_articles
-    @articles = current_account.articles
-                               .text_search(search_query)
-                               .page(params[:page])
-                               .per(15)
+    articles_query = current_account.articles.text_search(search_query)
+    articles_query = apply_time_filter(articles_query, 'updated_at') if current_account.feature_enabled?('advanced_search')
+
+    @articles = articles_query.page(params[:page]).per(15)
   end
 end
 

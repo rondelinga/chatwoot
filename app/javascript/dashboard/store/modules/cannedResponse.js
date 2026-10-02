@@ -33,16 +33,35 @@ const getters = {
 };
 
 const actions = {
+  revalidateCannedResponses: async function revalidateCannedResponses(
+    { commit },
+    { newKey }
+  ) {
+    try {
+      const isExistingKeyValid =
+        await CannedResponseAPI.validateCacheKey(newKey);
+      if (!isExistingKeyValid) {
+        const response = await CannedResponseAPI.refetchAndCommit(newKey);
+        commit(types.default.SET_CANNED, response.data);
+      }
+    } catch (error) {
+      // Ignore error
+    }
+  },
+
   getCannedResponse: async function getCannedResponse(
     { commit },
-    { searchKey } = {}
+    { searchKey, all = false, inboxId = null } = {}
   ) {
     commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: true });
     try {
-      const response = await CannedResponseAPI.get({ searchKey });
+      const response = await CannedResponseAPI.get({
+        searchKey,
+        all,
+        inboxId,
+      });
       commit(types.default.SET_CANNED, response.data);
-      commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: false });
-    } catch (error) {
+    } finally {
       commit(types.default.SET_CANNED_UI_FLAG, { fetchingList: false });
     }
   },

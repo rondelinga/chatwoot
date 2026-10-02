@@ -1,6 +1,6 @@
 class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   include Events::Types
-  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes]
+  before_action :render_not_found_if_empty, only: [:toggle_typing, :toggle_status, :set_custom_attributes, :destroy_custom_attributes, :request_csat]
 
   def index
     @conversation = conversation
@@ -19,10 +19,19 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   def process_update_contact
     @contact = ContactIdentifyAction.new(
       contact: @contact,
-      params: { email: contact_email, phone_number: contact_phone_number, name: contact_name },
+      params: {
+        identifier: @contact.identifier,
+        email: contact_email,
+        phone_number: contact_phone_number,
+        name: contact_name,
+        custom_attributes: contact_custom_attributes
+      },
       retain_original_contact_name: true,
-      discard_invalid_attrs: true
+      discard_invalid_attrs: true,
+      inbox_id: @web_widget.inbox.id
     ).perform
+
+    @contact_inbox = @contact.contact_inboxes.find_by!(source_id: @contact_inbox.source_id)
   end
 
   def update_last_seen
@@ -35,12 +44,11 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def transcript
-    if conversation.present? && conversation.contact.present? && conversation.contact.email.present?
-      ConversationReplyMailer.with(account: conversation.account).conversation_transcript(
-        conversation,
-        conversation.contact.email
-      )&.deliver_later
-    end
+    return head :too_many_requests if conversation.blank?
+    return head :payment_required unless conversation.account.email_transcript_enabled?
+    return head :too_many_requests unless conversation.account.within_email_rate_limit?
+
+    send_transcript_email
     head :ok
   end
 
@@ -60,6 +68,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
     unless conversation.resolved?
       conversation.status = :resolved
+      conversation.resolved_by_contact = true
       conversation.save!
     end
     head :ok
@@ -75,7 +84,24 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     render json: conversation
   end
 
+  def request_csat
+    return head :unprocessable_entity unless like_dislike_csat_enabled?
+
+    create_csat_prompt
+    head :ok
+  end
+
   private
+
+  def send_transcript_email
+    return if conversation.contact&.email.blank?
+
+    ConversationReplyMailer.with(account: conversation.account).conversation_transcript(
+      conversation,
+      conversation.contact.email
+    )&.deliver_later
+    conversation.account.increment_email_sent_count
+  end
 
   def trigger_typing_event(event)
     Rails.configuration.dispatcher.dispatch(event, Time.zone.now, conversation: conversation, user: @contact)
@@ -85,8 +111,17 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
     return head :not_found if conversation.nil?
   end
 
+  def like_dislike_csat_enabled?
+    conversation.inbox.csat_survey_enabled? && conversation.inbox.csat_config&.dig('display_type') == 'like_dislike'
+  end
+
+  def create_csat_prompt
+    latest_response = CsatSurveyResponse.where(conversation_id: conversation.id).order(updated_at: :desc).last
+    ::MessageTemplates::Template::CsatSurvey.new(conversation: conversation, existing_response: latest_response).perform
+  end
+
   def permitted_params
-    params.permit(:id, :typing_status, :website_token, :email, contact: [:name, :email, :phone_number],
+    params.permit(:id, :typing_status, :website_token, :email, contact: [:name, :email, :phone_number, { custom_attributes: {} }],
                                                                message: [:content, :referer_url, :timestamp, :echo_id],
                                                                custom_attributes: {})
   end

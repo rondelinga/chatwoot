@@ -90,11 +90,16 @@ describe('#ConversationAPI', () => {
     });
 
     it('#assignAgent', () => {
-      conversationAPI.assignAgent({ conversationId: 12, agentId: 34 });
+      conversationAPI.assignAgent({
+        conversationId: 12,
+        agentId: 34,
+        assigneeType: 'AgentBot',
+      });
       expect(axiosMock.post).toHaveBeenCalledWith(
         `/api/v1/conversations/12/assignments`,
         {
           assignee_id: 34,
+          assignee_type: 'AgentBot',
         }
       );
     });
@@ -132,7 +137,11 @@ describe('#ConversationAPI', () => {
     it('#mute', () => {
       conversationAPI.mute(45);
       expect(axiosMock.post).toHaveBeenCalledWith(
-        '/api/v1/conversations/45/mute'
+        '/api/v1/conversations/45/mute',
+        {
+          banned_until: null,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
       );
     });
 
@@ -191,6 +200,7 @@ describe('#ConversationAPI', () => {
     it('#filter', () => {
       const payload = {
         page: 1,
+        sortBy: 'last_activity_at_asc',
         queryData: {
           payload: [
             {
@@ -218,7 +228,12 @@ describe('#ConversationAPI', () => {
       expect(axiosMock.post).toHaveBeenCalledWith(
         '/api/v1/conversations/filter',
         payload.queryData,
-        { params: { page: payload.page } }
+        {
+          params: {
+            page: payload.page,
+            sort_by: payload.sortBy,
+          },
+        }
       );
     });
 

@@ -1,8 +1,12 @@
-import fromUnixTime from 'date-fns/fromUnixTime';
-import format from 'date-fns/format';
-import isToday from 'date-fns/isToday';
-import isYesterday from 'date-fns/isYesterday';
-import { endOfDay, getUnixTime, startOfDay } from 'date-fns';
+import {
+  endOfDay,
+  format,
+  fromUnixTime,
+  getUnixTime,
+  isToday,
+  isYesterday,
+  startOfDay,
+} from 'date-fns';
 
 export const formatUnixDate = (date, dateFormat = 'MMM dd, yyyy') => {
   const unixDate = fromUnixTime(date);
