@@ -12,6 +12,7 @@ import {
 } from 'widget/api/conversation';
 
 import { ON_CONVERSATION_CREATED } from 'widget/constants/widgetBusEvents';
+import { isInternalWidgetMessage } from 'widget/helpers/messageVisibility';
 import { createTemporaryMessage, getNonDeletedMessages } from './helpers';
 import { emitter } from 'shared/helpers/mitt';
 export const actions = {
@@ -179,6 +180,8 @@ export const actions = {
   },
 
   addOrUpdateMessage: async ({ commit }, data) => {
+    if (isInternalWidgetMessage(data)) return;
+
     const { id, content_attributes } = data;
     if (content_attributes && content_attributes.deleted) {
       commit('deleteMessage', id);

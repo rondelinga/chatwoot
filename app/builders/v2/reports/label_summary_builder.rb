@@ -12,23 +12,20 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
 
   def build
     report_data = collect_report_data
-    
-    all_label_names = [
-      report_data[:conversation_counts].keys,
-      report_data[:resolved_counts].keys,
-      report_data[:resolution_metrics].keys,
-      report_data[:first_response_metrics].keys,
-      report_data[:reply_metrics].keys,
-      report_data[:csat_scores].keys
-    ].flatten.compact.uniq
+    label_names = label_names_from_report(report_data)
+    return [] if label_names.empty?
 
-    return [] if all_label_names.empty?
+    labels_for_report(label_names).map { |label| build_label_report(label, report_data) }
+  end
 
-    labels = account.labels.where(title: all_label_names)
-    labels = labels.where(id: params[:label_ids].reject(&:blank?)) if params[:label_ids].present?
-    labels = labels.to_a
-    
-    labels.map { |label| build_label_report(label, report_data) }
+  def label_names_from_report(report_data)
+    report_data.values.flat_map(&:keys).compact.uniq
+  end
+
+  def labels_for_report(label_names)
+    scope = account.labels.where(title: label_names)
+    scope = scope.where(id: params[:label_ids].reject(&:blank?)) if params[:label_ids].present?
+    scope.to_a
   end
 
   private
@@ -61,24 +58,32 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_csat_scores
-    scope = CsatSurveyResponse
-            .joins(conversation: { taggings: :tag })
-            .where(
-              created_at: range,
-              conversations: build_conversation_filter,
-              taggings: { taggable_type: 'Conversation', context: 'labels' }
-            )
-            .where.not(rating: nil)
+    scope = labeled_csat_scope.where.not(rating: nil)
     scope = scope.where(assigned_agent_id: params[:user_ids].reject(&:blank?)) if params[:user_ids].present?
     scope = restrict_to_selected_labels(scope)
 
     scope.select('tags.name', 'COUNT(*) as total_count', 'SUM(rating) as rating_sum')
          .group('tags.name')
          .each_with_object({}) do |record, hash|
-      total = record.total_count.to_f
-      sum = record.rating_sum.to_f
-      hash[record.name] = total.positive? ? ((sum / total) * 20).round(2) : 0
+      hash[record.name] = csat_score_percent(record)
     end
+  end
+
+  def csat_score_percent(record)
+    total = record.total_count.to_f
+    return 0 unless total.positive?
+
+    ((record.rating_sum.to_f / total) * 20).round(2)
+  end
+
+  def labeled_csat_scope
+    CsatSurveyResponse
+      .joins(conversation: { taggings: :tag })
+      .where(created_at: range, conversations: build_conversation_filter, taggings: label_tagging_scope)
+  end
+
+  def label_tagging_scope
+    { taggable_type: 'Conversation', context: 'labels' }
   end
 
   def restrict_to_selected_labels(scope)
@@ -108,12 +113,13 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def build_conversation_filter
-    conversation_filter = { account_id: account.id }
-    conversation_filter[:created_at] = range if range.present?
-    conversation_filter[:assignee_id] = params[:user_ids]&.reject(&:blank?) if params[:user_ids].present?
-    conversation_filter[:inbox_id] = params[:inbox_ids]&.reject(&:blank?) if params[:inbox_ids].present?
-    conversation_filter[:team_id] = params[:team_ids]&.reject(&:blank?) if params[:team_ids].present?
-    conversation_filter
+    {
+      account_id: account.id,
+      created_at: range.presence,
+      assignee_id: params[:user_ids]&.reject(&:blank?).presence,
+      inbox_id: params[:inbox_ids]&.reject(&:blank?).presence,
+      team_id: params[:team_ids]&.reject(&:blank?).presence
+    }.compact
   end
 
   def fetch_conversation_counts(conversation_filter)
@@ -121,19 +127,9 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_resolved_counts
-    scope = ReportingEvent
-            .joins(conversation: { taggings: :tag })
-            .where(
-              name: 'conversation_resolved',
-              conversations: build_conversation_filter,
-              taggings: { taggable_type: 'Conversation', context: 'labels' }
-            )
-
-    scope = scope.where(user_id: params[:user_ids].reject(&:blank?)) if params[:user_ids].present?
-    scope = scope.where(inbox_id: params[:inbox_ids].reject(&:blank?)) if params[:inbox_ids].present?
-    scope = restrict_to_selected_labels(scope)
-
-    scope.group('tags.name').count('DISTINCT reporting_events.id')
+    labeled_reporting_events('conversation_resolved')
+      .group('tags.name')
+      .count('DISTINCT reporting_events.id')
   end
 
   def fetch_counts(conversation_filter)
@@ -151,25 +147,28 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_metrics(conversation_filter, event_name, use_business_hours)
-    scope = ReportingEvent
-      .joins(conversation: { taggings: :tag })
-      .where(
-        conversations: conversation_filter,
-        name: event_name,
-        taggings: { taggable_type: 'Conversation', context: 'labels' }
-      )
-    
-    scope = scope.where(user_id: params[:user_ids]&.reject(&:blank?)) if params[:user_ids].present?
-    scope = scope.where(inbox_id: params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids].present?
-    scope = restrict_to_selected_labels(scope)
-
-    scope
+    labeled_reporting_events(event_name, conversation_filter)
       .group('tags.name')
       .order('tags.name')
-      .select(
-        'tags.name',
-        use_business_hours ? 'AVG(reporting_events.value_in_business_hours) as avg_value' : 'AVG(reporting_events.value) as avg_value'
-      )
+      .select('tags.name', avg_metric_select(use_business_hours))
       .each_with_object({}) { |record, hash| hash[record.name] = record.avg_value.to_f }
+  end
+
+  def labeled_reporting_events(event_name, conversation_filter = build_conversation_filter)
+    scope = ReportingEvent
+            .joins(conversation: { taggings: :tag })
+            .where(name: event_name, conversations: conversation_filter, taggings: label_tagging_scope)
+    apply_reporting_event_filters(scope)
+  end
+
+  def apply_reporting_event_filters(scope)
+    scope = scope.where(user_id: params[:user_ids]&.reject(&:blank?)) if params[:user_ids].present?
+    scope = scope.where(inbox_id: params[:inbox_ids]&.reject(&:blank?)) if params[:inbox_ids].present?
+    restrict_to_selected_labels(scope)
+  end
+
+  def avg_metric_select(use_business_hours)
+    column = use_business_hours ? 'reporting_events.value_in_business_hours' : 'reporting_events.value'
+    "AVG(#{column}) as avg_value"
   end
 end

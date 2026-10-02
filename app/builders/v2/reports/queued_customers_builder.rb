@@ -28,8 +28,7 @@ class V2::Reports::QueuedCustomersBuilder
     scope = ConversationQueue
             .for_account(account.id)
             .where(conversation_id: scoped_conversations.select(:id))
-    scope = scope.where(queued_at: since_time..until_time)
-    scope
+    scope.where(queued_at: since_time..until_time)
   end
 
   def since_time
@@ -75,28 +74,43 @@ class V2::Reports::QueuedCustomersBuilder
   end
 
   def daily_metrics
-    rows = scoped_queue_entries
-           .select(
-             "DATE(queued_at) AS metric_date",
-             'COUNT(*) AS queued_customers',
-             "COUNT(*) FILTER (WHERE status = #{ConversationQueue.statuses[:assigned]}) AS entered_chat",
-             "COUNT(*) FILTER (WHERE status = #{ConversationQueue.statuses[:left]}) AS left_queue",
-             "AVG(EXTRACT(EPOCH FROM (assigned_at - queued_at))) FILTER (WHERE status = #{ConversationQueue.statuses[:assigned]} AND assigned_at IS NOT NULL) AS time_to_enter_chat",
-             "AVG(EXTRACT(EPOCH FROM (left_at - queued_at))) FILTER (WHERE status = #{ConversationQueue.statuses[:left]} AND left_at IS NOT NULL) AS time_to_leave_queue"
-           )
-           .group('DATE(queued_at)')
-           .order('metric_date ASC')
+    scoped_queue_entries
+      .select(*daily_metrics_select_columns)
+      .group('DATE(queued_at)')
+      .order('metric_date ASC')
+      .map { |row| daily_metrics_row(row) }
+  end
 
-    rows.map do |row|
-      {
-        date: row.metric_date.to_s,
-        queued_customers: row.queued_customers.to_i,
-        entered_chat: row.entered_chat.to_i,
-        left_queue: row.left_queue.to_i,
-        time_to_enter_chat: row.time_to_enter_chat.to_f.round,
-        time_to_leave_queue: row.time_to_leave_queue.to_f.round
-      }
-    end
+  def daily_metrics_select_columns
+    assigned_status = ConversationQueue.statuses[:assigned]
+    left_status = ConversationQueue.statuses[:left]
+
+    [
+      'DATE(queued_at) AS metric_date',
+      'COUNT(*) AS queued_customers',
+      "COUNT(*) FILTER (WHERE status = #{assigned_status}) AS entered_chat",
+      "COUNT(*) FILTER (WHERE status = #{left_status}) AS left_queue",
+      avg_wait_select('assigned_at', assigned_status, 'time_to_enter_chat'),
+      avg_wait_select('left_at', left_status, 'time_to_leave_queue')
+    ]
+  end
+
+  def avg_wait_select(end_column, status, alias_name)
+    <<~SQL.squish
+      AVG(EXTRACT(EPOCH FROM (#{end_column} - queued_at)))
+      FILTER (WHERE status = #{status} AND #{end_column} IS NOT NULL) AS #{alias_name}
+    SQL
+  end
+
+  def daily_metrics_row(row)
+    {
+      date: row.metric_date.to_s,
+      queued_customers: row.queued_customers.to_i,
+      entered_chat: row.entered_chat.to_i,
+      left_queue: row.left_queue.to_i,
+      time_to_enter_chat: row.time_to_enter_chat.to_f.round,
+      time_to_leave_queue: row.time_to_leave_queue.to_f.round
+    }
   end
 
   def heatmap_metrics

@@ -18,6 +18,7 @@ describe Messages::MentionService do
     create(:inbox_member, user: second_agent, inbox: inbox)
     create(:team_member, user: first_agent, team: team)
     create(:team_member, user: second_agent, team: team)
+    inbox.reload
     conversation.reload
     allow(NotificationBuilder).to receive(:new).and_return(builder)
     allow(builder).to receive(:perform)
@@ -468,6 +469,7 @@ describe Messages::MentionService do
 
         # Make third_agent an inbox member
         create(:inbox_member, user: third_agent, inbox: inbox)
+        inbox.reload
 
         described_class.new(message: message).perform
 

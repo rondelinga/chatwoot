@@ -12,29 +12,26 @@ class V2::Reports::InboxSummaryBuilder < V2::Reports::BaseSummaryBuilder
               :avg_resolution_time, :avg_first_response_time, :avg_reply_time, :csat_satisfaction_score
 
   def prepare_report
+    inboxes_for_report.map { |inbox| build_inbox_stats(inbox) }
+  end
+
+  def inboxes_for_report
     scope = account.inboxes
+    inbox_ids = compact_ids(:inbox_ids)
+    return scope.where(id: inbox_ids) if inbox_ids
+    return scope if secondary_filters_blank?
 
-    if params[:inbox_ids].present? && params[:inbox_ids].reject(&:blank?).any?
-      scope = scope.where(id: params[:inbox_ids].reject(&:blank?))
-    else
-      if params[:user_ids].present? || params[:team_ids].present? || params[:label_ids].present?
-        all_inbox_ids = [
-          conversations_count.keys,
-          resolved_count.keys,
-          avg_resolution_time.keys,
-          avg_first_response_time.keys,
-          avg_reply_time.keys,
-          csat_satisfaction_score.keys
-        ].flatten.compact.uniq
+    entity_ids = summary_entity_ids(
+      conversations_count, resolved_count, avg_resolution_time,
+      avg_first_response_time, avg_reply_time, csat_satisfaction_score
+    )
+    return [] if entity_ids.empty?
 
-        return [] if all_inbox_ids.empty?
-        scope = scope.where(id: all_inbox_ids)
-      end
-    end
+    scope.where(id: entity_ids)
+  end
 
-    scope.map do |inbox|
-      build_inbox_stats(inbox)
-    end
+  def secondary_filters_blank?
+    compact_ids(:user_ids).blank? && compact_ids(:team_ids).blank? && compact_ids(:label_ids).blank?
   end
 
   def build_inbox_stats(inbox)
@@ -51,17 +48,31 @@ class V2::Reports::InboxSummaryBuilder < V2::Reports::BaseSummaryBuilder
 
   def apply_csat_filters(scope)
     scope = scope.joins(:conversation)
-    scope = scope.where(conversations: { inbox_id: params[:inbox_ids].reject(&:blank?) }) if params[:inbox_ids].present?
-    scope = scope.where(conversations: { assignee_id: params[:user_ids].reject(&:blank?) }) if params[:user_ids].present?
-    scope = scope.where(conversations: { team_id: params[:team_ids].reject(&:blank?) }) if params[:team_ids].present?
-    
-    if params[:label_ids].present?
-      tag_ids = ReportingEvent.tag_ids_for_labels(params[:label_ids].reject(&:blank?), account.id)
-      scope = scope.joins('INNER JOIN taggings ON taggings.taggable_id = conversations.id AND taggings.taggable_type = \'Conversation\' AND taggings.context = \'labels\'')
-                   .where(taggings: { tag_id: tag_ids }) unless tag_ids.empty?
-    end
-    
-    scope
+    scope = apply_csat_inbox_filter(scope)
+    scope = apply_csat_user_filter(scope)
+    scope = apply_csat_team_filter(scope)
+    apply_csat_label_filter(scope)
+  end
+
+  def apply_csat_inbox_filter(scope)
+    inbox_ids = compact_ids(:inbox_ids)
+    return scope if inbox_ids.blank?
+
+    scope.where(conversations: { inbox_id: inbox_ids })
+  end
+
+  def apply_csat_user_filter(scope)
+    user_ids = compact_ids(:user_ids)
+    return scope if user_ids.blank?
+
+    scope.where(conversations: { assignee_id: user_ids })
+  end
+
+  def apply_csat_team_filter(scope)
+    team_ids = compact_ids(:team_ids)
+    return scope if team_ids.blank?
+
+    scope.where(conversations: { team_id: team_ids })
   end
 
   def csat_group_by_key

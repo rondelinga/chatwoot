@@ -21,10 +21,17 @@ class Api::V1::Accounts::InboxTeamsController < Api::V1::Accounts::BaseControlle
 
   def sync_inbox_teams
     configs = permitted_params[:team_configs] || []
-    incoming_ids = configs.map { |c| c[:team_id].to_i }
+    remove_unlisted_inbox_teams(configs)
+    upsert_inbox_team_configs(configs)
+    apply_default_inbox_team(configs)
+  end
 
+  def remove_unlisted_inbox_teams(configs)
+    incoming_ids = configs.map { |config| config[:team_id].to_i }
     @inbox.inbox_teams.where.not(team_id: incoming_ids).destroy_all
+  end
 
+  def upsert_inbox_team_configs(configs)
     configs.each do |config|
       inbox_team = @inbox.inbox_teams.find_or_initialize_by(team_id: config[:team_id])
       inbox_team.update!(
@@ -33,8 +40,10 @@ class Api::V1::Accounts::InboxTeamsController < Api::V1::Accounts::BaseControlle
         agent_bot_id: config[:agent_bot_id].presence
       )
     end
+  end
 
-    default_config = configs.find { |c| ActiveModel::Type::Boolean.new.cast(c[:is_default]) }
+  def apply_default_inbox_team(configs)
+    default_config = configs.find { |config| ActiveModel::Type::Boolean.new.cast(config[:is_default]) }
     return if default_config.blank?
 
     @inbox.inbox_teams.find_by!(team_id: default_config[:team_id]).update!(is_default: true)

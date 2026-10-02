@@ -44,7 +44,10 @@ describe('#findPendingMessageIndex', () => {
       messages: [{ id: 1, status: 'progress' }],
     };
     const message = { echo_id: 1 };
-    expect(findPendingMessageIndex(chat, message)).toEqual(0);
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: 0,
+      staleIndex: -1,
+    });
   });
 
   it('returns -1 if pending message with id is not present', () => {
@@ -52,7 +55,10 @@ describe('#findPendingMessageIndex', () => {
       messages: [{ id: 1, status: 'progress' }],
     };
     const message = { echo_id: 2 };
-    expect(findPendingMessageIndex(chat, message)).toEqual(-1);
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: -1,
+      staleIndex: -1,
+    });
   });
 });
 

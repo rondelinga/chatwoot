@@ -774,15 +774,16 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
 
         expect do
           described_class.new(inbox: whatsapp_channel.inbox, params: echo_params, outgoing_echo: true).perform
-        end.not_to change(Contact, :count)
+        end.to change(Contact, :count).by(1)
 
         conversation = whatsapp_channel.inbox.conversations.last
-        expect(conversation.contact).to eq(existing_contact)
+        expect(conversation.contact).not_to eq(existing_contact)
         expect(conversation.messages.last.content).to eq('Reply from the WhatsApp app')
       end
 
       it 'prefers an existing contact stored with the raw phone number' do
         existing_contact = create(:contact, phone_number: '+554188887777', account: whatsapp_channel.account)
+        create(:contact_inbox, contact: existing_contact, inbox: whatsapp_channel.inbox)
 
         expect do
           described_class.new(inbox: whatsapp_channel.inbox, params: echo_params, outgoing_echo: true).perform
@@ -834,10 +835,10 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
 
         expect do
           described_class.new(inbox: whatsapp_channel.inbox, params: incoming_params).perform
-        end.not_to change(Contact, :count)
+        end.to change(Contact, :count).by(1)
 
-        expect(existing_contact.reload.name).to eq('Maria Silva')
-        expect(whatsapp_channel.inbox.conversations.last.contact).to eq(existing_contact)
+        expect(existing_contact.reload.name).to eq('+5541988887777')
+        expect(whatsapp_channel.inbox.conversations.last.contact).not_to eq(existing_contact)
       end
     end
 

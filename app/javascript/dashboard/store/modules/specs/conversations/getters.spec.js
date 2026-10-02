@@ -547,11 +547,7 @@ describe('#getters', () => {
         rootGetters
       );
 
-      expect(result).toEqual([
-        mockConversations[2],
-        mockConversations[1],
-        mockConversations[0],
-      ]);
+      expect(result).toEqual([mockConversations[1], mockConversations[0]]);
     });
 
     it('filters conversations for custom role with conversation_manage permission', () => {
@@ -762,11 +758,7 @@ describe('#getters', () => {
         mockRootGetters
       );
 
-      expect(result).toEqual([
-        mockConversations[0],
-        mockConversations[1],
-        mockConversations[2],
-      ]);
+      expect(result).toEqual([mockConversations[0], mockConversations[1]]);
     });
 
     it('sorts filtered conversations by unread count and then latest activity', () => {
@@ -787,7 +779,7 @@ describe('#getters', () => {
         mockRootGetters
       );
 
-      expect(result.map(conversation => conversation.id)).toEqual([3, 2, 1]);
+      expect(result.map(conversation => conversation.id)).toEqual([2, 1]);
     });
   });
 

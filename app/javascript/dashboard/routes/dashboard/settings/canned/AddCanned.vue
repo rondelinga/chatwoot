@@ -7,6 +7,8 @@ import { mapGetters } from 'vuex';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Modal from '../../../../components/Modal.vue';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
+import MultiSelect from 'dashboard/components-next/filter/inputs/MultiSelect.vue';
+import { provideDropdownTeleport } from 'dashboard/components-next/dropdown-menu/base/provider';
 
 export default {
   name: 'AddCanned',
@@ -14,6 +16,7 @@ export default {
     NextButton,
     Modal,
     WootMessageEditor,
+    MultiSelect,
   },
   props: {
     responseContent: {
@@ -26,6 +29,7 @@ export default {
     },
   },
   setup() {
+    provideDropdownTeleport();
     return { v$: useVuelidate() };
   },
   data() {
@@ -238,34 +242,14 @@ export default {
               <label class="text-xs text-n-slate-11 mb-1 block">
                 {{ $t('CANNED_MGMT.ADD.FORM.SCOPE.USER') }}
               </label>
-              <multiselect
-                v-model="selectedUsers"
-                :options="agents"
-                track-by="id"
-                label="name"
-                multiple
-                :close-on-select="false"
-                :placeholder="$t('CANNED_MGMT.ADD.FORM.SCOPE.PLACEHOLDER')"
-                :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-                :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-              />
+              <MultiSelect v-model="selectedUsers" :options="agents" />
             </div>
 
             <div class="mt-2">
               <label class="text-xs text-n-slate-11 mb-1 block">
                 {{ $t('CANNED_MGMT.ADD.FORM.SCOPE.TEAM') }}
               </label>
-              <multiselect
-                v-model="selectedTeams"
-                :options="teams"
-                track-by="id"
-                label="name"
-                multiple
-                :close-on-select="false"
-                :placeholder="$t('CANNED_MGMT.ADD.FORM.SCOPE.PLACEHOLDER')"
-                :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-                :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-              />
+              <MultiSelect v-model="selectedTeams" :options="teams" />
             </div>
           </template>
 
@@ -273,17 +257,7 @@ export default {
             <label class="text-xs text-n-slate-11 mb-1 block">
               {{ $t('CANNED_MGMT.ADD.FORM.SCOPE.INBOX') }}
             </label>
-            <multiselect
-              v-model="selectedInboxes"
-              :options="inboxes"
-              track-by="id"
-              label="name"
-              multiple
-              :close-on-select="false"
-              :placeholder="$t('CANNED_MGMT.ADD.FORM.SCOPE.PLACEHOLDER')"
-              :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-              :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
-            />
+            <MultiSelect v-model="selectedInboxes" :options="inboxes" />
           </div>
         </div>
 

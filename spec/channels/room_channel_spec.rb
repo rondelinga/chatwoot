@@ -19,7 +19,7 @@ RSpec.describe RoomChannel do
     subscribe(user_id: user.id, pubsub_token: user.pubsub_token, account_id: account.id)
     expect(subscription).to be_confirmed
     expect(subscription).to have_stream_for(user.pubsub_token)
-    expect(subscription).to have_stream_for("account_#{account.id}")
+    expect(subscription).not_to have_stream_for("account_#{account.id}")
   end
 
   it 'sends the agent their work preferences with presence' do

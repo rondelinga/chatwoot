@@ -60,7 +60,7 @@ class ContactMergeAction
     raise ActiveRecord::RecordInvalid, contact_inbox if target_contact_inbox.blank?
 
     Conversation.where(contact_inbox_id: contact_inbox.id)
-                .update_all(contact_id: @base_contact.id, contact_inbox_id: target_contact_inbox.id)
+                .update_all(contact_id: @base_contact.id, contact_inbox_id: target_contact_inbox.id) # rubocop:disable Rails/SkipsModelValidations
   end
 
   def merge_calls

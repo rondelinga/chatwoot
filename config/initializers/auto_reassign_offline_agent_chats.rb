@@ -2,7 +2,7 @@ module OnlineStatusTrackerPatch
   def set_status(account_id, user_id, status)
     result = super
     if status.to_s == 'offline'
-      puts "Agent #{user_id} went offline in account #{account_id} -> reassign chats"
+      Rails.logger.debug { "Agent #{user_id} went offline in account #{account_id} -> reassign chats" }
       ReassignOfflineAgentChatsJob.set(wait: 1.minute).perform_later(user_id, account_id)
     end
     result
