@@ -33,8 +33,8 @@ class V2::Reports::BaseSummaryBuilder
       key = record.public_send(csat_group_key_name)
       total = record.total_count.to_f
       positive = record.positive_count.to_f
-      
-      hash[key] = total > 0 ? ((positive / total) * 100).round(2) : 0
+
+      hash[key] = total.positive? ? ((positive / total) * 100).round(2) : 0
     end
   end
 
@@ -47,12 +47,35 @@ class V2::Reports::BaseSummaryBuilder
     scope
   end
 
+  def conversation_labels_join_clause
+    <<~SQL.squish
+      INNER JOIN taggings
+        ON taggings.taggable_id = conversations.id
+        AND taggings.taggable_type = 'Conversation'
+        AND taggings.context = 'labels'
+    SQL
+  end
+
+  def apply_csat_label_filter(scope)
+    label_ids = compact_ids(:label_ids)
+    return scope if label_ids.blank?
+
+    tag_ids = ReportingEvent.tag_ids_for_labels(label_ids, account.id)
+    return scope if tag_ids.empty?
+
+    scope.joins(conversation_labels_join_clause).where(taggings: { tag_id: tag_ids })
+  end
+
+  def summary_entity_ids(*metrics)
+    metrics.flat_map(&:keys).compact.uniq
+  end
+
   def csat_select_fields
     <<-SQL.squish
       COUNT(*) as total_count,
       COUNT(CASE WHEN rating IN (4, 5) THEN 1 END) as positive_count
     SQL
-  end  
+  end
 
   def csat_group_by_key
     # Override this method
@@ -93,7 +116,9 @@ class V2::Reports::BaseSummaryBuilder
   end
 
   def compact_ids(key)
-    Array(params[key]).reject(&:blank?).presence
+    return if params[key].blank?
+
+    Array(params[key]).reject(&:blank?)
   end
 
   def summary_dimension_type

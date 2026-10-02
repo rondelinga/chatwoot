@@ -53,11 +53,16 @@ class ConversationQueue < ApplicationRecord
 
   def exit_reason
     return 'accepted' if assigned?
-    return 'customer_resolved' if left? && conversation&.resolved?
-    return 'opened' if left? && conversation&.open?
-    return 'left' if left?
+    return 'waiting' unless left?
 
-    'waiting'
+    left_exit_reason
+  end
+
+  def left_exit_reason
+    return 'customer_resolved' if conversation&.resolved?
+    return 'opened' if conversation&.open?
+
+    'left'
   end
 
   private

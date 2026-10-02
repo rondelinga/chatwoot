@@ -27,11 +27,13 @@ describe('Summary Reports Store', () => {
         agentSummaryReports: [],
         teamSummaryReports: [],
         labelSummaryReports: [],
+        botSummaryReports: [],
         uiFlags: {
           isFetchingInboxSummaryReports: false,
           isFetchingAgentSummaryReports: false,
           isFetchingTeamSummaryReports: false,
           isFetchingLabelSummaryReports: false,
+          isFetchingBotSummaryReports: false,
         },
       });
     });

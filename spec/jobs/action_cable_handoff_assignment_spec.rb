@@ -74,6 +74,7 @@ RSpec.describe 'Assignment provenance through Action Cable', type: :job do
     ActionCableListener.instance.assignee_changed(event)
     queued_assignment = enqueued_jobs.find { |job| job[:job] == ActionCableBroadcastJob }
     replacement = create(:user, account: account)
+    create(:inbox_member, inbox: inbox, user: replacement)
     conversation.update!(assignee: replacement)
     clear_enqueued_jobs
 

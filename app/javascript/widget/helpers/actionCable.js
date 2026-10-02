@@ -5,6 +5,7 @@ import { IFrameHelper } from 'widget/helpers/utils';
 import { shouldTriggerMessageUpdateEvent } from './IframeEventHelper';
 import { CHATWOOT_ON_MESSAGE } from '../constants/sdkEvents';
 import { MESSAGE_TYPE } from './constants';
+import { isInternalWidgetMessage } from './messageVisibility';
 import { emitter } from '../../shared/helpers/mitt';
 
 const sameConversationId = (left, right) =>
@@ -72,6 +73,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onMessageCreated = data => {
+    if (isInternalWidgetMessage(data)) return;
+
     if (isMessageInActiveConversation(this.app.$store.getters, data)) {
       if (isOutgoingAgentMessage(data)) {
         this.maybeShowOutboundNotification(data);
@@ -98,6 +101,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onMessageUpdated = data => {
+    if (isInternalWidgetMessage(data)) return;
+
     if (isMessageInActiveConversation(this.app.$store.getters, data)) {
       return;
     }

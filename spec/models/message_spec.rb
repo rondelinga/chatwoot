@@ -137,12 +137,18 @@ RSpec.describe Message do
         updated_at: message.updated_at,
         conversation: {
           assignee_id: message.conversation.assignee_id,
+          assignee_agent_bot_id: message.conversation.assignee_agent_bot_id,
+          assignee_type: message.conversation.assignee_type,
           contact_inbox: {
             source_id: message.conversation.contact_inbox.source_id
           },
           last_activity_at: message.conversation.last_activity_at.to_i,
           unread_count: message.conversation.unread_incoming_messages.count
         },
+        audit_private_note_id: message.audit_private_note_id,
+        deleted_at: message.deleted_at,
+        deleted_by_id: message.deleted_by_id,
+        original_content: message.original_content,
         sentiment: {},
         sender: message.sender.push_event_data,
         echo_id: 'random-echo_id'
@@ -190,8 +196,10 @@ RSpec.describe Message do
     end
 
     it 'records the first reply to the contact after a forwarded email' do
+      create(:inbox_member, inbox: conversation.inbox, user: agent)
+      create(:conversation_participant, conversation: conversation, user: agent, created_at: 1.minute.ago)
       create(:message, message_type: :outgoing, conversation: conversation, content_attributes: { forwarded_message_id: 1 })
-      reply = create(:message, message_type: :outgoing, conversation: conversation)
+      reply = create(:message, message_type: :outgoing, conversation: conversation, sender: agent)
 
       expect(conversation.first_reply_created_at).to eq reply.created_at
     end

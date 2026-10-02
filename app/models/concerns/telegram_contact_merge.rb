@@ -37,17 +37,14 @@ module TelegramContactMerge
   end
 
   def find_target_contact(account, inbox_ids)
-    user_email = @contact.custom_attributes&.dig('user_email').to_s.downcase.strip.presence
-    priv_email = @contact.custom_attributes&.dig('_email').to_s.downcase.strip.presence
-    email      = @contact.email.to_s.downcase.strip.presence
-
-    return nil unless user_email || priv_email || email
+    emails = contact_email_candidates
+    return nil unless emails.values.any?
 
     account.contacts
            .joins(:contact_inboxes)
            .where(contact_inboxes: { inbox_id: inbox_ids })
            .where.not(id: @contact.id)
-           .where(<<~SQL, user_email: user_email, priv_email: priv_email, email: email)
+           .where(<<~SQL.squish, emails)
              (:user_email IS NOT NULL AND LOWER(custom_attributes->>'user_email') = :user_email)
              OR (:user_email IS NOT NULL AND LOWER(contacts.email) = :user_email)
              OR (:priv_email IS NOT NULL AND LOWER(custom_attributes->>'_email') = :priv_email)
@@ -57,6 +54,18 @@ module TelegramContactMerge
            .first.tap do |t|
              Rails.logger.info t ? "[TG MERGE] Found target #{t.id}" : '[TG MERGE] No target found'
            end
+  end
+
+  def contact_email_candidates
+    {
+      user_email: normalize_email(@contact.custom_attributes&.dig('user_email')),
+      priv_email: normalize_email(@contact.custom_attributes&.dig('_email')),
+      email: normalize_email(@contact.email)
+    }
+  end
+
+  def normalize_email(value)
+    value.to_s.downcase.strip.presence
   end
 
   def merge_contacts(base_contact, mergee_contact)

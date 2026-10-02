@@ -399,7 +399,8 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
         end
 
         it 'Assign the agent when he is inbox member' do
-          expect(conversation.assignee).to be_nil
+          conversation.update!(assignee: nil)
+          expect(conversation.reload.assignee).to be_nil
 
           perform_enqueued_jobs do
             post "/api/v1/accounts/#{account.id}/macros/#{macro.id}/execute",
@@ -412,8 +413,9 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
 
         it 'Assign the agent when he is not inbox member' do
           InboxMember.last.destroy
+          conversation.update!(assignee: nil)
 
-          expect(conversation.assignee).to be_nil
+          expect(conversation.reload.assignee).to be_nil
 
           perform_enqueued_jobs do
             post "/api/v1/accounts/#{account.id}/macros/#{macro.id}/execute",

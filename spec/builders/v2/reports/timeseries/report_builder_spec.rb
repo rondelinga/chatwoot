@@ -101,8 +101,8 @@ describe V2::Reports::Timeseries::ReportBuilder do
           timeseries_values = subject.timeseries
           expect(timeseries_values).to eq(
             [
-              { count: 1, timestamp: (current_time - 1.week).in_time_zone('Chennai').beginning_of_week(:sunday).to_i, value: 93.0 },
-              { count: 2, timestamp: current_time.in_time_zone('Chennai').beginning_of_week(:sunday).to_i, value: 90.0 }
+              { count: 1, timestamp: (current_time - 1.week).beginning_of_week(:sunday).to_i, value: 93.0 },
+              { count: 2, timestamp: current_time.beginning_of_week(:sunday).to_i, value: 90.0 }
             ]
           )
         end

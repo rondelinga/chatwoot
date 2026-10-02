@@ -34,6 +34,8 @@ RSpec.describe TeamMember do
 
     it 'invalidates the user built-in filter version when the parent team is removed' do
       create(:team_member, team: team, user: user)
+      # Destroying the team reloads members; the instance used in callbacks is not the one we create here.
+      allow_any_instance_of(described_class).to receive(:sync_linked_inbox_members) # rubocop:disable RSpec/AnyInstance
 
       expect do
         perform_enqueued_jobs { team.destroy! }
@@ -42,6 +44,8 @@ RSpec.describe TeamMember do
 
     it 'invalidates saved filter snapshots when the parent team is removed' do
       create(:conversation, account: account, team: team)
+      # Destroying the team reloads members; the instance used in callbacks is not the one we create here.
+      allow_any_instance_of(described_class).to receive(:sync_linked_inbox_members) # rubocop:disable RSpec/AnyInstance
 
       expect do
         perform_enqueued_jobs { team.destroy! }

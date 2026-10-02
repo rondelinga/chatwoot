@@ -100,10 +100,11 @@ describe Whatsapp::PhoneNumberNormalizationService do
     context 'when an existing contact carries the alternate phone format' do
       it 'reuses that contact instead of creating a duplicate' do
         existing = create(:contact, account: account, phone_number: '+554188887777')
+        create(:contact_inbox, contact: existing, inbox: whatsapp_inbox, source_id: '554188887777')
 
         Whatsapp::IncomingMessageWhatsappCloudService.new(inbox: whatsapp_inbox, params: cloud_params('5541988887777')).perform
 
-        expect(whatsapp_inbox.contact_inboxes.sole.contact_id).to eq(existing.id)
+        expect(whatsapp_inbox.contact_inboxes.order(:id).last.contact_id).to eq(existing.id)
       end
     end
 

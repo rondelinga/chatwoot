@@ -18,7 +18,7 @@ describe ReportingEventListener do
 
   describe '#conversation_resolved' do
     let!(:resolved_conversation) do
-      create(:conversation, account: account, inbox: inbox, assignee: user)
+      create(:conversation, account: account, inbox: inbox, assignee: user, created_at: 5.minutes.ago)
     end
 
     before do
@@ -47,7 +47,7 @@ describe ReportingEventListener do
 
       it 'captures the error without interrupting raw event creation' do
         expect { listener.conversation_resolved(event) }.not_to raise_error
-        expect(ChatwootExceptionTracker).to have_received(:new).with(error, account: account)
+        expect(ChatwootExceptionTracker).to have_received(:new).with(error, account: account).at_least(:once)
         expect(account.reporting_events.where(name: 'conversation_resolved').count).to be 1
       end
     end
@@ -96,13 +96,15 @@ describe ReportingEventListener do
       let!(:agent_bot_inbox) { create(:inbox, account: account) }
       let!(:agent_bot) { create(:agent_bot, account: account) }
       let!(:bot_resolved_conversation) do
-        create(:conversation, account: account, inbox: agent_bot_inbox, assignee: user)
+        create(:conversation, account: account, inbox: agent_bot_inbox, assignee: user, created_at: 5.minutes.ago)
       end
 
       before do
         create(:inbox_member, user: user, inbox: agent_bot_inbox)
         create(:agent_bot_inbox, agent_bot: agent_bot, inbox: agent_bot_inbox)
         create(:conversation_participant, conversation: bot_resolved_conversation, user: user)
+        create(:message, message_type: 'outgoing', sender: agent_bot, account: account, inbox: agent_bot_inbox,
+                         conversation: bot_resolved_conversation)
         # Update status to resolved
         bot_resolved_conversation.update!(status: :resolved)
       end

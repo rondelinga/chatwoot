@@ -63,21 +63,25 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
 
     create_system_message(conversation)
     previous_assignee_id = conversation.assignee_id
+    return if attempt_reassignment(conversation, allowed)
 
-    reassigned = if conversation.account.queue_enabled?
-                   reassign_via_queue(conversation)
-                 else
-                   reassign_via_auto_assignment(conversation, allowed)
-                 end
+    finish_failed_reassignment(conversation, previous_assignee_id)
+  rescue StandardError => e
+    handle_reassignment_error(conversation, e)
+  end
 
-    return if reassigned
+  def attempt_reassignment(conversation, allowed)
+    conversation.account.queue_enabled? ? reassign_via_queue(conversation) : reassign_via_auto_assignment(conversation, allowed)
+  end
 
+  def finish_failed_reassignment(conversation, previous_assignee_id)
     enqueue_for_reassignment(conversation) if conversation.account.queue_enabled?
     unassign(conversation, 'All agents reached limit') if conversation.reload.assignee_id == previous_assignee_id
-
     Rails.logger.info("Conversation #{conversation.id} reassigned") if conversation.assignee_id.present?
-  rescue StandardError => e
-    Rails.logger.error("Failed to reassign conversation #{conversation.id}: #{e.message}")
+  end
+
+  def handle_reassignment_error(conversation, error)
+    Rails.logger.error("Failed to reassign conversation #{conversation.id}: #{error.message}")
     enqueue_for_reassignment(conversation) if conversation.account.queue_enabled?
     unassign(conversation, 'Error')
   end

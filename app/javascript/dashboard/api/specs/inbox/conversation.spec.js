@@ -137,7 +137,11 @@ describe('#ConversationAPI', () => {
     it('#mute', () => {
       conversationAPI.mute(45);
       expect(axiosMock.post).toHaveBeenCalledWith(
-        '/api/v1/conversations/45/mute'
+        '/api/v1/conversations/45/mute',
+        {
+          banned_until: null,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
       );
     });
 

@@ -58,43 +58,56 @@ class Notifications::SoundFileValidator
 
     value = stdout.to_f
     value if value.positive?
-  rescue Errno::ENOENT, StandardError
+  rescue StandardError
     nil
   end
 
   def wav_duration(path)
-    File.open(path, 'rb') do |io|
-      header = io.read(12)
-      return unless header&.start_with?('RIFF') && header.end_with?('WAVE')
-
-      byte_rate = nil
-      data_size = nil
-
-      until io.eof?
-        chunk_id = io.read(4)
-        break if chunk_id.blank?
-
-        chunk_size = io.read(4)&.unpack1('V')
-        break if chunk_size.blank?
-
-        if chunk_id == 'fmt '
-          io.read(8)
-          byte_rate = io.read(4)&.unpack1('V')
-          remaining = chunk_size - 12
-          io.read(remaining) if remaining.positive?
-        elsif chunk_id == 'data'
-          data_size = chunk_size
-          break
-        else
-          io.seek(chunk_size, IO::SEEK_CUR)
-        end
-      end
-
-      return unless byte_rate&.positive? && data_size
-
-      data_size.to_f / byte_rate
-    end
+    File.open(path, 'rb') { |io| wav_duration_from_io(io) }
   rescue StandardError
     nil
+  end
+
+  def wav_duration_from_io(io)
+    header = io.read(12)
+    return unless header&.start_with?('RIFF') && header.end_with?('WAVE')
+
+    byte_rate, data_size = wav_byte_rate_and_data_size(io)
+    return unless byte_rate&.positive? && data_size
+
+    data_size.to_f / byte_rate
+  end
+
+  def wav_byte_rate_and_data_size(io)
+    byte_rate = nil
+    data_size = nil
+
+    until io.eof?
+      chunk_id = io.read(4)
+      break if chunk_id.blank?
+
+      chunk_size = io.read(4)&.unpack1('V')
+      break if chunk_size.blank?
+
+      byte_rate, data_size = wav_chunk_payload(io, chunk_id, chunk_size, byte_rate, data_size)
+      break if data_size
+    end
+
+    [byte_rate, data_size]
+  end
+
+  def wav_chunk_payload(io, chunk_id, chunk_size, byte_rate, data_size)
+    if chunk_id == 'fmt '
+      io.read(8)
+      byte_rate = io.read(4)&.unpack1('V')
+      remaining = chunk_size - 12
+      io.read(remaining) if remaining.positive?
+    elsif chunk_id == 'data'
+      data_size = chunk_size
+    else
+      io.seek(chunk_size, IO::SEEK_CUR)
+    end
+
+    [byte_rate, data_size]
   end
 end
