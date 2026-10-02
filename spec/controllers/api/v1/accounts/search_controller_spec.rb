@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe 'Search', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
+  let(:admin) { create(:user, account: account, role: :administrator) }
 
   before do
     contact = create(:contact, email: 'test@example.com', account: account)
@@ -41,7 +42,7 @@ RSpec.describe 'Search', type: :request do
         expect(response_data[:payload].keys).to contain_exactly(:contacts, :conversations, :messages, :articles)
         expect(response_data[:payload][:messages].length).to eq 2
         expect(response_data[:payload][:conversations].length).to eq 1
-        expect(response_data[:payload][:contacts].length).to eq 1
+        expect(response_data[:payload][:contacts].length).to eq 0
         expect(response_data[:payload][:articles].length).to eq 1
       end
 
@@ -74,9 +75,18 @@ RSpec.describe 'Search', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      it 'returns all conversations with messages containing the search query' do
+      it 'returns unauthorized for agents' do
         get "/api/v1/accounts/#{account.id}/search/contacts",
             headers: agent.create_new_auth_token,
+            params: { q: 'test' },
+            as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it 'returns all conversations with messages containing the search query' do
+        get "/api/v1/accounts/#{account.id}/search/contacts",
+            headers: admin.create_new_auth_token,
             params: { q: 'test' },
             as: :json
 
@@ -91,7 +101,7 @@ RSpec.describe 'Search', type: :request do
         contact = create(:contact, email: 'activity@test.com', account: account, last_activity_at: 3.days.ago)
 
         get "/api/v1/accounts/#{account.id}/search/contacts",
-            headers: agent.create_new_auth_token,
+            headers: admin.create_new_auth_token,
             params: { q: 'activity' },
             as: :json
 
@@ -113,7 +123,7 @@ RSpec.describe 'Search', type: :request do
           create(:contact, email: 'recent@test.com', account: account, last_activity_at: 2.days.ago)
 
           get "/api/v1/accounts/#{account.id}/search/contacts",
-              headers: agent.create_new_auth_token,
+              headers: admin.create_new_auth_token,
               params: { q: 'test', since: 5.days.ago.to_i },
               as: :json
 
@@ -130,7 +140,7 @@ RSpec.describe 'Search', type: :request do
           create(:contact, email: 'recent@test.com', account: account, last_activity_at: 2.days.ago)
 
           get "/api/v1/accounts/#{account.id}/search/contacts",
-              headers: agent.create_new_auth_token,
+              headers: admin.create_new_auth_token,
               params: { q: 'test', until: 5.days.ago.to_i },
               as: :json
 
@@ -148,7 +158,7 @@ RSpec.describe 'Search', type: :request do
           create(:contact, email: 'recent@test.com', account: account, last_activity_at: 2.days.ago)
 
           get "/api/v1/accounts/#{account.id}/search/contacts",
-              headers: agent.create_new_auth_token,
+              headers: admin.create_new_auth_token,
               params: { q: 'test', since: 15.days.ago.to_i, until: 5.days.ago.to_i },
               as: :json
 

@@ -103,7 +103,7 @@ class ActionService
 
   def resolve_ban_duration(raw)
     return nil if raw.blank?
-  
+
     if ConversationMuteHelpers::BAN_DURATIONS.key?(raw)
       Time.current + ConversationMuteHelpers::BAN_DURATIONS[raw]
     else
@@ -112,7 +112,7 @@ class ActionService
   rescue ArgumentError, TypeError
     nil
   end
-  
+
   def agent_belongs_to_inbox?(agent_ids)
     member_ids = @conversation.inbox.members.pluck(:user_id)
     assignable_agent_ids = member_ids + @account.administrators.ids

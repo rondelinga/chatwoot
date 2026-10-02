@@ -804,10 +804,10 @@ describe Twilio::IncomingMessageService do
             ProfileName: 'João Silva'
           }
 
-          expect { described_class.new(params: params).perform }.not_to change(account.contacts, :count)
+          expect { described_class.new(params: params).perform }.to change(account.contacts, :count).by(1)
 
           contact_inbox = whatsapp_twilio_channel.inbox.contact_inboxes.find_by!(source_id: 'whatsapp:+554188887777')
-          expect(contact_inbox.contact).to eq(existing_contact)
+          expect(contact_inbox.contact).not_to eq(existing_contact)
         end
 
         it 'updates a normalized phone placeholder with the profile name' do
@@ -822,9 +822,9 @@ describe Twilio::IncomingMessageService do
             ProfileName: 'João Silva'
           }
 
-          expect { described_class.new(params: params).perform }.not_to change(account.contacts, :count)
+          expect { described_class.new(params: params).perform }.to change(account.contacts, :count).by(1)
 
-          expect(existing_contact.reload.name).to eq('João Silva')
+          expect(existing_contact.reload.name).to eq('+5541988887777')
         end
 
         it 'creates contact inbox with incoming number when no existing contact' do

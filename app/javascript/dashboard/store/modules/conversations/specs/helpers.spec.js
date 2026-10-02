@@ -58,8 +58,7 @@ describe('Conversation Helpers', () => {
       ).toBe(true);
     });
 
-    // Test for agent role
-    it('always returns true for agent role regardless of permissions', () => {
+    it('returns true for an agent on their own and unassigned conversations', () => {
       const role = 'agent';
       const permissions = [];
       const currentUserId = 1;
@@ -79,7 +78,7 @@ describe('Conversation Helpers', () => {
           permissions,
           currentUserId
         )
-      ).toBe(true);
+      ).toBe(false);
       expect(
         applyRoleFilter(
           conversationWithoutAssignee,

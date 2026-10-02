@@ -287,6 +287,7 @@ RSpec.describe 'Conversation Messages API', type: :request do
         create(:inbox_member, inbox: conversation.inbox, user: agent)
       end
 
+      # rubocop:disable RSpec/MultipleExpectations -- single API action with message + audit activity side effects
       it 'deletes the message' do
         original_content = message.content
 
@@ -310,6 +311,7 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(audit_note.private).to be true
         expect(audit_note.content).to include(original_content)
       end
+      # rubocop:enable RSpec/MultipleExpectations
 
       it 'keeps the forward marker on a deleted forwarded email' do
         message.update!(content_attributes: { forwarded_message_id: 1, to_emails: ['vendor@example.com'] })

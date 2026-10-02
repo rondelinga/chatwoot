@@ -1,5 +1,6 @@
 class ActionCableListener < BaseListener
   include Events::Types
+  include ActionCableBroadcastTokens
 
   def notification_created(event)
     notification, account, unread_count, count = extract_notification_and_account(event)
@@ -184,84 +185,6 @@ class ActionCableListener < BaseListener
       event_name,
       conversation.push_event_data.merge(metadata)
     )
-  end
-
-  def account_token(account)
-    "account_#{account.id}"
-  end
-
-  def broadcast_message_event(message, event_name, **extra)
-    conversation = message.conversation
-    widget_tokens, client_tokens = split_contact_tokens(message_contact_inboxes(conversation, message))
-    data = message.push_event_data.merge(extra)
-
-    tokens = conversation_listener_tokens(account, conversation) + [conversation.contact_inbox.pubsub_token]
-    current_user_token.present? ? tokens - [current_user_token] : tokens
-  end
-
-  def conversation_listener_tokens(account, conversation)
-    members = conversation.inbox.members
-    account_users_by_user_id = AccountUser.where(account_id: account.id, user_id: members.map(&:id)).index_by(&:user_id)
-
-    allowed_members = members.select do |member|
-      account_user = account_users_by_user_id[member.id]
-      next true if account_user&.administrator?
-      next true unless Conversations::AgentAccessService.restricted_agent?(account_user)
-
-      Conversations::AgentAccessService.new(conversation: conversation, user: member, account: account, account_user: account_user).allowed?
-    end
-
-    user_tokens(account, allowed_members)
-  end
-
-  def previous_assignee_tokens(event)
-    previous_assignee_id = event.data.dig(:changed_attributes, 'assignee_id')&.first
-    return [] if previous_assignee_id.blank?
-
-    User.where(id: previous_assignee_id).pluck(:pubsub_token)
-  end
-
-  def user_tokens(account, agents)
-    agent_tokens = agents.pluck(:pubsub_token)
-    admin_tokens = account.administrators.pluck(:pubsub_token)
-    (agent_tokens + admin_tokens).uniq
-  end
-
-  def administrator_tokens(account)
-    account.administrators.pluck(:pubsub_token)
-  end
-
-  def contact_tokens(contact_inbox, message)
-    return [] if message.private?
-    return [] if message.activity?
-    return [] if contact_inbox.nil?
-
-    session_contact_inboxes(conversation.contact_inbox)
-  end
-
-  # A verified session also reaches the contact's other verified sessions, in any inbox that still exists
-  def session_contact_inboxes(contact_inbox)
-    return [contact_inbox] unless contact_inbox.hmac_verified?
-
-    contact_inbox.contact.contact_inboxes.where(hmac_verified: true).where.associated(:inbox).includes(:inbox).to_a
-  end
-
-  # widget: { tokens:, data: } sends web widget sessions their payload in the same job
-  def broadcast(account, tokens, event_name, data, widget: {})
-    widget_tokens = widget[:tokens].to_a
-    return if tokens.blank? && widget_tokens.blank?
-
-    widget_options = {}
-    widget_options = { widget_members: widget_tokens.uniq, widget_data: broadcast_payload(account, widget[:data]) } if widget_tokens.present?
-    ::ActionCableBroadcastJob.perform_later(tokens.uniq, event_name, broadcast_payload(account, data), **widget_options)
-  end
-
-  def broadcast_payload(account, data)
-    payload = data.merge(account_id: account.id)
-    # So the frondend knows who performed the action.
-    # Useful in cases like conversation assignment for generating a notification with assigner name.
-    payload[:performer] = Current.user&.push_event_data if Current.user.present?
-    payload
   end
 end
 

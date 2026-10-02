@@ -236,8 +236,10 @@ RSpec.describe AutoAssignment::AssignmentService do
 
       it 'skips conversations inactive beyond the policy threshold' do
         assignment_policy.update!(exclude_older_than_hours: 24)
-        old_conversation = create(:conversation, inbox: inbox, assignee: nil, last_activity_at: 25.hours.ago)
-        recent_conversation = create(:conversation, inbox: inbox, assignee: nil, last_activity_at: 1.hour.ago)
+        old_conversation = create(:conversation, inbox: inbox, assignee: nil)
+        recent_conversation = create(:conversation, inbox: inbox, assignee: nil)
+        old_conversation.update_columns(assignee_id: nil, last_activity_at: 25.hours.ago) # rubocop:disable Rails/SkipsModelValidations
+        recent_conversation.update_columns(assignee_id: nil, last_activity_at: 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
 
         assigned_count = service.perform_bulk_assignment(limit: 10)
 
@@ -248,8 +250,8 @@ RSpec.describe AutoAssignment::AssignmentService do
 
       it 'assigns reopened conversations created long ago but recently active' do
         assignment_policy.update!(exclude_older_than_hours: 24)
-        reopened_conversation = create(:conversation, inbox: inbox, assignee: nil,
-                                                      created_at: 30.days.ago, last_activity_at: 1.hour.ago)
+        reopened_conversation = create(:conversation, inbox: inbox, assignee: nil, created_at: 30.days.ago)
+        reopened_conversation.update_columns(assignee_id: nil, last_activity_at: 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
 
         assigned_count = service.perform_bulk_assignment(limit: 10)
 
@@ -259,7 +261,8 @@ RSpec.describe AutoAssignment::AssignmentService do
 
       it 'assigns conversations regardless of age when threshold is nil' do
         assignment_policy.update!(exclude_older_than_hours: nil)
-        old_conversation = create(:conversation, inbox: inbox, assignee: nil, last_activity_at: 30.days.ago)
+        old_conversation = create(:conversation, inbox: inbox, assignee: nil)
+        old_conversation.update_columns(assignee_id: nil, last_activity_at: 30.days.ago) # rubocop:disable Rails/SkipsModelValidations
 
         assigned_count = service.perform_bulk_assignment(limit: 10)
 
@@ -274,8 +277,10 @@ RSpec.describe AutoAssignment::AssignmentService do
         end
 
         it 'falls back to the default threshold and skips stale conversations' do
-          stale_conversation = create(:conversation, inbox: inbox, assignee: nil, last_activity_at: 8.days.ago)
-          recent_conversation = create(:conversation, inbox: inbox, assignee: nil, last_activity_at: 6.days.ago)
+          stale_conversation = create(:conversation, inbox: inbox, assignee: nil)
+          recent_conversation = create(:conversation, inbox: inbox, assignee: nil)
+          stale_conversation.update_columns(assignee_id: nil, last_activity_at: 8.days.ago) # rubocop:disable Rails/SkipsModelValidations
+          recent_conversation.update_columns(assignee_id: nil, last_activity_at: 6.days.ago) # rubocop:disable Rails/SkipsModelValidations
 
           assigned_count = service.perform_bulk_assignment(limit: 10)
 
@@ -403,13 +408,13 @@ RSpec.describe AutoAssignment::AssignmentService do
       context 'with round robin assignment' do
         it 'distributes conversations evenly among agents' do
           conversations = Array.new(4) { create(:conversation, inbox: inbox, assignee: nil) }
+          conversations.each { |conversation| conversation.update!(assignee_id: nil) }
 
           service.perform_bulk_assignment(limit: 4)
 
           agent1_count = conversations.count { |c| c.reload.assignee == agent }
           agent2_count = conversations.count { |c| c.reload.assignee == agent2 }
 
-          # Should be distributed evenly (2 each) or close to even (3 and 1)
           expect([agent1_count, agent2_count].sort).to eq([2, 2]).or(eq([1, 3]))
         end
       end
@@ -446,6 +451,7 @@ RSpec.describe AutoAssignment::AssignmentService do
       it 'skips assignment when team has allow_auto_assign false' do
         team.update!(allow_auto_assign: false)
         conversation_with_team = create(:conversation, inbox: inbox, team: team, assignee: nil)
+        conversation_with_team.update_columns(assignee_id: nil) # rubocop:disable Rails/SkipsModelValidations
 
         service.perform_bulk_assignment(limit: 1)
 

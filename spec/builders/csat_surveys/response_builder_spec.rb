@@ -18,7 +18,13 @@ describe CsatSurveys::ResponseBuilder do
     end
 
     it 'updates the value of csat survey response if response already exists' do
-      existing_survey_response = create(:csat_survey_response, message: message)
+      existing_survey_response = create(
+        :csat_survey_response,
+        message: message,
+        conversation: message.conversation,
+        account: message.account,
+        contact: message.conversation.contact
+      )
       csat_survey_response = described_class.new(
         message: message
       ).perform

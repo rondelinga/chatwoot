@@ -7,8 +7,7 @@ end
 def meaningful_keys(rows, field)
   rows
     .flat_map { |r| r[field]&.select { |_, v| v.present? }&.keys || [] }
-    .uniq
-    .sort
+    .uniq.sort
 end
 
 max_agents = @report_data.map { |r| r[:agents]&.size || 0 }.max || 0
@@ -51,38 +50,70 @@ all_chat_custom_attrs.each { |attr| headers << t('reports.conversation_details_c
 all_contact_custom_attrs.each { |attr| headers << t('reports.conversation_details_csv.contact_custom', attr: attr) }
 all_contact_attrs.each { |attr| headers << t('reports.conversation_details_csv.contact_additional', attr: attr) }
 
+def agent_duration_cells(row, max_agents)
+  cells = []
+  max_agents.times do |i|
+    cells << row[:agents]&.[](i)
+    cells << tf(row[:agent_chat_durations]&.[](i))
+  end
+  cells
+end
+
+def conversation_metrics_identity_cells(row)
+  [
+    row[:conversation_id],
+    row[:created_at]&.strftime('%Y-%m-%d %H:%M:%S'),
+    row[:inbox_name],
+    row[:team_name],
+    row[:contact_email]
+  ]
+end
+
+def attribute_cells(row, keys, field)
+  keys.map { |attr| row[field]&.[](attr) }
+end
+
+def conversation_metrics_extra_cells(row, columns)
+  label_cells = Array.new(columns[:max_labels]) { |i| row[:labels]&.[](i) }
+  label_cells + [row[:contact_name]] +
+    attribute_cells(row, columns[:chat_attrs], :custom_attributes) +
+    attribute_cells(row, columns[:contact_custom_attrs], :contact_custom_attributes) +
+    attribute_cells(row, columns[:contact_attrs], :contact_additional_attributes)
+end
+
+def conversation_metrics_xlsx_row(row, columns)
+  conversation_metrics_identity_cells(row) +
+    agent_duration_cells(row, columns[:max_agents]) +
+    conversation_metrics_timing_cells(row) +
+    conversation_metrics_extra_cells(row, columns)
+end
+
+def conversation_metrics_timing_cells(row)
+  [
+    tf(row[:chat_resolution]),
+    tf(row[:first_response_time]),
+    tf(row[:avg_response_time]),
+    tf(row[:agent_chat_duration]),
+    row[:csat_score],
+    row[:csat_feedback],
+    row[:queue_entered_at]&.strftime('%Y-%m-%d %H:%M:%S'),
+    row[:queue_accepted_at]&.strftime('%Y-%m-%d %H:%M:%S'),
+    row[:queue_left_at]&.strftime('%Y-%m-%d %H:%M:%S'),
+    row[:queue_exit_reason]
+  ]
+end
+
+xlsx_columns = {
+  max_agents: max_agents,
+  max_labels: max_labels,
+  chat_attrs: all_chat_custom_attrs,
+  contact_custom_attrs: all_contact_custom_attrs,
+  contact_attrs: all_contact_attrs
+}
+
 xlsx_package.workbook.add_worksheet(name: t('reports.period', since: '', until: '')) do |sheet|
   sheet.add_row headers
-
   @report_data.each do |row|
-    agents_and_durations = []
-    max_agents.times do |i|
-      agents_and_durations << row[:agents]&.[](i)
-      agents_and_durations << tf(row[:agent_chat_durations]&.[](i))
-    end
-
-    sheet.add_row [
-      row[:conversation_id],
-      row[:created_at]&.strftime('%Y-%m-%d %H:%M:%S'),
-      row[:inbox_name],
-      row[:team_name],
-      row[:contact_email],
-      *agents_and_durations,
-      tf(row[:chat_resolution]),
-      tf(row[:first_response_time]),
-      tf(row[:avg_response_time]),
-      tf(row[:agent_chat_duration]),
-      row[:csat_score],
-      row[:csat_feedback],
-      row[:queue_entered_at]&.strftime('%Y-%m-%d %H:%M:%S'),
-      row[:queue_accepted_at]&.strftime('%Y-%m-%d %H:%M:%S'),
-      row[:queue_left_at]&.strftime('%Y-%m-%d %H:%M:%S'),
-      row[:queue_exit_reason],
-      *Array.new(max_labels) { |i| row[:labels]&.[](i) },
-      row[:contact_name],
-      *all_chat_custom_attrs.map { |attr| row[:custom_attributes]&.[](attr) },
-      *all_contact_custom_attrs.map { |attr| row[:contact_custom_attributes]&.[](attr) },
-      *all_contact_attrs.map { |attr| row[:contact_additional_attributes]&.[](attr) }
-    ]
+    sheet.add_row conversation_metrics_xlsx_row(row, xlsx_columns)
   end
 end

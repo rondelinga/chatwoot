@@ -164,6 +164,8 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
       end
 
       it 'succeeds when a valid identifier_hash is provided' do
+        create(:contact_inbox, contact: victim, inbox: web_widget.inbox)
+
         patch '/api/v1/widget/contact',
               params: { website_token: web_widget.website_token, identifier: 'victim-identifier',
                         identifier_hash: correct_identifier_hash, name: 'Legit' },

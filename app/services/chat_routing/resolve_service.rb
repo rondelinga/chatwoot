@@ -8,9 +8,7 @@ class ChatRouting::ResolveService
     matched_team = matching_by_routing_type(routing_type)
     inbox_team = matched_team || default_inbox_team
 
-    if inbox_team.blank?
-      return Result.new(nil, nil, nil, false)
-    end
+    return Result.new(nil, nil, nil, false) if inbox_team.blank?
 
     matched_by_default = matched_team.blank?
     routing_name = matched_by_default ? nil : routing_type&.name
