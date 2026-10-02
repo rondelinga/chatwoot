@@ -81,12 +81,18 @@ const fullHTML = computed(() => {
   return originalEmailHtml.value;
 });
 
-const unquotedHTML = computed(() =>
-  EmailQuoteExtractor.extractQuotes(fullHTML.value)
+const isForwarded = computed(
+  () => !!contentAttributes.value?.forwardedMessageId
 );
 
-const hasQuotedMessage = computed(() =>
-  EmailQuoteExtractor.hasQuotes(fullHTML.value)
+const unquotedHTML = computed(() =>
+  isForwarded.value
+    ? fullHTML.value
+    : EmailQuoteExtractor.extractQuotes(fullHTML.value)
+);
+
+const hasQuotedMessage = computed(
+  () => !isForwarded.value && EmailQuoteExtractor.hasQuotes(fullHTML.value)
 );
 
 // Ensure unique keys for <Letter> when toggling between original and translated views.
@@ -225,5 +231,11 @@ const handleSeeOriginal = () => {
       display: inline-block;
     }
   }
+}
+
+// Email clients (Gmail, Outlook) hardcode dir="ltr" on wrapper elements.
+// In RTL apps this forces email content LTR regardless of actual text.
+[dir='rtl'] .letter-render [dir='ltr'] {
+  direction: inherit;
 }
 </style>

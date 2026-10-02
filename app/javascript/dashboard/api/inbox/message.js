@@ -12,6 +12,9 @@ export const buildCreatePayload = ({
   bccEmails = '',
   toEmails = '',
   templateParams,
+  isVoiceMessage = false,
+  emailHtmlContent,
+  forwardedAttachmentIds,
 }) => {
   let payload;
   if (files && files.length !== 0) {
@@ -33,6 +36,15 @@ export const buildCreatePayload = ({
     if (contentAttributes) {
       payload.append('content_attributes', JSON.stringify(contentAttributes));
     }
+    if (isVoiceMessage) {
+      payload.append('is_voice_message', true);
+    }
+    if (emailHtmlContent) {
+      payload.append('email_html_content', emailHtmlContent);
+    }
+    forwardedAttachmentIds?.forEach(id => {
+      payload.append('forwarded_attachment_ids[]', id);
+    });
   } else {
     payload = {
       content: message,
@@ -43,6 +55,8 @@ export const buildCreatePayload = ({
       bcc_emails: bccEmails,
       to_emails: toEmails,
       template_params: templateParams,
+      email_html_content: emailHtmlContent,
+      forwarded_attachment_ids: forwardedAttachmentIds,
     };
   }
   return payload;
@@ -64,6 +78,9 @@ class MessageApi extends ApiClient {
     bccEmails = '',
     toEmails = '',
     templateParams,
+    isVoiceMessage = false,
+    emailHtmlContent,
+    forwardedAttachmentIds,
   }) {
     return axios({
       method: 'post',
@@ -78,6 +95,9 @@ class MessageApi extends ApiClient {
         bccEmails,
         toEmails,
         templateParams,
+        isVoiceMessage,
+        emailHtmlContent,
+        forwardedAttachmentIds,
       }),
     });
   }

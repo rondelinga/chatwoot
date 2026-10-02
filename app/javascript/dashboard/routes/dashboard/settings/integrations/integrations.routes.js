@@ -1,15 +1,37 @@
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import { frontendURL } from '../../../../helper/URLHelper';
+import store from 'dashboard/store';
 import SettingsWrapper from '../SettingsWrapper.vue';
 import IntegrationHooks from './IntegrationHooks.vue';
 import Index from './Index.vue';
 import Webhook from './Webhooks/Index.vue';
 import DashboardApps from './DashboardApps/Index.vue';
 import Slack from './Slack.vue';
-import SettingsContent from '../Wrapper.vue';
 import Linear from './Linear.vue';
 import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
+
+export const redirectShopifyIfUnavailable = async (to, _from, next) => {
+  const accountId = Number(to.params.accountId);
+  const account = store.getters['accounts/getAccount'](accountId);
+  if (!account.id) {
+    await store.dispatch('accounts/get', { accountId, silent: true });
+  }
+
+  const isShopifyEnabled = store.getters['accounts/isFeatureEnabledonAccount'](
+    accountId,
+    FEATURE_FLAGS.SHOPIFY
+  );
+
+  next(
+    isShopifyEnabled
+      ? undefined
+      : {
+          name: 'settings_applications',
+          params: { accountId: to.params.accountId },
+        }
+  );
+};
 
 export default {
   routes: [
@@ -49,28 +71,7 @@ export default {
     },
     {
       path: frontendURL('accounts/:accountId/settings/integrations'),
-      component: SettingsContent,
-      props: params => {
-        const integrationId = params.params?.integration_id;
-        const hideHeader = ['dialogflow'].includes(integrationId);
-
-        // Don't show header
-        if (hideHeader) {
-          return {};
-        }
-
-        const showBackButton = params.name !== 'settings_integrations';
-        const backUrl =
-          params.name === 'settings_integrations_integration'
-            ? { name: 'settings_integrations' }
-            : '';
-        return {
-          headerTitle: 'INTEGRATION_SETTINGS.HEADER',
-          icon: 'flash-on',
-          showBackButton,
-          backUrl,
-        };
-      },
+      component: SettingsWrapper,
       children: [
         {
           path: 'slack',
@@ -105,9 +106,10 @@ export default {
           name: 'settings_integrations_shopify',
           component: Shopify,
           meta: {
-            featureFlag: FEATURE_FLAGS.INTEGRATIONS,
+            featureFlag: FEATURE_FLAGS.SHOPIFY,
             permissions: ['administrator'],
           },
+          beforeEnter: redirectShopifyIfUnavailable,
           props: route => ({ error: route.query.error }),
         },
         {
