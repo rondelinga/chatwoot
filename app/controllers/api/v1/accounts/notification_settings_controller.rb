@@ -50,12 +50,8 @@ class Api::V1::Accounts::NotificationSettingsController < Api::V1::Accounts::Bas
 
   def update_settings
     settings_params = notification_setting_params
-    if settings_params.key?(:selected_email_flags)
-      @notification_setting.selected_email_flags = settings_params[:selected_email_flags]
-    end
-    if settings_params.key?(:selected_push_flags)
-      @notification_setting.selected_push_flags = settings_params[:selected_push_flags]
-    end
+    @notification_setting.selected_email_flags = settings_params[:selected_email_flags] if settings_params.key?(:selected_email_flags)
+    @notification_setting.selected_push_flags = settings_params[:selected_push_flags] if settings_params.key?(:selected_push_flags)
     if settings_params.key?(:notification_display_duration)
       @notification_setting.notification_display_duration = settings_params[:notification_display_duration]
     end

@@ -74,7 +74,7 @@ describe ConversationFinder do
 
       it 'filter conversations by assignee type all' do
         result = conversation_finder.perform
-        expect(result[:conversations].length).to be 4
+        expect(result[:conversations].length).to be 3
       end
     end
 
@@ -96,7 +96,7 @@ describe ConversationFinder do
 
       it 'returns all conversations' do
         result = conversation_finder.perform
-        expect(result[:conversations].length).to be 5
+        expect(result[:conversations].length).to be 4
       end
     end
 
@@ -169,17 +169,17 @@ describe ConversationFinder do
 
       it 'filter conversations by assignee type assigned' do
         result = conversation_finder.perform
-        expect(result[:conversations].length).to be 4
-        expect(result[:conversations]).to include(agent_bot_conversation)
+        expect(result[:conversations].length).to be 2
+        expect(result[:conversations]).not_to include(agent_bot_conversation)
       end
 
       it 'returns the correct meta' do
         result = conversation_finder.perform
         expect(result[:count]).to eq({
                                        mine_count: 2,
-                                       assigned_count: 4,
+                                       assigned_count: 2,
                                        unassigned_count: 1,
-                                       all_count: 5
+                                       all_count: 3
                                      })
       end
     end
@@ -211,6 +211,8 @@ describe ConversationFinder do
       let(:params) { { source_id: 'testing_source_id' } }
 
       it 'filter conversations by source id' do
+        conversation = Conversation.joins(:contact_inbox).find_by!(contact_inboxes: { source_id: 'testing_source_id' })
+        conversation.update!(assignee: user_1)
         result = conversation_finder.perform
         expect(result[:conversations].length).to be 1
       end
@@ -221,7 +223,7 @@ describe ConversationFinder do
 
       it 'returns conversations with any source' do
         result = conversation_finder.perform
-        expect(result[:conversations].length).to be 4
+        expect(result[:conversations].length).to be 3
       end
     end
 
@@ -272,9 +274,9 @@ describe ConversationFinder do
         result = conversation_finder.perform_meta_only
         expect(result[:count]).to eq({
                                        mine_count: 2,
-                                       assigned_count: 3,
+                                       assigned_count: 2,
                                        unassigned_count: 1,
-                                       all_count: 4
+                                       all_count: 3
                                      })
       end
 

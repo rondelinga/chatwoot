@@ -55,6 +55,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with identifier' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -70,6 +72,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with email' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -84,6 +88,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact when an uppercase email is passed for an already existing contact email' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -98,6 +104,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with phone number' do
+      create(:contact_inbox, contact: contact, inbox: inbox)
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,

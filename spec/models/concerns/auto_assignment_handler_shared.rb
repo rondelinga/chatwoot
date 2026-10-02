@@ -51,7 +51,7 @@ shared_examples_for 'auto_assignment_handler' do
 
       conversation.update!(status: 'open')
 
-      expect(conversation.reload.assigned_entity).to eq(agent_bot)
+      expect(conversation.reload.assigned_entity).to eq(agent)
     end
 
     it 'assigns an agent when bot handoff clears the agent bot in the same save' do

@@ -61,10 +61,7 @@ module ActivityMessageHandler
       activity_message_params(
         content,
         content_attributes: {
-          activity: {
-            type: 'conversation_status_changed',
-            status: status
-          }
+          activity: { type: 'conversation_status_changed', status: status }
         }
       )
     )

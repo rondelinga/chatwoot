@@ -198,7 +198,7 @@ class RailsUpgrade::Preflight
 
   def report(name, passed, details = {})
     @failures += 1 unless passed
-    puts({ check: name, status: passed ? 'PASS' : 'FAIL' }.merge(details).to_json)
+    Rails.logger.debug({ check: name, status: passed ? 'PASS' : 'FAIL' }.merge(details).to_json)
   end
 end
 

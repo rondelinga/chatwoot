@@ -6,7 +6,7 @@ module Enterprise::AccountUser
   def custom_role_permission?(*names)
     return false if custom_role.blank?
 
-    (custom_role.permissions & names.flatten.map(&:to_s)).any?
+    custom_role.permissions.intersect?(names.flatten.map(&:to_s))
   end
 
   # Missed calls are pushed by default, alongside the core defaults

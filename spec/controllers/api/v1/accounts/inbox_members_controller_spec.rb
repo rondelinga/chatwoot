@@ -88,9 +88,9 @@ RSpec.describe 'Inbox Member API', type: :request do
              params: params,
              as: :json
 
-        expect(response).to have_http_status(:success)
-        expect(inbox.inbox_members&.count).to eq(2)
-        expect(inbox.inbox_members&.second&.user).to eq(agent_to_add)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Direct agent assignment is disabled. Assign teams to the inbox instead.')
+        expect(inbox.inbox_members&.count).to eq(1)
       end
 
       it 'renders not found when inbox not found' do
@@ -113,43 +113,7 @@ RSpec.describe 'Inbox Member API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Invalid User IDs')
-      end
-
-      it 'rejects users who only belong to another account' do
-        other_agent = create(:user, account: create(:account))
-
-        post "/api/v1/accounts/#{account.id}/inbox_members",
-             headers: administrator.create_new_auth_token,
-             params: { inbox_id: inbox.id, user_ids: [other_agent.id] },
-             as: :json
-
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(inbox.inbox_members.pluck(:user_id)).to eq([old_agent.id])
-      end
-
-      it 'rejects mixed account membership without adding any users' do
-        other_agent = create(:user, account: create(:account))
-
-        post "/api/v1/accounts/#{account.id}/inbox_members",
-             headers: administrator.create_new_auth_token,
-             params: { inbox_id: inbox.id, user_ids: [agent_to_add.id, other_agent.id] },
-             as: :json
-
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(inbox.inbox_members.pluck(:user_id)).to eq([old_agent.id])
-      end
-
-      it 'adds users who belong to this account and another account' do
-        create(:account_user, account: create(:account), user: agent_to_add)
-
-        post "/api/v1/accounts/#{account.id}/inbox_members",
-             headers: administrator.create_new_auth_token,
-             params: { inbox_id: inbox.id, user_ids: [agent_to_add.id] },
-             as: :json
-
-        expect(response).to have_http_status(:success)
-        expect(inbox.inbox_members.pluck(:user_id)).to contain_exactly(old_agent.id, agent_to_add.id)
+        expect(response.body).to include('Direct agent assignment is disabled. Assign teams to the inbox instead.')
       end
     end
   end
@@ -199,9 +163,10 @@ RSpec.describe 'Inbox Member API', type: :request do
               params: params,
               as: :json
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Direct agent assignment is disabled. Assign teams to the inbox instead.')
         expect(inbox.inbox_members&.count).to eq(1)
-        expect(inbox.inbox_members&.first&.user).to eq(agent_to_add)
+        expect(inbox.inbox_members&.first&.user).to eq(old_agent)
       end
 
       it 'renders not found when inbox not found' do
@@ -224,43 +189,7 @@ RSpec.describe 'Inbox Member API', type: :request do
               as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['error']).to eq('Invalid User IDs')
-      end
-
-      it 'rejects users who only belong to another account' do
-        other_agent = create(:user, account: create(:account))
-
-        patch "/api/v1/accounts/#{account.id}/inbox_members",
-              headers: administrator.create_new_auth_token,
-              params: { inbox_id: inbox.id, user_ids: [other_agent.id] },
-              as: :json
-
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(inbox.inbox_members.pluck(:user_id)).to eq([old_agent.id])
-      end
-
-      it 'rejects mixed account membership without changing any users' do
-        other_agent = create(:user, account: create(:account))
-
-        patch "/api/v1/accounts/#{account.id}/inbox_members",
-              headers: administrator.create_new_auth_token,
-              params: { inbox_id: inbox.id, user_ids: [agent_to_add.id, other_agent.id] },
-              as: :json
-
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(inbox.inbox_members.pluck(:user_id)).to eq([old_agent.id])
-      end
-
-      it 'adds users who belong to this account and another account' do
-        create(:account_user, account: create(:account), user: agent_to_add)
-
-        patch "/api/v1/accounts/#{account.id}/inbox_members",
-              headers: administrator.create_new_auth_token,
-              params: { inbox_id: inbox.id, user_ids: [agent_to_add.id] },
-              as: :json
-
-        expect(response).to have_http_status(:success)
-        expect(inbox.inbox_members.pluck(:user_id)).to eq([agent_to_add.id])
+        expect(response.body).to include('Direct agent assignment is disabled. Assign teams to the inbox instead.')
       end
     end
   end
@@ -312,8 +241,9 @@ RSpec.describe 'Inbox Member API', type: :request do
                params: params,
                as: :json
 
-        expect(response).to have_http_status(:success)
-        expect(inbox.inbox_members&.count).to eq(1)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Direct agent assignment is disabled. Assign teams to the inbox instead.')
+        expect(inbox.inbox_members&.count).to eq(2)
       end
 
       it 'renders not found when inbox not found' do
@@ -336,7 +266,8 @@ RSpec.describe 'Inbox Member API', type: :request do
                params: params,
                as: :json
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Direct agent assignment is disabled. Assign teams to the inbox instead.')
         expect(inbox.inbox_members&.count).to eq(original_count)
       end
 
@@ -349,7 +280,8 @@ RSpec.describe 'Inbox Member API', type: :request do
                params: params,
                as: :json
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Direct agent assignment is disabled. Assign teams to the inbox instead.')
         expect(inbox.inbox_members&.count).to eq(original_count)
       end
     end

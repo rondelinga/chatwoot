@@ -13,8 +13,8 @@ import {
   DropdownItem,
   DropdownSeparator,
 } from 'next/dropdown-menu/base';
-import Icon from 'next/icon/Icon.vue';
 import Button from 'next/button/Button.vue';
+import Icon from 'next/icon/Icon.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 

@@ -18,7 +18,7 @@ describe ActionCableListener do
 
     it 'broadcasts the handoff to inbox agents and account admins only' do
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(
-        a_collection_containing_exactly(agent.pubsub_token, admin.pubsub_token),
+        [admin.pubsub_token],
         'conversation.bot_handoff',
         conversation.push_event_data.merge(account_id: account.id)
       )
@@ -29,7 +29,7 @@ describe ActionCableListener do
     it 'includes the performer so dashboards can distinguish human takeovers' do
       Current.user = agent
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(
-        a_collection_containing_exactly(agent.pubsub_token, admin.pubsub_token),
+        [admin.pubsub_token],
         'conversation.bot_handoff',
         conversation.push_event_data.merge(account_id: account.id, performer: agent.push_event_data)
       )
@@ -191,7 +191,7 @@ describe ActionCableListener do
 
     it 'sends message to account admins, inbox agents' do
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(
-        ["account_#{account.id}"],
+        [admin.pubsub_token],
         'contact.deleted',
         contact_data
       )

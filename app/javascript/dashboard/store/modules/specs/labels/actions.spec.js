@@ -27,6 +27,7 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([
         [types.default.SET_LABEL_UI_FLAG, { isFetching: true }],
         [types.default.SET_LABELS, labelsList],
+        [types.default.SET_PINNED_LABELS, []],
         [types.default.SET_LABEL_UI_FLAG, { isFetching: false }],
       ]);
     });

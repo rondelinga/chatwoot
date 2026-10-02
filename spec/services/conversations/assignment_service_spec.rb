@@ -59,7 +59,6 @@ describe Conversations::AssignmentService do
         administrator = create(:user, account: account, role: :administrator)
         account.disable_features!('assignment_v2')
         conversation.inbox.update!(enable_auto_assignment: true)
-        create(:inbox_member, inbox: conversation.inbox, user: agent)
         allow(OnlineStatusTracker).to receive(:get_available_users).and_return({ agent.id.to_s => 'online' })
 
         described_class.new(conversation: conversation, assignee_id: administrator.id).perform

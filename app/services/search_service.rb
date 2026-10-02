@@ -1,4 +1,8 @@
 class SearchService
+  include Search::TimeWindow
+  include Search::InboxAccess
+  include Search::MessageFilters
+
   pattr_initialize [:current_user!, :current_account!, :params!, :search_type!]
 
   def account_user

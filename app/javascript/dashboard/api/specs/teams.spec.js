@@ -38,25 +38,31 @@ describe('#TeamsAPI', () => {
     });
 
     it('#addAgents', () => {
-      teamsAPI.addAgents({ teamId: 1, agentsList: { user_ids: [1, 10, 21] } });
+      teamsAPI.addAgents({
+        teamId: 1,
+        primaryUserIds: [1, 10],
+        backupUserIds: [21],
+      });
       expect(axiosMock.post).toHaveBeenCalledWith(
         '/api/v1/teams/1/team_members',
         {
-          user_ids: { user_ids: [1, 10, 21] },
+          primary_user_ids: [1, 10],
+          backup_user_ids: [21],
         }
       );
     });
 
     it('#updateAgents', () => {
-      const agentsList = { user_ids: [1, 10, 21] };
       teamsAPI.updateAgents({
         teamId: 1,
-        agentsList,
+        primaryUserIds: [1, 10],
+        backupUserIds: [21],
       });
       expect(axiosMock.patch).toHaveBeenCalledWith(
         '/api/v1/teams/1/team_members',
         {
-          user_ids: agentsList,
+          primary_user_ids: [1, 10],
+          backup_user_ids: [21],
         }
       );
     });

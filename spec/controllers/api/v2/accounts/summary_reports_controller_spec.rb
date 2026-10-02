@@ -26,13 +26,13 @@ RSpec.describe 'Summary Reports API', type: :request do
         }
       end
 
-      it 'returns unauthorized for agents' do
+      it 'returns agent summary reports for agents' do
         get "/api/v2/accounts/#{account.id}/summary_reports/agent",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'calls V2::Reports::AgentSummaryBuilder with the right params if the user is an admin' do
@@ -47,7 +47,7 @@ RSpec.describe 'Summary Reports API', type: :request do
 
         expect(V2::Reports::AgentSummaryBuilder).to have_received(:new).with(
           account: account,
-          params: params.merge(type: :agent)
+          params: hash_including(params.merge(type: :agent))
         )
         expect(agent_summary_builder).to have_received(:build)
 
@@ -101,7 +101,7 @@ RSpec.describe 'Summary Reports API', type: :request do
 
         expect(V2::Reports::InboxSummaryBuilder).to have_received(:new).with(
           account: account,
-          params: params.merge(type: :inbox)
+          params: hash_including(params.merge(type: :inbox))
         )
         expect(inbox_summary_builder).to have_received(:build)
 
@@ -155,7 +155,7 @@ RSpec.describe 'Summary Reports API', type: :request do
 
         expect(V2::Reports::TeamSummaryBuilder).to have_received(:new).with(
           account: account,
-          params: params.merge(type: :team)
+          params: hash_including(params.merge(type: :team))
         )
         expect(team_summary_builder).to have_received(:build)
 

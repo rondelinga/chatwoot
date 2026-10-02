@@ -324,6 +324,7 @@ describe Conversations::FilterService do
       end
 
       it 'filter conversations by tags' do
+        user_2_assigned_conversation.update!(assignee: user_1)
         user_2_assigned_conversation.update_labels('support')
         params[:payload] = [
           {
@@ -511,6 +512,7 @@ describe Conversations::FilterService do
       end
 
       it 'filter by custom_attributes and labels' do
+        user_2_assigned_conversation.update!(assignee: nil)
         user_2_assigned_conversation.update_labels('support')
         params[:payload] = [
           {
@@ -539,6 +541,7 @@ describe Conversations::FilterService do
       end
 
       it 'filter by custom_attributes and labels with custom_attribute_type nil' do
+        user_2_assigned_conversation.update!(assignee: nil)
         user_2_assigned_conversation.update_labels('support')
         params[:payload] = [
           {
@@ -580,6 +583,7 @@ describe Conversations::FilterService do
       end
 
       it 'filter by custom_attributes' do
+        user_2_assigned_conversation.update!(assignee: nil)
         params[:payload] = [
           {
             attribute_key: 'conversation_type',
@@ -601,6 +605,7 @@ describe Conversations::FilterService do
       end
 
       it 'filter by custom_attributes with custom_attribute_type nil' do
+        user_2_assigned_conversation.update!(assignee: nil)
         params[:payload] = [
           {
             attribute_key: 'conversation_type',
@@ -664,7 +669,8 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
+        expected_count = Conversations::PermissionFilterService.new(account.conversations, user_1, account).perform
+                                                               .where('created_at > ?', DateTime.parse('2022-01-20')).count
         expect(result[:conversations].length).to eq expected_count
       end
 
@@ -792,8 +798,9 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
-                                                     DateTime.parse('2022-01-20'), 'platinum').count
+        expected_count = Conversations::PermissionFilterService.new(account.conversations, user_1, account).perform
+                                                               .where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
+                                                                      DateTime.parse('2022-01-20'), 'platinum').count
 
         expect(result[:conversations].length).to eq expected_count
       end
@@ -921,7 +928,8 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
+        expected_count = Conversations::PermissionFilterService.new(account.conversations, user_1, account).perform
+                                                               .where('created_at > ?', DateTime.parse('2022-01-20')).count
 
         expect(Current.account).to be_nil
         expect(result[:conversations].length).to eq expected_count
@@ -953,9 +961,9 @@ describe Conversations::FilterService do
 
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 4,
+        assigned_count: 3,
         unassigned_count: 1,
-        all_count: 5
+        all_count: 4
       )
     end
 
@@ -967,9 +975,9 @@ describe Conversations::FilterService do
 
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 5,
+        assigned_count: 4,
         unassigned_count: 1,
-        all_count: 6
+        all_count: 5
       )
     end
 

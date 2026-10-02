@@ -26,22 +26,30 @@ class ConversationBuilder
   end
 
   def conversation_params
-    additional_attributes = (params[:additional_attributes]&.permit! || {}).to_h.merge(telegram_additional_attributes)
-    custom_attributes = params[:custom_attributes]&.permit! || {}
-    status = params[:status].present? ? { status: params[:status] } : {}
+    base_conversation_params.compact.merge(conversation_status_param)
+  end
 
+  def base_conversation_params
     {
       account_id: @contact_inbox.inbox.account_id,
       inbox_id: @contact_inbox.inbox_id,
       contact_id: @contact_inbox.contact_id,
       contact_inbox_id: @contact_inbox.id,
-      additional_attributes: additional_attributes,
-      custom_attributes: custom_attributes,
+      additional_attributes: merged_additional_attributes,
+      custom_attributes: params[:custom_attributes]&.permit! || {},
       snoozed_until: params[:snoozed_until],
       assignee_id: params[:assignee_id],
       team_id: params[:team_id],
       assignee_agent_bot_id: params[:assignee_agent_bot_id]
-    }.compact.merge(status)
+    }
+  end
+
+  def merged_additional_attributes
+    (params[:additional_attributes]&.permit! || {}).to_h.merge(telegram_additional_attributes)
+  end
+
+  def conversation_status_param
+    params[:status].present? ? { status: params[:status] } : {}
   end
 
   # Telegram requires the chat_id to be present in additional_attributes to be able to

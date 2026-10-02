@@ -146,6 +146,7 @@ describe('#Reports API', () => {
               business_hours: true,
             },
             responseType: undefined,
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -167,6 +168,7 @@ describe('#Reports API', () => {
               business_hours: true,
             },
             responseType: 'blob',
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -188,6 +190,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: undefined,
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -208,6 +211,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: 'blob',
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -229,6 +233,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: undefined,
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -249,6 +254,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: 'blob',
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -270,6 +276,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: undefined,
+            paramsSerializer: expect.any(Function),
           }
         );
       });
@@ -290,6 +297,7 @@ describe('#Reports API', () => {
               business_hours: undefined,
             },
             responseType: 'blob',
+            paramsSerializer: expect.any(Function),
           }
         );
       });

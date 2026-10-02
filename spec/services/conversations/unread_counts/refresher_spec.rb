@@ -93,6 +93,7 @@ RSpec.describe Conversations::UnreadCounts::Refresher do
   end
 
   it 'moves assignment-aware membership when assignee changes' do
+    create(:inbox_member, inbox: inbox, user: other_assignee)
     conversation = create_unread_conversation(account: account, inbox: inbox, labels: [label.title], assignee: assignee)
     Conversations::UnreadCounts::Builder.new(account).build_assignment!
 

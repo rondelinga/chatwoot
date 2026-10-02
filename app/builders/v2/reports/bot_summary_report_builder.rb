@@ -21,7 +21,7 @@ class V2::Reports::BotSummaryReportBuilder < V2::Reports::BaseSummaryBuilder
   def fetch_conversations_count
     pairs = AgentBotInbox.where(account_id: account.id, status: :active).pluck(:inbox_id, :agent_bot_id)
     allowed = Array(params[:inbox_ids]).reject(&:blank?).map(&:to_i)
-    pairs = pairs.select { |inbox_id, _bot_id| allowed.include?(inbox_id) } if allowed.present?
+    pairs = pairs.slice(*allowed) if allowed.present?
     return {} if pairs.empty?
 
     inbox_to_bot = pairs.to_h

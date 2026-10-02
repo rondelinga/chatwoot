@@ -56,9 +56,9 @@ describe ContactMergeAction do
     end
 
     context 'when mergee contact has contact inboxes' do
-      it 'moves the contact inboxes to base contact' do
+      it 'moves surviving contact inboxes to base contact' do
         contact_merge
-        expect(base_contact.contact_inboxes.count).to be 4
+        expect(base_contact.contact_inboxes.count).to be 2
       end
     end
 

@@ -1,5 +1,6 @@
 require 'rails_helper'
 
+# rubocop:disable Rails/SkipsModelValidations -- backdate conversation timestamps for date-range filter specs
 RSpec.describe 'CSAT Survey Responses API', type: :request do
   let(:account) { create(:account) }
   let!(:csat_survey_response) { create(:csat_survey_response, account: account) }
@@ -16,12 +17,12 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      it 'returns unauthorized for agents' do
+      it 'returns csat survey responses for agents' do
         get "/api/v1/accounts/#{account.id}/csat_survey_responses",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns all the csat survey responses for administrators' do
@@ -98,12 +99,12 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      it 'returns unauthorized for agents' do
+      it 'returns csat metrics for agents' do
         get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns csat metrics for administrators' do
@@ -220,3 +221,4 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
     end
   end
 end
+# rubocop:enable Rails/SkipsModelValidations

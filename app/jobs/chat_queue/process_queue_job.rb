@@ -31,22 +31,31 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
   def assign_up_to_capacity(queue_service, account)
     capacity_service = ChatQueue::Agents::CapacityService.new(account: account)
     available_slots = capacity_service.available_slots
+    return if log_no_capacity(capacity_service, available_slots)
 
-    if available_slots&.zero?
-      Rails.logger.info "[QUEUE][JOB] No available capacity (active=#{capacity_service.active_chats_count}, " \
-                        "limits=#{capacity_service.total_online_limits})"
-      return
-    end
+    max_assignments = assignment_limit(available_slots, queue_service)
+    log_assignment_plan(max_assignments, available_slots, queue_service)
+    assign_next_conversations(queue_service, account, max_assignments)
+  end
 
-    max_assignments = if available_slots.nil?
-                        queue_service.queue_size
-                      else
-                        [available_slots, queue_service.queue_size].min
-                      end
+  def log_no_capacity(capacity_service, available_slots)
+    return false unless available_slots&.zero?
 
+    Rails.logger.info "[QUEUE][JOB] No available capacity (active=#{capacity_service.active_chats_count}, " \
+                      "limits=#{capacity_service.total_online_limits})"
+    true
+  end
+
+  def assignment_limit(available_slots, queue_service)
+    available_slots.nil? ? queue_service.queue_size : [available_slots, queue_service.queue_size].min
+  end
+
+  def log_assignment_plan(max_assignments, available_slots, queue_service)
     Rails.logger.info "[QUEUE][JOB] Assigning up to #{max_assignments} conversations " \
                       "(available_slots=#{available_slots.inspect}, queue=#{queue_service.queue_size})"
+  end
 
+  def assign_next_conversations(queue_service, account, max_assignments)
     max_assignments.times do |attempt|
       conv = fetch_conversation_or_stop(account)
       break unless conv
@@ -87,7 +96,7 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     Rails.logger.info "[QUEUE][JOB] Picked conversation_queue_id=#{conv.id} conv_id=#{conv.conversation_id} position=#{conv.position}"
   end
 
-  def try_assign(queue_service, conv, account)
+  def try_assign(queue_service, conv, _account)
     conversation = Conversation.find_by(id: conv.conversation_id)
     return false unless conversation
 
@@ -97,36 +106,43 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
   end
 
   def try_agents_for_tier(queue_service, conv, conversation, tier)
-    agent_ids = ChatQueue::Agents::OnlineAgentsService.new(
-      account: conversation.account,
-      team_id: conversation.team_id,
-      assignment_tier: tier
-    ).list
-
+    agent_ids = online_agent_ids_for(conversation, tier)
     Rails.logger.info "[QUEUE][JOB] Online #{tier} agents sorted: #{agent_ids.inspect}"
     return false if agent_ids.empty?
 
     agents = User.where(id: agent_ids).index_by(&:id)
     Rails.logger.info "[QUEUE][JOB] Loaded #{tier} agents: #{agents.keys.inspect}"
+    assign_to_first_available_agent(queue_service, conv, tier, agent_ids, agents)
+  end
 
+  def online_agent_ids_for(conversation, tier)
+    ChatQueue::Agents::OnlineAgentsService.new(
+      account: conversation.account,
+      team_id: conversation.team_id,
+      assignment_tier: tier
+    ).list
+  end
+
+  def assign_to_first_available_agent(queue_service, conv, tier, agent_ids, agents)
     agent_ids.each do |agent_id|
-      agent = agents[agent_id]
+      return true if assign_to_agent(queue_service, conv, tier, agents[agent_id], agent_id)
+    end
+    false
+  end
 
-      unless agent
-        Rails.logger.info "[QUEUE][JOB] Agent #{agent_id} is missing, skipping"
-        next
-      end
-
-      Rails.logger.info "[QUEUE][JOB] Trying to assign conv_id=#{conv.conversation_id} to #{tier} agent_id=#{agent.id}"
-
-      if queue_service.assign_specific_from_queue!(agent, conv.conversation_id)
-        Rails.logger.info "[QUEUE][JOB] SUCCESS assigned conv_id=#{conv.conversation_id} to agent_id=#{agent.id}"
-        return true
-      end
-
-      Rails.logger.info "[QUEUE][JOB] FAIL assign to agent_id=#{agent.id}, trying next"
+  def assign_to_agent(queue_service, conv, tier, agent, agent_id)
+    unless agent
+      Rails.logger.info "[QUEUE][JOB] Agent #{agent_id} is missing, skipping"
+      return false
     end
 
+    Rails.logger.info "[QUEUE][JOB] Trying to assign conv_id=#{conv.conversation_id} to #{tier} agent_id=#{agent.id}"
+    if queue_service.assign_specific_from_queue!(agent, conv.conversation_id)
+      Rails.logger.info "[QUEUE][JOB] SUCCESS assigned conv_id=#{conv.conversation_id} to agent_id=#{agent.id}"
+      return true
+    end
+
+    Rails.logger.info "[QUEUE][JOB] FAIL assign to agent_id=#{agent.id}, trying next"
     false
   end
 
