@@ -2,6 +2,8 @@ class MessageTemplates::Template::CsatSurvey
   pattr_initialize [:conversation!, :existing_response]
 
   def perform
+    return if contact.reload.blocked?
+
     ActiveRecord::Base.transaction do
       conversation.messages.create!(csat_survey_message_params)
     end

@@ -116,6 +116,19 @@ const fetchReplyMessage = async (messageId, conversationId) => {
   }
 };
 
+const findNextMessageForGrouping = startIndex => {
+  for (let i = startIndex + 1; i < timeline.value.length; i += 1) {
+    const entry = timeline.value[i];
+    if (entry.recipient) return null;
+
+    if (entry.message.messageType !== MESSAGE_TYPES.ACTIVITY) {
+      return entry.message;
+    }
+  }
+
+  return null;
+};
+
 /**
  * Determines if a message should be grouped with the next message
  * @param {Object} current - Current message
@@ -123,6 +136,7 @@ const fetchReplyMessage = async (messageId, conversationId) => {
  * @returns {Boolean} - Whether the message should be grouped with next
  */
 const shouldGroupWithNext = (current, next) => {
+  if (current.messageType === MESSAGE_TYPES.ACTIVITY) return false;
   if (!next || next.status === 'failed') return false;
 
   const nextSenderId = next.senderId ?? next.sender?.id;
@@ -140,7 +154,6 @@ const shouldGroupWithNext = (current, next) => {
 
   if (currentMessageType !== nextMessageType) return false;
 
-  // Check if messages are in the same minute by rounding down to nearest minute
   return Math.floor(next.createdAt / 60) === Math.floor(current.createdAt / 60);
 };
 
@@ -198,7 +211,7 @@ const getInReplyToMessage = parentMessage => {
         :is-email-inbox="isAnEmailChannel"
         :in-reply-to="getInReplyToMessage(entry.message)"
         :group-with-next="
-          shouldGroupWithNext(entry.message, timeline[index + 1]?.message)
+          shouldGroupWithNext(entry.message, findNextMessageForGrouping(index))
         "
         :inbox-supports-reply-to="inboxSupportsReplyTo"
         :current-user-id="currentUserId"
