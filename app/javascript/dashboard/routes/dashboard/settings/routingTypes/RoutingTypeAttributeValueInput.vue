@@ -12,6 +12,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  suspendValueReset: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['blur']);
@@ -63,10 +67,15 @@ const resetValueForAttribute = () => {
 watch(
   () => props.attributeKey,
   (newKey, oldKey) => {
-    if (newKey === oldKey) return;
+    if (props.suspendValueReset || newKey === oldKey) return;
 
     if (!newKey) {
       modelValue.value = '';
+      return;
+    }
+
+    if (!oldKey) {
+      if (!modelValue.value) resetValueForAttribute();
       return;
     }
 
@@ -76,9 +85,9 @@ watch(
 </script>
 
 <template>
-  <div v-if="displayType === 'checkbox'" class="flex items-center h-6">
+  <div v-if="displayType === 'checkbox'" class="flex items-center gap-2 mt-1">
     <Switch v-model="booleanValue" @change="emit('blur')" />
-    <span class="ml-2 text-sm text-n-slate-9">
+    <span class="text-sm text-n-slate-11">
       {{
         booleanValue
           ? t('FILTER.ATTRIBUTE_LABELS.TRUE')
@@ -90,7 +99,6 @@ watch(
   <select
     v-else-if="displayType === 'list'"
     v-model="modelValue"
-    class="h-6 bg-transparent border-0 outline-none text-sm text-n-slate-9 p-0 w-full"
     @blur="emit('blur')"
   >
     <option v-if="!listOptions.length" value="" disabled>
@@ -106,7 +114,6 @@ watch(
     v-model="modelValue"
     :type="inputType"
     :placeholder="$t('ROUTING_TYPES.FORM.ATTRIBUTE_VALUE.PLACEHOLDER')"
-    class="h-6 bg-transparent border-0 outline-none text-sm text-n-slate-9 placeholder:text-n-slate-8 p-0 w-full"
     data-testid="routing-type-value"
     @blur="emit('blur')"
   />
