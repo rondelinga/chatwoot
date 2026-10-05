@@ -258,9 +258,6 @@ export const mutations = {
       }
     } else {
       pushMessageInOrder(chat, message);
-      if (!chat.timestamp || message.created_at > chat.timestamp) {
-        chat.timestamp = message.created_at;
-      }
 
       const isAgentOrContact =
         message.message_type === 0 ||
@@ -268,7 +265,11 @@ export const mutations = {
         message.message_type === 'incoming' ||
         message.message_type === 'outgoing';
 
-      if (isAgentOrContact) {
+      if (!message.private) {
+        chat.timestamp = message.created_at;
+      }
+
+      if (isAgentOrContact && !message.private) {
         chat.last_non_activity_message = message;
       }
 

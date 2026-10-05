@@ -11,9 +11,9 @@ module ConversationMuteHelpers
   def mute!(banned_until: nil, timezone: nil)
     return unless contact
 
-    resolved!
     blocked_until = parse_banned_until(banned_until)
     contact.update!(blocked: true, blocked_until: blocked_until)
+    resolved!
     create_muted_message(blocked_until: blocked_until, timezone: timezone)
   end
 

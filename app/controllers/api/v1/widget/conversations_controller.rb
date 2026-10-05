@@ -86,6 +86,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
   def request_csat
     return head :unprocessable_entity unless like_dislike_csat_enabled?
+    return head :forbidden if conversation.contact&.blocked?
 
     create_csat_prompt
     head :ok

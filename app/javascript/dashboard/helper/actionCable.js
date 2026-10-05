@@ -234,13 +234,16 @@ class ActionCableConnector extends BaseActionCableConnector {
     const {
       conversation: { last_activity_at: lastActivityAt },
       conversation_id: conversationId,
+      private: isPrivate,
     } = data;
     DashboardAudioNotificationHelper.onNewMessage(data);
     this.app.$store.dispatch('addMessage', data);
-    this.app.$store.dispatch('updateConversationLastActivity', {
-      lastActivityAt,
-      conversationId,
-    });
+    if (!isPrivate) {
+      this.app.$store.dispatch('updateConversationLastActivity', {
+        lastActivityAt,
+        conversationId,
+      });
+    }
   };
 
   // eslint-disable-next-line class-methods-use-this
