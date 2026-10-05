@@ -864,6 +864,32 @@ const menuItems = computed(() => {
           activeOn: ['routing_types_list'],
           to: accountScopedRoute('routing_types_list'),
         },
+        {
+          name: 'Settings Inboxes',
+          label: t('SIDEBAR.INBOXES'),
+          icon: 'i-lucide-inbox',
+          activeOn: [
+            'settings_inbox_list',
+            'settings_inbox_show',
+            'settings_inbox_new',
+            'settings_inbox_finish',
+            'settings_inboxes_page_channel',
+            'settings_inboxes_add_agents',
+          ],
+          to: accountScopedRoute('settings_inbox_list'),
+        },
+        {
+          name: 'Settings Custom Attributes',
+          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
+          icon: 'i-lucide-code',
+          to: accountScopedRoute('attributes_list'),
+        },
+        {
+          name: 'Settings Custom Roles',
+          label: t('SIDEBAR.CUSTOM_ROLES'),
+          icon: 'i-lucide-shield-plus',
+          to: accountScopedRoute('custom_roles_list'),
+        },
         ...(hasAdvancedAssignment.value
           ? [
               {
@@ -884,20 +910,6 @@ const menuItems = computed(() => {
             ]
           : []),
         {
-          name: 'Settings Inboxes',
-          label: t('SIDEBAR.INBOXES'),
-          icon: 'i-lucide-inbox',
-          activeOn: [
-            'settings_inbox_list',
-            'settings_inbox_show',
-            'settings_inbox_new',
-            'settings_inbox_finish',
-            'settings_inboxes_page_channel',
-            'settings_inboxes_add_agents',
-          ],
-          to: accountScopedRoute('settings_inbox_list'),
-        },
-        {
           name: 'Settings Templates',
           label: t('SIDEBAR.WHATSAPP_TEMPLATES'),
           icon: 'i-lucide-layout-template',
@@ -908,12 +920,6 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.LABELS'),
           icon: 'i-lucide-tags',
           to: accountScopedRoute('labels_list'),
-        },
-        {
-          name: 'Settings Custom Attributes',
-          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
-          icon: 'i-lucide-code',
-          to: accountScopedRoute('attributes_list'),
         },
         {
           name: 'Settings Automation',
@@ -960,12 +966,6 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('auditlogs_list'),
-        },
-        {
-          name: 'Settings Custom Roles',
-          label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
-          to: accountScopedRoute('custom_roles_list'),
         },
         {
           name: 'Settings Sla',
