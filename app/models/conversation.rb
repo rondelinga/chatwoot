@@ -98,15 +98,18 @@ class Conversation < ApplicationRecord
     order(unread_messages_count_arel.desc).sort_on_last_activity_at('desc')
   }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
+  scope :auto_resolvable, -> { where(status: %i[open queued]) }
   scope :resolvable_not_waiting, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
-    open.where('last_activity_at < ? AND waiting_since IS NULL', Time.now.utc - auto_resolve_after.minutes)
+    threshold = Time.now.utc - auto_resolve_after.minutes
+    open.where('last_activity_at < ? AND waiting_since IS NULL', threshold)
+        .or(queued.where('last_activity_at < ?', threshold))
   }
   scope :resolvable_all, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
-    open.where('last_activity_at < ?', Time.now.utc - auto_resolve_after.minutes)
+    auto_resolvable.where('last_activity_at < ?', Time.now.utc - auto_resolve_after.minutes)
   }
   scope :resolvable_pending, lambda { |auto_resolve_pending_after|
     return none if auto_resolve_pending_after.to_i.zero?
@@ -208,7 +211,7 @@ class Conversation < ApplicationRecord
 
   def toggle_status
     # FIXME: implement state machine with aasm
-    self.status = open? ? :resolved : :open
+    self.status = open? || queued? ? :resolved : :open
     self.status = :open if pending? || snoozed?
     save
   end
