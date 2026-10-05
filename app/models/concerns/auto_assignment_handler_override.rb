@@ -51,14 +51,21 @@ module AutoAssignmentHandlerOverride
   def handle_standard_assignment
     return if assignee.present?
 
-    allowed_ids = inbox.member_ids_with_assignment_capacity || []
+    allowed_ids = allowed_agent_ids_for_assignment
     return if allowed_ids.empty?
 
-    assignee = ::AutoAssignment::AgentAssignmentService.new(
+    new_assignee = ::AutoAssignment::AgentAssignmentService.new(
       conversation: self,
       allowed_agent_ids: allowed_ids
     ).find_assignee
 
-    update!(assignee: assignee) if assignee
+    update!(assignee: new_assignee) if new_assignee
+  end
+
+  def allowed_agent_ids_for_assignment
+    ids = inbox.member_ids_with_assignment_capacity || []
+    return ids if team_id.blank? || team.blank? || team.allow_auto_assign.blank?
+
+    ids & team.members.ids
   end
 end

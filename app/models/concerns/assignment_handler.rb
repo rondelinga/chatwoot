@@ -12,11 +12,17 @@ module AssignmentHandler
   def ensure_assignee_is_from_team
     return unless team_id_changed?
     return if ai_assignee_type.present?
-
-    validate_current_assignee_team
     return if assignee_agent_bot_id.present?
 
-    self.assignee ||= find_assignee_from_team
+    if team.blank?
+      validate_current_assignee_team
+      return
+    end
+
+    return validate_current_assignee_team if team.allow_auto_assign.blank?
+
+    self.assignee_id = nil
+    self.assignee = find_assignee_from_team
   end
 
   def validate_current_assignee_team
