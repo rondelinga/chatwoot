@@ -51,14 +51,17 @@ class ContactMergeAction
     contact_inbox.contact_id = @base_contact.id
     return if contact_inbox.save
 
-    rehome_conversations_on_conflict(contact_inbox)
+    target_contact_inbox = @base_contact.contact_inboxes.find_by(inbox_id: contact_inbox.inbox_id)
+    if target_contact_inbox
+      rehome_conversations_on_conflict(contact_inbox, target_contact_inbox)
+      contact_inbox.destroy!
+    else
+      # Per-inbox email validation can fail while mergee still exists; the mergee is removed below.
+      contact_inbox.update_columns(contact_id: @base_contact.id, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+    end
   end
 
-  def rehome_conversations_on_conflict(contact_inbox)
-    target_contact_inbox = @base_contact.contact_inboxes.find_by(inbox_id: contact_inbox.inbox_id)
-
-    raise ActiveRecord::RecordInvalid, contact_inbox if target_contact_inbox.blank?
-
+  def rehome_conversations_on_conflict(contact_inbox, target_contact_inbox)
     Conversation.where(contact_inbox_id: contact_inbox.id)
                 .update_all(contact_id: @base_contact.id, contact_inbox_id: target_contact_inbox.id) # rubocop:disable Rails/SkipsModelValidations
   end
