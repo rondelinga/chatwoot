@@ -37,23 +37,45 @@ module TelegramContactMerge
   end
 
   def find_target_contact(account, inbox_ids)
-    emails = contact_email_candidates
-    return nil unless emails.values.any?
+    sql, binds = email_match_clause(contact_email_candidates)
+    return nil if sql.blank?
 
     account.contacts
            .joins(:contact_inboxes)
            .where(contact_inboxes: { inbox_id: inbox_ids })
            .where.not(id: @contact.id)
-           .where(<<~SQL.squish, emails)
-             (:user_email IS NOT NULL AND LOWER(custom_attributes->>'user_email') = :user_email)
-             OR (:user_email IS NOT NULL AND LOWER(contacts.email) = :user_email)
-             OR (:priv_email IS NOT NULL AND LOWER(custom_attributes->>'_email') = :priv_email)
-             OR (:priv_email IS NOT NULL AND LOWER(contacts.email) = :priv_email)
-             OR (:email IS NOT NULL AND LOWER(contacts.email) = :email)
-           SQL
+           .where(sql, binds)
            .first.tap do |t|
              Rails.logger.info t ? "[TG MERGE] Found target #{t.id}" : '[TG MERGE] No target found'
            end
+  end
+
+  def email_match_clause(emails)
+    clauses = []
+    binds = {}
+
+    if emails[:user_email].present?
+      binds[:user_email] = emails[:user_email]
+      clauses << <<~SQL.squish
+        LOWER(custom_attributes->>'user_email') = :user_email
+        OR LOWER(contacts.email) = :user_email
+      SQL
+    end
+
+    if emails[:priv_email].present?
+      binds[:priv_email] = emails[:priv_email]
+      clauses << <<~SQL.squish
+        LOWER(custom_attributes->>'_email') = :priv_email
+        OR LOWER(contacts.email) = :priv_email
+      SQL
+    end
+
+    if emails[:email].present?
+      binds[:email] = emails[:email]
+      clauses << 'LOWER(contacts.email) = :email'
+    end
+
+    [clauses.join(' OR '), binds]
   end
 
   def contact_email_candidates
