@@ -6,6 +6,8 @@
 #  active         :boolean          default(TRUE), not null
 #  banner_message :text             not null
 #  banner_type    :integer          default("info"), not null
+#  title          :string
+#  video_url      :string
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #

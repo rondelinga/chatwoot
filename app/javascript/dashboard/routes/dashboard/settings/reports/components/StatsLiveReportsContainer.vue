@@ -174,6 +174,7 @@ defineExpose({
           <div class="flex gap-2 flex-wrap w-full">
             <div class="w-full">
               <FilterSelector
+                section="overview"
                 show-time-range-filter
                 show-agents-filter
                 show-inbox-filter

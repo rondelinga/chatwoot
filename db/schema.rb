@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_06_150000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -338,7 +338,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.datetime "updated_at", precision: nil, null: false
     t.boolean "active", default: true, null: false
     t.integer "execution_delay"
+    t.bigint "monitor_id"
+    t.datetime "monitor_event_activated_at"
     t.index ["account_id"], name: "index_automation_rules_on_account_id"
+    t.index ["monitor_id"], name: "index_automation_rules_on_monitor_id"
   end
 
   create_table "calls", force: :cascade do |t|
@@ -858,6 +861,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.index ["phone_number", "account_id"], name: "index_contacts_on_phone_number_and_account_id"
   end
 
+  create_table "conversation_monitor_automation_deliveries", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "monitor_id", null: false
+    t.bigint "automation_rule_id", null: false
+    t.bigint "conversation_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "skip_reason"
+    t.datetime "claimed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_conversation_monitor_automation_deliveries_on_account_id"
+    t.index ["automation_rule_id", "monitor_id", "conversation_id"], name: "index_monitor_automation_deliveries_unique", unique: true
+    t.index ["automation_rule_id"], name: "idx_on_automation_rule_id_c6ed670e50"
+    t.index ["conversation_id"], name: "idx_on_conversation_id_ea2ef1d691"
+    t.index ["monitor_id"], name: "index_conversation_monitor_automation_deliveries_on_monitor_id"
+    t.index ["status", "updated_at"], name: "index_monitor_automation_deliveries_sweep"
+  end
+
   create_table "conversation_monitor_daily_usages", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.date "usage_date", null: false
@@ -884,6 +905,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.datetime "evaluated_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "first_matched_at"
     t.index ["account_id"], name: "index_conversation_monitor_evaluations_on_account_id"
     t.index ["conversation_id"], name: "index_conversation_monitor_evaluations_on_conversation_id"
     t.index ["monitor_id", "conversation_id"], name: "index_monitor_evaluations_unique", unique: true
@@ -922,6 +944,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.datetime "activity_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "live_activity_revision", default: 0, null: false
+    t.datetime "live_activity_at"
     t.index ["account_id"], name: "index_conversation_monitor_work_items_on_account_id"
     t.index ["conversation_id"], name: "index_conversation_monitor_work_items_on_conversation_id", unique: true
     t.index ["due_at"], name: "index_monitor_work_due", where: "(due_at IS NOT NULL)"
@@ -1549,6 +1573,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "title"
+    t.string "video_url"
   end
 
   create_table "portals", force: :cascade do |t|
@@ -1607,6 +1633,17 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_01_153000) do
     t.datetime "updated_at", precision: nil, null: false
     t.index ["category_id", "related_category_id"], name: "index_related_categories_on_category_id_and_related_category_id", unique: true
     t.index ["related_category_id", "category_id"], name: "index_related_categories_on_related_category_id_and_category_id", unique: true
+  end
+
+  create_table "report_filter_presets", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "user_id", null: false
+    t.string "section"
+    t.string "name", null: false
+    t.jsonb "filters", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "user_id", "name"], name: "idx_report_filter_presets_unique_name", unique: true
   end
 
   create_table "reporting_events", force: :cascade do |t|

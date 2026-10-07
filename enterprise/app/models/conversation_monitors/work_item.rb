@@ -2,22 +2,24 @@
 #
 # Table name: conversation_monitor_work_items
 #
-#  id                    :bigint           not null, primary key
-#  activity_at           :datetime
-#  attempts              :integer          default(0), not null
-#  due_at                :datetime
-#  error_code            :string
-#  full_history_revision :bigint           default(0), not null
-#  generation            :bigint           default(0), not null
-#  lease_expires_at      :datetime
-#  lease_token           :string
-#  processed_revision    :bigint           default(0), not null
-#  requested_at          :datetime
-#  revision              :bigint           default(0), not null
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
-#  account_id            :bigint           not null
-#  conversation_id       :bigint           not null
+#  id                     :bigint           not null, primary key
+#  activity_at            :datetime
+#  attempts               :integer          default(0), not null
+#  due_at                 :datetime
+#  error_code             :string
+#  full_history_revision  :bigint           default(0), not null
+#  generation             :bigint           default(0), not null
+#  lease_expires_at       :datetime
+#  lease_token            :string
+#  live_activity_at       :datetime
+#  live_activity_revision :bigint           default(0), not null
+#  processed_revision     :bigint           default(0), not null
+#  requested_at           :datetime
+#  revision               :bigint           default(0), not null
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  account_id             :bigint           not null
+#  conversation_id        :bigint           not null
 #
 # Indexes
 #
