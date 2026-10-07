@@ -1,11 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import ReportFilterSelector from 'dashboard/routes/dashboard/settings/reports/components/FilterSelector.vue';
-import ReportsFiltersAgents from './Filters/Agents.vue';
-import ReportsFiltersInboxes from './Filters/Inboxes.vue';
-import ReportsFiltersTeams from './Filters/Teams.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 
 const props = defineProps({
   initialSince: {
@@ -99,7 +96,16 @@ const emitChange = () => {
   });
 };
 
+const extraFilters = computed(() => ({ hideInactive: hideInactive.value }));
+
+const onApplyExtraFilters = extra => {
+  hideInactive.value = Boolean(extra.hideInactive);
+};
+
 const onFilterChange = updatedFilter => {
+  selectedAgents.value = updatedFilter.selectedAgents;
+  selectedInbox.value = updatedFilter.selectedInbox;
+  selectedTeam.value = updatedFilter.selectedTeam;
   filterData.value = {
     from: updatedFilter.from,
     to: updatedFilter.to,
@@ -115,9 +121,15 @@ const onFilterChange = updatedFilter => {
     class="p-4 rounded-xl bg-n-solid-2 outline outline-1 outline-n-container"
   >
     <div class="gap-4 mb-3">
-      <ReportFilterSelector
+      <AdvancedReportFilters
+        section="agent_activity"
         show-time-range-filter
+        show-agents-filter
+        show-inbox-filter
+        show-team-filter
+        :extra-filters="extraFilters"
         @filter-change="onFilterChange"
+        @apply-extra-filters="onApplyExtraFilters"
       />
       <label
         class="flex items-center gap-2 text-sm whitespace-nowrap ml-auto cursor-pointer"
@@ -130,30 +142,6 @@ const onFilterChange = updatedFilter => {
         />
         {{ t('AGENT_ACTIVITY_REPORTS.HIDE_INACTIVE') }}
       </label>
-    </div>
-
-    <!-- Нижняя строка: Фильтры -->
-    <div class="flex items-center gap-3">
-      <ReportsFiltersAgents
-        @agents-filter-selection="
-          selectedAgents = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersInboxes
-        @inbox-filter-selection="
-          selectedInbox = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersTeams
-        @team-filter-selection="
-          selectedTeam = [...$event];
-          emitChange();
-        "
-      />
     </div>
   </div>
 </template>

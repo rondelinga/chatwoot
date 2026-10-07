@@ -11,7 +11,9 @@ import {
 } from './CsatFilterHelpers';
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
-import ReportFilterSelector from '../FilterSelector.vue';
+import SelectedFilterChip from '../Filters/v3/SelectedFilterChip.vue';
+import AdvancedReportFilters from '../AdvancedReportFilters.vue';
+import ExcludeTagFilter from './ExcludeTagFilter.vue';
 
 const props = defineProps({
   showTeamFilter: {
@@ -49,6 +51,7 @@ const appliedFilters = ref({
   team_id: [],
   rating: null,
 });
+const excludedLabels = ref([]);
 
 const agents = computed(() => store.getters['agents/getAgents']);
 const inboxes = computed(() => store.getters['inboxes/getInboxes']);
@@ -201,7 +204,13 @@ const emitChange = () => {
     selectedRating: appliedFilters.value.rating
       ? { value: appliedFilters.value.rating }
       : null,
+    excludedLabels: excludedLabels.value,
   });
+};
+
+const onExcludedLabelsChange = titles => {
+  excludedLabels.value = titles;
+  emitChange();
 };
 
 const closeDropdown = () => {
@@ -248,12 +257,29 @@ const clearAllFilters = () => {
     team_id: [],
     rating: null,
   };
+  excludedLabels.value = [];
   emitChange();
   closeDropdown();
 };
 
 const showDropdown = () => {
   showDropdownMenu.value = !showDropdownMenu.value;
+};
+
+const extraFilters = computed(() => ({
+  user_ids: appliedFilters.value.user_ids,
+  inbox_id: appliedFilters.value.inbox_id,
+  team_id: appliedFilters.value.team_id,
+  rating: appliedFilters.value.rating,
+}));
+
+const onApplyExtraFilters = extra => {
+  appliedFilters.value = {
+    user_ids: extra.user_ids || [],
+    inbox_id: extra.inbox_id || [],
+    team_id: extra.team_id || [],
+    rating: extra.rating ?? null,
+  };
 };
 
 const onDateFilterChange = updatedFilter => {
@@ -271,35 +297,29 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col w-full gap-3">
-    <ReportFilterSelector
+    <AdvancedReportFilters
+      section="csat"
       show-time-range-filter
+      :extra-filters="extraFilters"
       @filter-change="onDateFilterChange"
+      @apply-extra-filters="onApplyExtraFilters"
+    />
+
+    <ExcludeTagFilter
+      :selected="excludedLabels"
+      @update="onExcludedLabelsChange"
     />
 
     <div
       class="flex flex-col flex-wrap items-start gap-2 md:items-center md:flex-nowrap md:flex-row"
     >
       <div v-if="hasActiveFilters" class="flex flex-wrap gap-2">
-        <button
+        <SelectedFilterChip
           v-for="chip in selectedItemsChips"
           :key="`${chip.filterKey}-${chip.id}`"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-n-25 dark:bg-n-700 text-n-900 dark:text-n-25 hover:bg-n-50 dark:hover:bg-n-600 transition-colors"
-          @click="removeItem(chip.filterKey, chip.id)"
-        >
-          <span>{{ chip.name }}</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </button>
+          :name="chip.name"
+          @remove="removeItem(chip.filterKey, chip.id)"
+        />
       </div>
 
       <div
@@ -307,7 +327,7 @@ onMounted(() => {
         class="w-full h-px border md:w-px md:h-5 border-n-weak"
       />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <AddFilterChip
           placeholder-i18n-key="CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER"
           :name="$t('CSAT_REPORTS.FILTERS.ADD_FILTER')"
@@ -323,7 +343,7 @@ onMounted(() => {
         <div v-if="hasActiveFilters" class="w-px h-5 border border-n-weak" />
 
         <FilterButton
-          v-if="hasActiveFilters"
+          v-if="hasActiveFilters || excludedLabels.length"
           :button-text="$t('CSAT_REPORTS.FILTERS.CLEAR_ALL')"
           @click="clearAllFilters"
         />

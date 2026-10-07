@@ -320,6 +320,41 @@
       }
     ],
     "BUSINESS_HOURS": "Business Hours",
+    "FILTERS": {
+      "ADD_FILTER": "Add filter",
+      "CLEAR_ALL": "Clear all",
+      "NO_FILTER": "No filters available",
+      "AGENTS": "Agent",
+      "INBOXES": "Inbox",
+      "TEAMS": "Team",
+      "LABELS": "Label",
+      "INPUT_PLACEHOLDER": {
+        "AGENTS": "Search agents",
+        "INBOXES": "Search inboxes",
+        "TEAMS": "Search teams",
+        "LABELS": "Search labels"
+      },
+      "TIME_RANGE": {
+        "SINCE": "From",
+        "UNTIL": "To"
+      }
+    },
+    "FILTER_PRESETS": {
+      "SAVE": "Save filters",
+      "MY_PRESETS": "My presets",
+      "NAME_PLACEHOLDER": "Preset name",
+      "CONFIRM": "Save",
+      "EMPTY": "No saved presets",
+      "RENAME": "Rename",
+      "DELETE": "Delete",
+      "SAVED": "Filter preset saved",
+      "UPDATED": "Filter preset renamed",
+      "DELETED": "Filter preset deleted",
+      "SAVE_FAILED": "Could not save the filter preset",
+      "UPDATE_FAILED": "Could not rename the filter preset",
+      "DELETE_FAILED": "Could not delete the filter preset",
+      "LOAD_FAILED": "Could not load filter presets"
+    },
     "FILTER_ACTIONS": {
       "CLEAR_FILTER": "Clear filter",
       "EMPTY_LIST": "No results found"
@@ -700,6 +735,14 @@
       "RATINGS": {
         "LABEL": "Rating"
       }
+    },
+    "EXCLUSIONS": {
+      "LABEL": "Exclude tags",
+      "SEARCH": "Search tags",
+      "EMPTY": "No tags",
+      "CLEAR": "Clear exclusions",
+      "BANNER": "Excluded tags: {tags}",
+      "SHOWN": "Showing {shown} of {total} ratings"
     },
     "TABLE": {
       "HEADER": {

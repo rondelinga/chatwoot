@@ -1,9 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import ReportFilterSelector from 'dashboard/routes/dashboard/settings/reports/components/FilterSelector.vue';
-import ReportsFiltersAgents from './Filters/Agents.vue';
-import ReportsFiltersInboxes from './Filters/Inboxes.vue';
-import ReportsFiltersTeams from './Filters/Teams.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 
 const emit = defineEmits(['filtersChange']);
 
@@ -34,6 +31,9 @@ const emitChange = () => {
 };
 
 const onFilterChange = updatedFilter => {
+  selectedAgents.value = updatedFilter.selectedAgents;
+  selectedInbox.value = updatedFilter.selectedInbox;
+  selectedTeam.value = updatedFilter.selectedTeam;
   filterData.value = {
     from: updatedFilter.from,
     to: updatedFilter.to,
@@ -45,35 +45,12 @@ const onFilterChange = updatedFilter => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <ReportFilterSelector
-      show-time-range-filter
-      @filter-change="onFilterChange"
-    />
-
-    <div
-      class="rounded-xl outline outline-1 outline-n-container flex items-center gap-3 flex-wrap"
-    >
-      <ReportsFiltersAgents
-        @agents-filter-selection="
-          selectedAgents = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersInboxes
-        @inbox-filter-selection="
-          selectedInbox = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersTeams
-        @team-filter-selection="
-          selectedTeam = [...$event];
-          emitChange();
-        "
-      />
-    </div>
-  </div>
+  <AdvancedReportFilters
+    section="all_metrics"
+    show-time-range-filter
+    show-agents-filter
+    show-inbox-filter
+    show-team-filter
+    @filter-change="onFilterChange"
+  />
 </template>

@@ -18,26 +18,17 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
   def metrics
     @total_count = @csat_survey_responses.count
     @ratings_count = @csat_survey_responses.group(:rating).count
+    @total_count_before_exclusion = if excluded_label_titles.present?
+                                      @csat_responses_before_label_exclusion.count
+                                    else
+                                      @total_count
+                                    end
   end
 
   def download
-    respond_to do |format|
-      format.csv do
-        response.headers['Content-Type'] = 'text/csv'
-        response.headers['Content-Disposition'] = 'attachment; filename=csat_report.csv'
-        render layout: false, template: 'api/v1/accounts/csat_survey_responses/download', formats: [:csv]
-      end
-      format.xlsx do
-        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        response.headers['Content-Disposition'] = 'attachment; filename=csat_report.xlsx'
-        render layout: false, template: 'api/v1/accounts/csat_survey_responses/download', formats: [:xlsx]
-      end
-      format.any do
-        response.headers['Content-Type'] = 'text/csv'
-        response.headers['Content-Disposition'] = 'attachment; filename=csat_report.csv'
-        render layout: false, template: 'api/v1/accounts/csat_survey_responses/download', formats: [:csv]
-      end
-    end
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = 'attachment; filename=csat_report.csv'
+    render layout: false, template: 'api/v1/accounts/csat_survey_responses/download', formats: [:csv]
   end
 
   private
@@ -46,6 +37,9 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
     @csat_messages = Current.account.messages.input_csat
     @csat_messages = @csat_messages.joins(:conversation).where(conversations: { created_at: range }) if range.present?
     @csat_messages = apply_agent_csat_messages_scope(@csat_messages)
+    if excluded_label_titles.present?
+      @csat_messages = @csat_messages.where.not(conversation_id: excluded_conversation_ids)
+    end
     @total_sent_messages_count = @csat_messages.count
   end
 
@@ -57,6 +51,21 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
                                                  .filter_by_inbox_id(params[:inbox_id])
                                                  .filter_by_team_id(params[:team_id])
                                                  .filter_by_rating(params[:rating])
+    @csat_responses_before_label_exclusion = @csat_survey_responses
+    return if excluded_label_titles.blank?
+
+    @csat_survey_responses = @csat_survey_responses.excluding_conversation_labels(
+      excluded_label_titles,
+      Current.account.id
+    )
+  end
+
+  def excluded_label_titles
+    @excluded_label_titles ||= CsatSurveyResponse.normalized_label_titles(params[:excluded_labels])
+  end
+
+  def excluded_conversation_ids
+    CsatSurveyResponse.conversation_ids_with_labels(excluded_label_titles, Current.account.id)
   end
 
   def set_current_page_surveys

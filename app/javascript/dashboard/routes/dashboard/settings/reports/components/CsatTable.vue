@@ -14,7 +14,11 @@ import CsatExpandedRow from './CsatExpandedRow.vue';
 import CsatEmptyState from './CsatEmptyState.vue';
 import CsatTableLoader from './CsatTableLoader.vue';
 
-import { CSAT_RATINGS } from 'shared/constants/messages';
+import {
+  CSAT_RATINGS,
+  CSAT_DISPLAY_TYPES,
+  CSAT_LIKE_DISLIKE_RATINGS,
+} from 'shared/constants/messages';
 
 import {
   useVueTable,
@@ -83,10 +87,12 @@ const getRatingData = rating => {
 };
 
 const getRatingText = row => {
-  if (row.displayType === 'like_dislike') {
-    return row.rating === 5 ? 'good' : 'bad';
-  }
-  return t(getRatingData(row.rating).translationKey);
+  const ratingOptions =
+    row.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE
+      ? CSAT_LIKE_DISLIKE_RATINGS
+      : CSAT_RATINGS;
+  const rating = ratingOptions.find(r => r.value === row.rating) || {};
+  return t(rating.translationKey);
 };
 
 const columnHelper = createColumnHelper();
