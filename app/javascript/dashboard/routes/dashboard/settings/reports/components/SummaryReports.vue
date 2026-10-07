@@ -373,6 +373,7 @@ defineExpose({ downloadReports });
 <template>
   <div class="flex flex-col gap-3">
     <ReportFilterSelector
+      :section="type"
       show-time-range-filter
       show-agents-filter
       show-inbox-filter

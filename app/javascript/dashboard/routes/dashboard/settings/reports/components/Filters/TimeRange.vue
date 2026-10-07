@@ -16,6 +16,16 @@ const timeFrom = ref(props.selectedTimeRange?.since ?? '00:00');
 const timeTo = ref(props.selectedTimeRange?.until ?? '23:59');
 
 watch(
+  () => props.selectedTimeRange,
+  value => {
+    if (!value) return;
+    if (timeFrom.value !== value.since) timeFrom.value = value.since;
+    if (timeTo.value !== value.until) timeTo.value = value.until;
+  },
+  { deep: true }
+);
+
+watch(
   [timeFrom, timeTo],
   () => {
     emit('timeRangeChanged', {

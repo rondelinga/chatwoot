@@ -3,8 +3,8 @@ module Reports::RawSummaryQueries
 
   def summary_scope
     events = account.reporting_events.where(created_at: range)
-    events = events.filter_by_user_id(user_ids) if user_ids.present?
-    events = events.filter_by_inbox_id(inbox_ids) if inbox_ids.present?
+    events = events.where(reporting_events: { user_id: user_ids }) if user_ids.present?
+    events = events.where(reporting_events: { inbox_id: inbox_ids }) if inbox_ids.present?
     events = events.filter_by_label_ids(label_ids, account.id) if label_ids.present?
     apply_team_filter(events)
   end
@@ -57,7 +57,12 @@ module Reports::RawSummaryQueries
   end
 
   def summary_group_by_key
-    { 'account' => :account_id, 'agent' => :user_id, 'inbox' => :inbox_id, 'team' => 'conversations.team_id' }[dimension_type]
+    {
+      'account' => 'reporting_events.account_id',
+      'agent' => 'reporting_events.user_id',
+      'inbox' => 'reporting_events.inbox_id',
+      'team' => 'conversations.team_id'
+    }[dimension_type]
   end
 
   def summary_conversation_group_by_key

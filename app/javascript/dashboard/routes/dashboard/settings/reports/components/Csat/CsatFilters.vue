@@ -12,6 +12,7 @@ import {
 import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
 import ReportFilterSelector from '../FilterSelector.vue';
+import ExcludeTagFilter from './ExcludeTagFilter.vue';
 
 const props = defineProps({
   showTeamFilter: {
@@ -49,6 +50,7 @@ const appliedFilters = ref({
   team_id: [],
   rating: null,
 });
+const excludedLabels = ref([]);
 
 const agents = computed(() => store.getters['agents/getAgents']);
 const inboxes = computed(() => store.getters['inboxes/getInboxes']);
@@ -201,7 +203,13 @@ const emitChange = () => {
     selectedRating: appliedFilters.value.rating
       ? { value: appliedFilters.value.rating }
       : null,
+    excludedLabels: excludedLabels.value,
   });
+};
+
+const onExcludedLabelsChange = titles => {
+  excludedLabels.value = titles;
+  emitChange();
 };
 
 const closeDropdown = () => {
@@ -248,12 +256,29 @@ const clearAllFilters = () => {
     team_id: [],
     rating: null,
   };
+  excludedLabels.value = [];
   emitChange();
   closeDropdown();
 };
 
 const showDropdown = () => {
   showDropdownMenu.value = !showDropdownMenu.value;
+};
+
+const extraFilters = computed(() => ({
+  user_ids: appliedFilters.value.user_ids,
+  inbox_id: appliedFilters.value.inbox_id,
+  team_id: appliedFilters.value.team_id,
+  rating: appliedFilters.value.rating,
+}));
+
+const onApplyExtraFilters = extra => {
+  appliedFilters.value = {
+    user_ids: extra.user_ids || [],
+    inbox_id: extra.inbox_id || [],
+    team_id: extra.team_id || [],
+    rating: extra.rating ?? null,
+  };
 };
 
 const onDateFilterChange = updatedFilter => {
@@ -272,8 +297,16 @@ onMounted(() => {
 <template>
   <div class="flex flex-col w-full gap-3">
     <ReportFilterSelector
+      section="csat"
       show-time-range-filter
+      :extra-filters="extraFilters"
       @filter-change="onDateFilterChange"
+      @apply-extra-filters="onApplyExtraFilters"
+    />
+
+    <ExcludeTagFilter
+      :selected="excludedLabels"
+      @update="onExcludedLabelsChange"
     />
 
     <div
@@ -307,7 +340,7 @@ onMounted(() => {
         class="w-full h-px border md:w-px md:h-5 border-n-weak"
       />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <AddFilterChip
           placeholder-i18n-key="CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER"
           :name="$t('CSAT_REPORTS.FILTERS.ADD_FILTER')"
@@ -323,7 +356,7 @@ onMounted(() => {
         <div v-if="hasActiveFilters" class="w-px h-5 border border-n-weak" />
 
         <FilterButton
-          v-if="hasActiveFilters"
+          v-if="hasActiveFilters || excludedLabels.length"
           :button-text="$t('CSAT_REPORTS.FILTERS.CLEAR_ALL')"
           @click="clearAllFilters"
         />

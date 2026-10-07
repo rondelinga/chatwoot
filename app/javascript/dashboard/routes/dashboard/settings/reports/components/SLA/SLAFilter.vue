@@ -148,6 +148,15 @@ export default {
       this.closeDropdown();
       this.closeActiveFilterDropdown();
     },
+    applySavedFilters(filters = {}) {
+      this.appliedFilters = {
+        assigned_agent_id: filters.assigned_agent_id ?? null,
+        inbox_id: filters.inbox_id ?? null,
+        team_id: filters.team_id ?? null,
+        sla_policy_id: filters.sla_policy_id ?? null,
+        label_list: filters.label_list ?? null,
+      };
+    },
   },
 };
 </script>

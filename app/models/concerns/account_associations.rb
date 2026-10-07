@@ -19,6 +19,7 @@ module AccountAssociations
     has_many :csat_survey_responses, dependent: :destroy_async
     has_many :custom_attribute_definitions, dependent: :destroy_async
     has_many :custom_filters, dependent: :destroy_async
+    has_many :report_filter_presets, dependent: :destroy_async
     has_many :dashboard_apps, dependent: :destroy_async
     has_many :data_imports, dependent: :destroy_async
     has_one :shopify_custom_app, dependent: :destroy, class_name: 'Shopify::CustomApp'
