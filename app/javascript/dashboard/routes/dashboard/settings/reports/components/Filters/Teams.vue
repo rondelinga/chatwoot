@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 
@@ -13,6 +13,14 @@ store.dispatch('teams/get');
 
 const options = computed(() => store.getters['teams/getTeams']);
 const selectedItems = ref([...props.selectedTeam]);
+
+watch(
+  () => props.selectedTeam,
+  value => {
+    selectedItems.value = [...(value || [])];
+  },
+  { deep: true }
+);
 
 const tags = computed(() => selectedItems.value.map(team => team.name));
 const menuItems = computed(() =>

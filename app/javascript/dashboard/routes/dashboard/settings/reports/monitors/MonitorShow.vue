@@ -19,6 +19,7 @@ import EmojiIcon from 'dashboard/components-next/emoji-icon-picker/EmojiIcon.vue
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ReportHeader from '../components/ReportHeader.vue';
 import MonitorChartFilters from './MonitorChartFilters.vue';
+import ReportFilterPresets from '../components/ReportFilterPresets.vue';
 import MonitorDrilldown from './MonitorDrilldown.vue';
 import MonitorActionDialog from './MonitorActionDialog.vue';
 import MonitorSlackAlerts from './MonitorSlackAlerts.vue';
@@ -45,6 +46,22 @@ const { run: runLinkedRules, abort: abortLinkedRules } = useAbortableRequest();
 
 const monitorId = computed(() => route.params.monitorId);
 const filters = ref({ range: 7, interval: 'day' });
+const presetFilters = computed(() => {
+  const rangeIds = { 7: 'LAST_7_DAYS', 30: 'LAST_30_DAYS' };
+
+  return {
+    ...filters.value,
+    dateRangeId: rangeIds[filters.value.range] || 'CUSTOM_DATE_RANGE',
+  };
+});
+const applyPreset = savedFilters => {
+  const ranges = { LAST_7_DAYS: 7, TODAY: 7, LAST_30_DAYS: 30 };
+
+  filters.value = {
+    range: Number(savedFilters.range) || ranges[savedFilters.dateRangeId] || 7,
+    interval: savedFilters.interval || 'day',
+  };
+};
 const collectionEndsAt = ref(null);
 const result = ref(null);
 const displayedParams = ref(null);
@@ -419,10 +436,13 @@ const duplicate = () =>
             {{ result.total_count }}
           </span>
         </div>
-        <MonitorChartFilters
-          v-model="filters"
-          :paused-at="monitor?.paused_at"
-        />
+        <div class="flex flex-col items-end gap-2">
+          <ReportFilterPresets :filters="presetFilters" @apply="applyPreset" />
+          <MonitorChartFilters
+            v-model="filters"
+            :paused-at="monitor?.paused_at"
+          />
+        </div>
       </div>
       <div v-if="!result && isPending" class="flex justify-center py-20">
         <Spinner />

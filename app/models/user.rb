@@ -105,6 +105,7 @@ class User < ApplicationRecord
   has_many :created_canned_responses, class_name: 'CannedResponse', foreign_key: 'created_by_id', dependent: :nullify,
                                       inverse_of: :created_by
   has_many :custom_filters, dependent: :destroy_async
+  has_many :report_filter_presets, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :nullify
   has_many :mentions, dependent: :destroy_async
   has_many :notes, dependent: :nullify

@@ -32,8 +32,8 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
 
   def fetch_agent_chat_duration
     scope = account.reporting_events.where(name: :agent_chat_duration, created_at: range)
-    scope = scope.filter_by_user_id(compact_ids(:user_ids)) if compact_ids(:user_ids)
-    scope = scope.filter_by_inbox_id(compact_ids(:inbox_ids)) if compact_ids(:inbox_ids)
+    scope = scope.where(reporting_events: { user_id: compact_ids(:user_ids) }) if compact_ids(:user_ids)
+    scope = scope.where(reporting_events: { inbox_id: compact_ids(:inbox_ids) }) if compact_ids(:inbox_ids)
     scope = scope.filter_by_label_ids(compact_ids(:label_ids), account.id) if compact_ids(:label_ids)
     scope = filter_by_team(scope) if compact_ids(:team_ids)
     scope.group(:user_id).average(:value)
