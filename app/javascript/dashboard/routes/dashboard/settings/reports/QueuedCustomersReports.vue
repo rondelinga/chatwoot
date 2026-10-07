@@ -197,6 +197,7 @@ onUnmounted(() => {
 
   <div class="flex flex-col gap-4 pb-6">
     <ReportFilterSelector
+      section="queued_customers"
       :show-agents-filter="false"
       :show-group-by-filter="false"
       :show-business-hours-switch="false"

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DATE_RANGE_OPTIONS } from '../../constants';
 
@@ -23,9 +23,19 @@ const selectedId = ref(
   props.selectedRange?.id ?? Object.values(DATE_RANGE_OPTIONS)[0].id
 );
 
+watch(
+  () => props.selectedRange?.id,
+  id => {
+    if (id) selectedId.value = id;
+  }
+);
+
 const handleChange = e => {
   const found = options.value.find(o => o.id === e.target.value);
-  if (found) emit('onRangeChange', found);
+  if (!found) return;
+
+  selectedId.value = found.id;
+  emit('onRangeChange', found);
 };
 </script>
 

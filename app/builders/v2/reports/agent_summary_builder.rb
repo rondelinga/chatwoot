@@ -24,7 +24,7 @@ class V2::Reports::AgentSummaryBuilder < V2::Reports::BaseSummaryBuilder
   def fetch_agent_chat_duration
     scope = account.reporting_events.where(name: :agent_chat_duration, created_at: range)
     scope = apply_filters(scope)
-    scope.group(:user_id).average(:value)
+    scope.group('reporting_events.user_id').average('reporting_events.value')
   end
 
   def prepare_report

@@ -5,6 +5,7 @@ import startOfDay from 'date-fns/startOfDay';
 import subDays from 'date-fns/subDays';
 import WootDateRangePicker from 'dashboard/components/ui/DateRangePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
+import ReportFilterPresets from './ReportFilterPresets.vue';
 
 import { GROUP_BY_FILTER } from '../constants';
 const CUSTOM_DATE_RANGE_ID = 6;
@@ -13,6 +14,7 @@ export default {
   components: {
     WootDateRangePicker,
     ToggleSwitch,
+    ReportFilterPresets,
   },
   props: {
     currentFilter: {
@@ -30,6 +32,10 @@ export default {
     type: {
       type: String,
       default: 'agent',
+    },
+    section: {
+      type: String,
+      default: '',
     },
     selectedGroupByFilter: {
       type: Object,
@@ -130,6 +136,32 @@ export default {
     selectedGroupById() {
       return this.currentSelectedGroupByFilter?.id ?? null;
     },
+    presetFilters() {
+      const dateRangeKeys = {
+        0: 'TODAY',
+        1: 'LAST_7_DAYS',
+        2: 'LAST_30_DAYS',
+        3: 'LAST_3_MONTHS',
+        4: 'LAST_6_MONTHS',
+        5: 'LAST_YEAR',
+        6: 'CUSTOM_DATE_RANGE',
+      };
+      const entityId = this.currentSelectedFilter?.id ?? null;
+
+      return {
+        dateRangeId: dateRangeKeys[this.currentDateRangeSelection?.id] || null,
+        customDateRange: (this.customDateRange || []).map(value =>
+          value instanceof Date ? value.toISOString() : value
+        ),
+        businessHours: this.businessHoursSelected,
+        selectedFilterId: entityId,
+        groupById: this.currentSelectedGroupByFilter?.id ?? null,
+        agentIds: this.type === 'agent' && entityId ? [entityId] : [],
+        inboxIds: this.type === 'inbox' && entityId ? [entityId] : [],
+        teamIds: this.type === 'team' && entityId ? [entityId] : [],
+        labelIds: this.type === 'label' && entityId ? [entityId] : [],
+      };
+    },
   },
   watch: {
     filterItemsList(val) {
@@ -190,130 +222,199 @@ export default {
         this.$emit('groupByFilterChange', found);
       }
     },
+    applyPreset(filters = {}) {
+      const dateRangeIds = {
+        TODAY: 0,
+        LAST_7_DAYS: 1,
+        LAST_30_DAYS: 2,
+        LAST_3_MONTHS: 3,
+        LAST_6_MONTHS: 4,
+        LAST_YEAR: 5,
+        CUSTOM_DATE_RANGE: 6,
+      };
+      const rangeId =
+        dateRangeIds[filters.dateRangeId] ?? Number(filters.dateRangeId);
+      const foundRange = this.dateRange.find(item => item.id === rangeId);
+      if (foundRange) this.currentDateRangeSelection = foundRange;
+
+      if (filters.customDateRange?.length >= 2) {
+        this.customDateRange = filters.customDateRange.map(value => {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? value : date;
+        });
+      }
+
+      this.businessHoursSelected = Boolean(filters.businessHours);
+
+      const entityIds = {
+        agent: filters.agentIds,
+        inbox: filters.inboxIds,
+        team: filters.teamIds,
+        label: filters.labelIds,
+      }[this.type];
+      const entityId = filters.selectedFilterId || entityIds?.[0];
+      const filterItem = this.filterItemsList.find(
+        item => Number(item.id) === Number(entityId)
+      );
+      if (filterItem) this.currentSelectedFilter = filterItem;
+
+      this.onDateRangeChange();
+      if (filterItem) this.changeFilterSelection();
+      this.$emit('businessHoursToggle', this.businessHoursSelected);
+
+      this.$nextTick(() => {
+        const groupBy = this.groupByFilterItemsList.find(
+          item => Number(item.id) === Number(filters.groupById)
+        );
+        if (!groupBy) return;
+
+        this.currentSelectedGroupByFilter = groupBy;
+        this.$emit('groupByFilterChange', groupBy);
+      });
+    },
   },
 };
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-y-0.5 gap-x-2">
-    <!-- Agent filter -->
-    <div v-if="type === 'agent'">
-      <p class="mb-2 text-xs font-medium">
-        {{ $t('AGENT_REPORTS.FILTER_DROPDOWN_LABEL') }}
-      </p>
-      <select
-        :value="selectedFilterId"
-        class="no-margin"
-        @change="e => onFilterSelectChange(e.target.value)"
-      >
-        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
-          {{ item.name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Label filter -->
-    <div v-else-if="type === 'label'">
-      <p class="mb-2 text-xs font-medium">
-        {{ $t('LABEL_REPORTS.FILTER_DROPDOWN_LABEL') }}
-      </p>
-      <select
-        :value="selectedFilterId"
-        class="no-margin"
-        @change="e => onFilterSelectChange(e.target.value)"
-      >
-        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
-          {{ item.title }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Inbox / Team filter -->
-    <div v-else>
-      <p class="mb-2 text-xs font-medium">
-        <template v-if="type === 'inbox'">
-          {{ $t('INBOX_REPORTS.FILTER_DROPDOWN_LABEL') }}
-        </template>
-        <template v-else-if="type === 'team'">
-          {{ $t('TEAM_REPORTS.FILTER_DROPDOWN_LABEL') }}
-        </template>
-        <template v-else>
-          {{ $t('FORMS.MULTISELECT.SELECT_ONE') }}
-        </template>
-      </p>
-      <select
-        :value="selectedFilterId"
-        class="no-margin"
-        @change="e => onFilterSelectChange(e.target.value)"
-      >
-        <option v-for="item in filterItemsList" :key="item.id" :value="item.id">
-          {{ item.name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Date range -->
-    <div>
-      <p class="mb-2 text-xs font-medium">
-        {{ $t('REPORT.DURATION_FILTER_LABEL') }}
-      </p>
-      <select
-        :value="selectedDateRangeId"
-        class="no-margin"
-        @change="e => changeDateSelection(e.target.value)"
-      >
-        <option v-for="d in dateRange" :key="d.id" :value="d.id">
-          {{ d.name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Business hours toggle -->
-    <div
-      class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end"
-    >
-      <span class="mr-2 text-sm whitespace-nowrap">
-        {{ $t('REPORT.BUSINESS_HOURS') }}
-      </span>
-      <ToggleSwitch
-        v-model="businessHoursSelected"
-        @change="onBusinessHoursToggle"
-      />
-    </div>
-
-    <!-- Custom date range picker -->
-    <div v-if="isDateRangeSelected" class="order-3 md:order-4">
-      <p class="mb-2 text-xs font-medium">
-        {{ $t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER') }}
-      </p>
-      <WootDateRangePicker
-        show-range
-        :value="customDateRange"
-        :confirm-text="$t('REPORT.CUSTOM_DATE_RANGE.CONFIRM')"
-        :placeholder="$t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER')"
-        class="auto-width"
-        @change="onChange"
-      />
-    </div>
-
-    <!-- Group by filter -->
-    <div v-if="showGroupByFilter" class="order-4 md:order-5">
-      <p class="mb-2 text-xs font-medium">
-        {{ $t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL') }}
-      </p>
-      <select
-        :value="selectedGroupById"
-        class="no-margin"
-        @change="e => onGroupBySelectChange(e.target.value)"
-      >
-        <option
-          v-for="item in groupByFilterItemsList"
-          :key="item.id"
-          :value="item.id"
+  <div class="flex flex-col gap-3">
+    <ReportFilterPresets
+      v-if="section"
+      :filters="presetFilters"
+      @apply="applyPreset"
+    />
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-y-0.5 gap-x-2">
+      <!-- Agent filter -->
+      <div v-if="type === 'agent'">
+        <p class="mb-2 text-xs font-medium">
+          {{ $t('AGENT_REPORTS.FILTER_DROPDOWN_LABEL') }}
+        </p>
+        <select
+          :value="selectedFilterId"
+          class="no-margin"
+          @change="e => onFilterSelectChange(e.target.value)"
         >
-          {{ item.groupBy }}
-        </option>
-      </select>
+          <option
+            v-for="item in filterItemsList"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Label filter -->
+      <div v-else-if="type === 'label'">
+        <p class="mb-2 text-xs font-medium">
+          {{ $t('LABEL_REPORTS.FILTER_DROPDOWN_LABEL') }}
+        </p>
+        <select
+          :value="selectedFilterId"
+          class="no-margin"
+          @change="e => onFilterSelectChange(e.target.value)"
+        >
+          <option
+            v-for="item in filterItemsList"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.title }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Inbox / Team filter -->
+      <div v-else>
+        <p class="mb-2 text-xs font-medium">
+          <template v-if="type === 'inbox'">
+            {{ $t('INBOX_REPORTS.FILTER_DROPDOWN_LABEL') }}
+          </template>
+          <template v-else-if="type === 'team'">
+            {{ $t('TEAM_REPORTS.FILTER_DROPDOWN_LABEL') }}
+          </template>
+          <template v-else>
+            {{ $t('FORMS.MULTISELECT.SELECT_ONE') }}
+          </template>
+        </p>
+        <select
+          :value="selectedFilterId"
+          class="no-margin"
+          @change="e => onFilterSelectChange(e.target.value)"
+        >
+          <option
+            v-for="item in filterItemsList"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Date range -->
+      <div>
+        <p class="mb-2 text-xs font-medium">
+          {{ $t('REPORT.DURATION_FILTER_LABEL') }}
+        </p>
+        <select
+          :value="selectedDateRangeId"
+          class="no-margin"
+          @change="e => changeDateSelection(e.target.value)"
+        >
+          <option v-for="d in dateRange" :key="d.id" :value="d.id">
+            {{ d.name }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Business hours toggle -->
+      <div
+        class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end"
+      >
+        <span class="mr-2 text-sm whitespace-nowrap">
+          {{ $t('REPORT.BUSINESS_HOURS') }}
+        </span>
+        <ToggleSwitch
+          v-model="businessHoursSelected"
+          @change="onBusinessHoursToggle"
+        />
+      </div>
+
+      <!-- Custom date range picker -->
+      <div v-if="isDateRangeSelected" class="order-3 md:order-4">
+        <p class="mb-2 text-xs font-medium">
+          {{ $t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER') }}
+        </p>
+        <WootDateRangePicker
+          show-range
+          :value="customDateRange"
+          :confirm-text="$t('REPORT.CUSTOM_DATE_RANGE.CONFIRM')"
+          :placeholder="$t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER')"
+          class="auto-width"
+          @change="onChange"
+        />
+      </div>
+
+      <!-- Group by filter -->
+      <div v-if="showGroupByFilter" class="order-4 md:order-5">
+        <p class="mb-2 text-xs font-medium">
+          {{ $t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL') }}
+        </p>
+        <select
+          :value="selectedGroupById"
+          class="no-margin"
+          @change="e => onGroupBySelectChange(e.target.value)"
+        >
+          <option
+            v-for="item in groupByFilterItemsList"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.groupBy }}
+          </option>
+        </select>
+      </div>
     </div>
   </div>
 </template>

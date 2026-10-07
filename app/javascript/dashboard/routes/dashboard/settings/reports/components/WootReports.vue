@@ -252,6 +252,7 @@ export default {
   </ReportHeader>
   <ReportFilters
     v-if="filterItemsList"
+    :section="`${type}_chart`"
     :type="type"
     :filter-items-list="filterItemsList"
     :group-by-filter-items-list="groupByfilterItemsList"

@@ -130,8 +130,8 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def apply_reporting_event_filters(scope)
-    scope = scope.where(user_id: params[:user_ids].reject(&:blank?)) if params[:user_ids].present?
-    scope = scope.where(inbox_id: params[:inbox_ids].reject(&:blank?)) if params[:inbox_ids].present?
+    scope = scope.where(reporting_events: { user_id: params[:user_ids].reject(&:blank?) }) if params[:user_ids].present?
+    scope = scope.where(reporting_events: { inbox_id: params[:inbox_ids].reject(&:blank?) }) if params[:inbox_ids].present?
     scope
   end
 

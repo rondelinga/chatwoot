@@ -350,14 +350,17 @@ defineExpose({ downloadReports });
 </script>
 
 <template>
-  <ReportFilterSelector
-    show-time-range-filter
-    show-agents-filter
-    show-inbox-filter
-    show-team-filter
-    show-labels-filter
-    @filter-change="onFilterChange"
-  />
+  <div class="flex flex-col gap-3">
+    <ReportFilterSelector
+      :section="type"
+      show-time-range-filter
+      show-agents-filter
+      show-inbox-filter
+      show-team-filter
+      show-labels-filter
+      @filter-change="onFilterChange"
+    />
+  </div>
   <div
     class="flex-1 overflow-hidden px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >

@@ -8,6 +8,8 @@ import ReportsFiltersInboxes from './Filters/Inboxes.vue';
 import ReportsFiltersTeams from './Filters/Teams.vue';
 import ReportsFiltersRatings from './Filters/Ratings.vue';
 import ReportsFiltersTimeRange from './Filters/TimeRange.vue';
+import ReportFilterPresets from './ReportFilterPresets.vue';
+import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import subDays from 'date-fns/subDays';
 import { DATE_RANGE_OPTIONS, GROUP_BY_OPTIONS } from '../constants';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
@@ -23,6 +25,8 @@ export default {
     ReportsFiltersTeams,
     ReportsFiltersRatings,
     ReportsFiltersTimeRange,
+    ReportFilterPresets,
+    FilterButton,
     ToggleSwitch,
   },
 
@@ -38,9 +42,17 @@ export default {
       default: true,
     },
     showTimeRangeFilter: Boolean,
+    section: {
+      type: String,
+      default: '',
+    },
+    extraFilters: {
+      type: Object,
+      default: () => ({}),
+    },
   },
 
-  emits: ['filterChange'],
+  emits: ['filterChange', 'applyExtraFilters'],
 
   data() {
     const saved = this.$store.getters.getReportFilters;
@@ -133,6 +145,54 @@ export default {
         this.showInboxFilter ||
         this.showRatingFilter
       );
+    },
+
+    hasClearableFilters() {
+      const hasItems = value =>
+        Array.isArray(value) ? value.length > 0 : Boolean(value);
+
+      return (
+        hasItems(this.selectedAgents) ||
+        hasItems(this.selectedInbox) ||
+        hasItems(this.selectedTeam) ||
+        hasItems(this.selectedLabel) ||
+        this.selectedRating != null
+      );
+    },
+
+    serializedFilters() {
+      const extra = this.extraFilters || {};
+
+      return {
+        dateRangeId: this.selectedDateRange?.id || null,
+        customDateRange: this.isoDates(this.customDateRange),
+        groupById: this.selectedGroupByFilter?.id || null,
+        businessHours: this.businessHoursSelected,
+        timeRange: this.selectedTimeRange,
+        agentIds: this.firstIds(
+          this.idsOf(this.selectedAgents),
+          extra.agentIds,
+          extra.user_ids
+        ),
+        inboxIds: this.firstIds(
+          this.idsOf(this.selectedInbox),
+          extra.inboxIds,
+          extra.inbox_id
+        ),
+        teamIds: this.firstIds(
+          this.idsOf(this.selectedTeam),
+          extra.teamIds,
+          extra.team_id
+        ),
+        labelIds: this.firstIds(
+          this.idsOf(
+            Array.isArray(this.selectedLabel) ? this.selectedLabel : []
+          ),
+          extra.labelIds
+        ),
+        ratingValue: this.selectedRating?.value ?? extra.rating ?? null,
+        extra,
+      };
     },
   },
 
@@ -257,12 +317,133 @@ export default {
       this.selectedTimeRange = timeRange;
       this.emitChange();
     },
+
+    clearAllFilters() {
+      this.selectedAgents = [];
+      this.selectedInbox = [];
+      this.selectedTeam = [];
+      this.selectedLabel = [];
+      this.selectedRating = null;
+      this.emitChange();
+    },
+
+    idsOf(items) {
+      return (items || []).map(item => item.id);
+    },
+
+    firstIds(...candidates) {
+      return candidates.find(ids => Array.isArray(ids) && ids.length) || [];
+    },
+
+    isoDates(dates) {
+      return (dates || []).map(value =>
+        value instanceof Date ? value.toISOString() : value
+      );
+    },
+
+    pickByIds(items, ids) {
+      const selectedIds = new Set((ids || []).map(id => Number(id)));
+      return (items || []).filter(item => selectedIds.has(Number(item.id)));
+    },
+
+    async applyPreset(filters = {}) {
+      const range = Object.values(DATE_RANGE_OPTIONS).find(
+        item => item.id === filters.dateRangeId
+      );
+      if (range) this.selectedDateRange = range;
+
+      if (filters.customDateRange?.length >= 2) {
+        this.customDateRange = filters.customDateRange.map(value => {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? value : date;
+        });
+      }
+
+      const groupBy = Object.values(GROUP_BY_OPTIONS).find(
+        item => item.id === filters.groupById
+      );
+      if (groupBy) this.selectedGroupByFilter = groupBy;
+
+      this.businessHoursSelected = Boolean(filters.businessHours);
+      if (filters.timeRange?.since && filters.timeRange?.until) {
+        this.selectedTimeRange = { ...filters.timeRange };
+      }
+
+      await Promise.all([
+        this.$store.dispatch('agents/get'),
+        this.$store.dispatch('inboxes/get'),
+        this.$store.dispatch('teams/get'),
+        this.$store.dispatch('labels/get'),
+      ]);
+
+      const agents = this.$store.getters['agents/getAgents'] || [];
+      const inboxes = this.$store.getters['inboxes/getInboxes'] || [];
+      const teams = this.$store.getters['teams/getTeams'] || [];
+      const labels = this.$store.getters['labels/getLabels'] || [];
+      const extra = filters.extra || {};
+      const agentIds = this.firstIds(
+        filters.agentIds,
+        extra.agentIds,
+        extra.user_ids
+      );
+      const inboxIds = this.firstIds(
+        filters.inboxIds,
+        extra.inboxIds,
+        extra.inbox_id
+      );
+      const teamIds = this.firstIds(
+        filters.teamIds,
+        extra.teamIds,
+        extra.team_id
+      );
+      const labelIds = this.firstIds(filters.labelIds, extra.labelIds);
+
+      if (!range && filters.dateFrom && filters.dateTo) {
+        this.selectedDateRange = DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE;
+        this.customDateRange = [
+          new Date(filters.dateFrom),
+          new Date(filters.dateTo),
+        ];
+      }
+
+      this.selectedAgents = this.pickByIds(agents, agentIds);
+      this.selectedInbox = this.pickByIds(inboxes, inboxIds);
+      this.selectedTeam = this.pickByIds(teams, teamIds);
+      this.selectedLabel = this.pickByIds(labels, labelIds);
+      this.selectedRating =
+        (filters.ratingValue ?? extra.rating ?? null) == null
+          ? null
+          : { value: filters.ratingValue ?? extra.rating };
+
+      this.$emit('applyExtraFilters', {
+        ...extra,
+        user_ids: agentIds,
+        inbox_id: inboxIds,
+        team_id: teamIds,
+        agentIds,
+        inboxIds,
+        teamIds,
+        rating: filters.ratingValue ?? extra.rating ?? null,
+        agents: this.pickByIds(agents, agentIds),
+        inboxes: this.pickByIds(inboxes, inboxIds),
+        teams: this.pickByIds(teams, teamIds),
+      });
+
+      this.$nextTick(() => {
+        this.emitChange();
+      });
+    },
   },
 };
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
+    <ReportFilterPresets
+      v-if="section"
+      :filters="serializedFilters"
+      @apply="applyPreset"
+    />
     <div class="flex flex-col justify-between gap-3 md:flex-row">
       <div
         class="w-full grid gap-y-2 gap-x-1.5 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]"
@@ -338,6 +519,13 @@ export default {
         :selected-raiting="selectedRating"
         @rating-filter-selection="handleRatingFilterSelection"
       />
+
+      <div v-if="hasClearableFilters" class="flex items-center">
+        <FilterButton
+          :button-text="$t('REPORT.FILTER_ACTIONS.CLEAR_ALL')"
+          @click="clearAllFilters"
+        />
+      </div>
     </div>
   </div>
 </template>

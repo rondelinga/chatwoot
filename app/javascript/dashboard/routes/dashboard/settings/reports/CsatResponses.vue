@@ -33,12 +33,18 @@ export default {
       inboxIds: [],
       teamIds: [],
       rating: null,
+      excludedLabels: [],
+      timeRange: {
+        since: '00:00',
+        until: '23:59',
+      },
     };
   },
   computed: {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
+      csatMetrics: 'csat/getMetrics',
     }),
     requestPayload() {
       return {
@@ -48,6 +54,8 @@ export default {
         inbox_ids: this.inboxIds,
         team_ids: this.teamIds,
         rating: this.rating,
+        excluded_labels: this.excludedLabels,
+        timeRange: this.timeRange,
       };
     },
     isTeamsEnabled() {
@@ -96,6 +104,8 @@ export default {
       selectedInboxes,
       selectedTeams,
       selectedRating,
+      excludedLabels,
+      timeRange,
     }) {
       // do not track filter change on initial load
       if (this.from !== 0 && this.to !== 0) {
@@ -122,6 +132,8 @@ export default {
       this.inboxIds = normalizeArray(selectedInboxes).map(el => el.id);
       this.teamIds = normalizeArray(selectedTeams).map(el => el.id);
       this.rating = selectedRating?.value ?? null;
+      this.excludedLabels = Array.isArray(excludedLabels) ? excludedLabels : [];
+      if (timeRange) this.timeRange = timeRange;
 
       this.getAllData();
     },
@@ -143,6 +155,27 @@ export default {
       :show-team-filter="isTeamsEnabled"
       @filter-change="onFilterChange"
     />
+    <div
+      v-if="excludedLabels.length"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm rounded-xl bg-n-amber-3 text-n-amber-11"
+    >
+      <span class="i-lucide-triangle-alert size-4 shrink-0" />
+      <span>
+        {{
+          $t('CSAT_REPORTS.EXCLUSIONS.BANNER', {
+            tags: excludedLabels.join(', '),
+          })
+        }}
+      </span>
+      <span>
+        {{
+          $t('CSAT_REPORTS.EXCLUSIONS.SHOWN', {
+            shown: csatMetrics.totalResponseCount,
+            total: csatMetrics.totalCountBeforeExclusion,
+          })
+        }}
+      </span>
+    </div>
     <CsatMetrics :filters="requestPayload" />
     <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
   </div>

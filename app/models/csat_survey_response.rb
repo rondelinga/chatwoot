@@ -48,6 +48,32 @@ class CsatSurveyResponse < ApplicationRecord
   scope :filter_by_inbox_id, ->(inbox_id) { joins(:conversation).where(conversations: { inbox_id: inbox_id }) if inbox_id.present? }
   scope :filter_by_team_id, ->(team_id) { joins(:conversation).where(conversations: { team_id: team_id }) if team_id.present? }
   scope :filter_by_rating, ->(rating) { where(rating: rating) if rating.present? }
+  scope :excluding_conversation_labels, lambda { |label_titles, account_id|
+    titles = CsatSurveyResponse.normalized_label_titles(label_titles)
+    next all if titles.blank?
+
+    where.not(conversation_id: CsatSurveyResponse.conversation_ids_with_labels(titles, account_id))
+  }
+
+  def self.conversation_ids_with_labels(label_titles, account_id)
+    titles = normalized_label_titles(label_titles)
+    return ActsAsTaggableOn::Tagging.none.select(:taggable_id) if titles.blank? || account_id.blank?
+
+    tag_ids = ActsAsTaggableOn::Tag
+              .joins('INNER JOIN labels ON labels.title = tags.name')
+              .where(labels: { title: titles, account_id: account_id })
+              .select(:id)
+
+    ActsAsTaggableOn::Tagging.where(
+      taggable_type: 'Conversation',
+      context: 'labels',
+      tag_id: tag_ids
+    ).select(:taggable_id)
+  end
+
+  def self.normalized_label_titles(label_titles)
+    Array(label_titles).flatten.filter_map { |title| title.to_s.strip.downcase.presence }.uniq
+  end
 
   def display_type
     message&.content_attributes&.dig('display_type') || 'emoji'

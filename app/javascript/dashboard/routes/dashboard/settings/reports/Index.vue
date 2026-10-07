@@ -157,6 +157,7 @@ export default {
   </ReportHeader>
   <div class="flex flex-col gap-3">
     <ReportFilterSelector
+      section="conversation"
       show-agents-filter
       show-inbox-filter
       show-group-by-filter

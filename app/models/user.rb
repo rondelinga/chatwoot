@@ -104,6 +104,7 @@ class User < ApplicationRecord
 
   has_many :user_sessions, dependent: :destroy
   has_many :custom_filters, dependent: :destroy_async
+  has_many :report_filter_presets, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :nullify
   has_many :mentions, dependent: :destroy_async
   has_many :notes, dependent: :nullify

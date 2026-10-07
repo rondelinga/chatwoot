@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import ReportFilterSelector from 'dashboard/routes/dashboard/settings/reports/components/FilterSelector.vue';
+import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ReportsFiltersAgents from './Filters/Agents.vue';
 import ReportsFiltersInboxes from './Filters/Inboxes.vue';
 import ReportsFiltersTeams from './Filters/Teams.vue';
@@ -99,6 +100,36 @@ const emitChange = () => {
   });
 };
 
+const extraFilters = computed(() => ({
+  hideInactive: hideInactive.value,
+  agentIds: selectedAgents.value.map(agent => agent.id),
+  inboxIds: selectedInbox.value.map(inbox => inbox.id),
+  teamIds: selectedTeam.value.map(team => team.id),
+}));
+
+const onApplyExtraFilters = extra => {
+  hideInactive.value = Boolean(extra.hideInactive);
+  selectedAgents.value = extra.agents || [];
+  selectedInbox.value = extra.inboxes || [];
+  selectedTeam.value = extra.teams || [];
+};
+
+const hasClearableFilters = computed(
+  () =>
+    selectedAgents.value.length > 0 ||
+    selectedInbox.value.length > 0 ||
+    selectedTeam.value.length > 0 ||
+    hideInactive.value
+);
+
+const clearAllFilters = () => {
+  selectedAgents.value = [];
+  selectedInbox.value = [];
+  selectedTeam.value = [];
+  hideInactive.value = false;
+  emitChange();
+};
+
 const onFilterChange = updatedFilter => {
   filterData.value = {
     from: updatedFilter.from,
@@ -116,8 +147,11 @@ const onFilterChange = updatedFilter => {
   >
     <div class="gap-4 mb-3">
       <ReportFilterSelector
+        section="agent_activity"
         show-time-range-filter
+        :extra-filters="extraFilters"
         @filter-change="onFilterChange"
+        @apply-extra-filters="onApplyExtraFilters"
       />
       <label
         class="flex items-center gap-2 text-sm whitespace-nowrap ml-auto cursor-pointer"
@@ -135,6 +169,7 @@ const onFilterChange = updatedFilter => {
     <!-- Нижняя строка: Фильтры -->
     <div class="flex items-center gap-3">
       <ReportsFiltersAgents
+        :selected-agents="selectedAgents"
         @agents-filter-selection="
           selectedAgents = [...$event];
           emitChange();
@@ -142,6 +177,7 @@ const onFilterChange = updatedFilter => {
       />
 
       <ReportsFiltersInboxes
+        :selected-inbox="selectedInbox"
         @inbox-filter-selection="
           selectedInbox = [...$event];
           emitChange();
@@ -149,10 +185,17 @@ const onFilterChange = updatedFilter => {
       />
 
       <ReportsFiltersTeams
+        :selected-team="selectedTeam"
         @team-filter-selection="
           selectedTeam = [...$event];
           emitChange();
         "
+      />
+
+      <FilterButton
+        v-if="hasClearableFilters"
+        :button-text="t('REPORT.FILTER_ACTIONS.CLEAR_ALL')"
+        @click="clearAllFilters"
       />
     </div>
   </div>

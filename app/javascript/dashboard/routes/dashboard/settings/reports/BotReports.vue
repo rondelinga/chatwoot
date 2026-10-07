@@ -137,6 +137,7 @@ export default {
 
   <div class="flex flex-col gap-4">
     <ReportFilterSelector
+      section="bot"
       :show-agents-filter="false"
       show-inbox-filter
       show-group-by-filter

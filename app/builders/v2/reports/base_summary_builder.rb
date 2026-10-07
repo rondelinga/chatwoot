@@ -94,13 +94,13 @@ class V2::Reports::BaseSummaryBuilder
   def apply_user_filter(scope)
     return scope if params[:user_ids].blank?
 
-    scope.filter_by_user_id(params[:user_ids]&.reject(&:blank?))
+    scope.where(reporting_events: { user_id: params[:user_ids].reject(&:blank?) })
   end
 
   def apply_inbox_filter(scope)
     return scope if params[:inbox_ids].blank?
 
-    scope.filter_by_inbox_id(params[:inbox_ids]&.reject(&:blank?))
+    scope.where(reporting_events: { inbox_id: params[:inbox_ids].reject(&:blank?) })
   end
 
   def apply_label_filter(scope)

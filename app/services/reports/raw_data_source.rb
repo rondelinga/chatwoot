@@ -172,9 +172,9 @@ class Reports::RawDataSource < Reports::DataSource
 
   def summary_group_by_key
     {
-      'account' => :account_id,
-      'agent' => :user_id,
-      'inbox' => :inbox_id,
+      'account' => 'reporting_events.account_id',
+      'agent' => 'reporting_events.user_id',
+      'inbox' => 'reporting_events.inbox_id',
       'team' => 'conversations.team_id'
     }[dimension_type]
   end
