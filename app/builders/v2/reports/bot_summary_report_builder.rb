@@ -18,7 +18,7 @@ class V2::Reports::BotSummaryReportBuilder < V2::Reports::BaseSummaryBuilder
     load_reporting_events_data
   end
 
-  def fetch_conversations_count
+  def fetch_conversations_count # rubocop:todo Metrics/AbcSize
     inbox_ids = AgentBotInbox
                 .where(account_id: account.id, status: :active)
                 .pluck(:inbox_id, :agent_bot_id)

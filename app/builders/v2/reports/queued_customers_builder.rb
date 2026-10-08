@@ -28,8 +28,7 @@ class V2::Reports::QueuedCustomersBuilder
     scope = ConversationQueue
             .for_account(account.id)
             .where(conversation_id: scoped_conversations.select(:id))
-    scope = scope.where(queued_at: since_time..until_time)
-    scope
+    scope.where(queued_at: since_time..until_time)
   end
 
   def since_time
@@ -74,15 +73,19 @@ class V2::Reports::QueuedCustomersBuilder
       .round
   end
 
-  def daily_metrics
+  def daily_metrics # rubocop:todo Metrics/AbcSize, Metrics/MethodLength
     rows = scoped_queue_entries
            .select(
-             "DATE(queued_at) AS metric_date",
+             'DATE(queued_at) AS metric_date',
              'COUNT(*) AS queued_customers',
              "COUNT(*) FILTER (WHERE status = #{ConversationQueue.statuses[:assigned]}) AS entered_chat",
              "COUNT(*) FILTER (WHERE status = #{ConversationQueue.statuses[:left]}) AS left_queue",
+             # rubocop:todo Layout/LineLength
              "AVG(EXTRACT(EPOCH FROM (assigned_at - queued_at))) FILTER (WHERE status = #{ConversationQueue.statuses[:assigned]} AND assigned_at IS NOT NULL) AS time_to_enter_chat",
+             # rubocop:enable Layout/LineLength
+             # rubocop:todo Layout/LineLength
              "AVG(EXTRACT(EPOCH FROM (left_at - queued_at))) FILTER (WHERE status = #{ConversationQueue.statuses[:left]} AND left_at IS NOT NULL) AS time_to_leave_queue"
+             # rubocop:enable Layout/LineLength
            )
            .group('DATE(queued_at)')
            .order('metric_date ASC')

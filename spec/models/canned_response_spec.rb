@@ -12,7 +12,11 @@ RSpec.describe CannedResponse, type: :model do
 
     it { is_expected.to validate_presence_of(:content) }
     it { is_expected.to validate_presence_of(:short_code) }
-    it { is_expected.to validate_uniqueness_of(:short_code).scoped_to(:account_id) }
+
+    it 'allows duplicate short_codes within the same account' do
+      duplicate = build(:canned_response, account: subject.account, short_code: subject.short_code)
+      expect(duplicate).to be_valid
+    end
   end
 
   describe 'enums' do

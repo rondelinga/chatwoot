@@ -92,8 +92,29 @@ describe('#Reports API', () => {
           }
         );
       });
+
+      it('calls API with xlsx format', () => {
+        reportsAPI.getAgentReports({
+          from: 1621103400,
+          to: 1621621800,
+          businessHours: true,
+          format: 'xlsx',
+        });
+
+        expect(axiosMock.get).toHaveBeenCalledWith(
+          '/api/v2/reports/agents.xlsx',
+          {
+            params: {
+              since: 1621103400,
+              until: 1621621800,
+              business_hours: true,
+            },
+            responseType: 'blob',
+          }
+        );
+      });
     });
-  
+
     it('#getDrilldown', () => {
       reportsAPI.getDrilldown({
         metric: 'incoming_messages_count',
@@ -148,35 +169,6 @@ describe('#Reports API', () => {
           per_page: undefined,
         },
         signal: controller.signal,
-      });
-    });
-
-    it('#getAgentReports', () => {
-      reportsAPI.getAgentReports({
-        from: 1621103400,
-        to: 1621621800,
-        businessHours: true,
-      });
-
-      it('calls API with xlsx format', () => {
-        reportsAPI.getAgentReports({
-          from: 1621103400,
-          to: 1621621800,
-          businessHours: true,
-          format: 'xlsx',
-        });
-
-        expect(axiosMock.get).toHaveBeenCalledWith(
-          '/api/v2/reports/agents.xlsx',
-          {
-            params: {
-              since: 1621103400,
-              until: 1621621800,
-              business_hours: true,
-            },
-            responseType: 'blob',
-          }
-        );
       });
     });
 

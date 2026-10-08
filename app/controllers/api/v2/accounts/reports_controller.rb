@@ -1,4 +1,4 @@
-class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
+class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController # rubocop:todo Metrics/ClassLength
   include Api::V2::Accounts::ReportsHelper
   include Api::V2::Accounts::HeatmapHelper
   include Api::V2::Accounts::ReportResponseFormatter

@@ -34,16 +34,17 @@ RSpec.describe Llm::FeatureRouter do
       )
     end
 
-    it 'uses a valid account model override for an internal feature' do
-      account.update!(captain_models: { 'conversation_completion' => 'gpt-5.2' })
+    it 'does not allow an account model override for an internal feature' do
+      expect { account.update!(captain_models: { 'conversation_completion' => 'gpt-5.2' }) }
+        .to raise_error(ActiveRecord::RecordInvalid)
 
-      resolved = described_class.resolve(feature: 'conversation_completion', account: account)
+      resolved = described_class.resolve(feature: 'conversation_completion', account: account.reload)
 
-      expect(resolved).to include(
+      expect(resolved).to eq(
         feature: 'conversation_completion',
         provider: 'openai',
-        model: 'gpt-5.2',
-        source: :account_override
+        model: 'gpt-4.1',
+        source: :default
       )
     end
 
@@ -74,16 +75,17 @@ RSpec.describe Llm::FeatureRouter do
       )
     end
 
-    it 'keeps account overrides ahead of the installation model' do
+    it 'uses the installation model when the account cannot store a conversation completion override' do
       allow(ChatwootApp).to receive(:self_hosted_enterprise?).and_return(true)
       InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'gpt-5.1')
-      account.update!(captain_models: { 'conversation_completion' => 'gpt-5.2' })
+      expect { account.update!(captain_models: { 'conversation_completion' => 'gpt-5.2' }) }
+        .to raise_error(ActiveRecord::RecordInvalid)
 
-      resolved = described_class.resolve(feature: 'conversation_completion', account: account)
+      resolved = described_class.resolve(feature: 'conversation_completion', account: account.reload)
 
       expect(resolved).to include(
-        model: 'gpt-5.2',
-        source: :account_override
+        model: 'gpt-5.1',
+        source: :installation_override
       )
     end
 

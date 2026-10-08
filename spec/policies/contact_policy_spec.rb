@@ -18,7 +18,15 @@ RSpec.describe ContactPolicy, type: :policy do
     context 'when administrator' do
       it { expect(contact_policy).to permit(administrator_context, contact) }
     end
+  end
 
+  permissions :index?, :show? do
+    context 'when agent' do
+      it { expect(contact_policy).not_to permit(agent_context, contact) }
+    end
+  end
+
+  permissions :update? do
     context 'when agent' do
       it { expect(contact_policy).to permit(agent_context, contact) }
     end

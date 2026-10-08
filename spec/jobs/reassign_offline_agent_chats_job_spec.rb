@@ -95,6 +95,10 @@ RSpec.describe ReassignOfflineAgentChatsJob do
       end
 
       context 'when there are online agents available' do
+        before do
+          allow(OnlineStatusTracker).to receive(:get_available_users).with(account.id).and_return(online_agent.id.to_s => 'online')
+        end
+
         it 'reassigns conversations to online agents' do
           conversation1
 
@@ -311,6 +315,7 @@ RSpec.describe ReassignOfflineAgentChatsJob do
         allow(OnlineStatusTracker).to receive(:get_status) do |_acc_id, user_id|
           user_id == online_agent.id ? 'online' : 'offline'
         end
+        allow(OnlineStatusTracker).to receive(:get_available_users).with(account.id).and_return(online_agent.id.to_s => 'online')
       end
 
       it 'includes agent name in message' do

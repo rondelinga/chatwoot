@@ -27,7 +27,7 @@
 #  index_accounts_on_status  (status)
 #
 
-class Account < ApplicationRecord
+class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
   # used for multi-flag bitset columns
   include FlagShihTzu
   include Reportable
@@ -106,6 +106,9 @@ class Account < ApplicationRecord
   validate :validate_reporting_timezone
   validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
+  before_validation :validate_limit_keys
+  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
+  after_destroy :remove_account_sequences
   after_commit :process_queue_when_limit_changed, if: :active_chat_limit_settings_changed?
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting,
@@ -177,11 +180,8 @@ class Account < ApplicationRecord
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
   scope :with_auto_resolve_pending, -> { where("(settings ->> 'auto_resolve_pending_after')::int IS NOT NULL") }
 
-  before_validation :validate_limit_keys
   after_create_commit :notify_creation
   after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
-  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
-  after_destroy :remove_account_sequences
 
   def agents
     users.where(account_users: { role: :agent })

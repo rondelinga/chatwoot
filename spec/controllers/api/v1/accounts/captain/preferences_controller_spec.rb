@@ -195,37 +195,34 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         )
       end
 
-      it 'updates captain_models for document FAQ generation' do
+      it 'rejects captain_models for document FAQ generation not allowed by the account settings schema' do
         put "/api/v1/accounts/#{account.id}/captain/preferences",
             headers: admin.create_new_auth_token,
             params: { captain_models: { document_faq_generation: 'gpt-5.2' } },
             as: :json
 
-        expect(response).to have_http_status(:success)
-        expect(json_response.dig(:features, :document_faq_generation, :selected)).to eq('gpt-5.2')
-        expect(account.reload.captain_models['document_faq_generation']).to eq('gpt-5.2')
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(account.reload.captain_models).to be_nil
       end
 
-      it 'updates captain_models for conversation FAQ generation' do
+      it 'rejects captain_models for conversation FAQ generation not allowed by the account settings schema' do
         put "/api/v1/accounts/#{account.id}/captain/preferences",
             headers: admin.create_new_auth_token,
             params: { captain_models: { conversation_faq_generation: 'gpt-4.1-mini' } },
             as: :json
 
-        expect(response).to have_http_status(:success)
-        expect(json_response.dig(:features, :conversation_faq_generation, :selected)).to eq('gpt-4.1-mini')
-        expect(account.reload.captain_models['conversation_faq_generation']).to eq('gpt-4.1-mini')
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(account.reload.captain_models).to be_nil
       end
 
-      it 'updates captain_models for PDF FAQ generation' do
+      it 'rejects captain_models for PDF FAQ generation not allowed by the account settings schema' do
         put "/api/v1/accounts/#{account.id}/captain/preferences",
             headers: admin.create_new_auth_token,
             params: { captain_models: { pdf_faq_generation: 'gpt-5.2' } },
             as: :json
 
-        expect(response).to have_http_status(:success)
-        expect(json_response.dig(:features, :pdf_faq_generation, :selected)).to eq('gpt-5.2')
-        expect(account.reload.captain_models['pdf_faq_generation']).to eq('gpt-5.2')
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(account.reload.captain_models).to be_nil
       end
 
       it 'updates captain_features' do

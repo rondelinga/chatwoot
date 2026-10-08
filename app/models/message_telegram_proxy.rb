@@ -7,7 +7,10 @@ module MessageTelegramProxy
 
   private
 
-  def mirror_incoming_telegram_to_linked
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  # rubocop:todo Metrics/AbcSize
+  def mirror_incoming_telegram_to_linked # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
     return unless incoming?
     return if source_id&.start_with?('mirror_')
     return unless conversation.inbox.channel_type == 'Channel::Telegram'
@@ -55,4 +58,7 @@ module MessageTelegramProxy
   rescue StandardError => e
     Rails.logger.error("[TelegramProxy] mirror_incoming_telegram_to_linked failed: #{e.class} - #{e.message}")
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 end

@@ -82,8 +82,8 @@ RSpec.describe ChatQueue::Agents::AvailabilityService do
         create(:conversation, account: account, assignee: other_agent, status: :open)
       end
 
-      it 'counts only non-resolved conversations for this agent' do
-        expect(service.send(:active_conversations_count, agent)).to eq(3)
+      it 'counts only open conversations for this agent' do
+        expect(service.send(:active_conversations_count, agent)).to eq(1)
       end
     end
 

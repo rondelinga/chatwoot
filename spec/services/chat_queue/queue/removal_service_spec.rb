@@ -4,7 +4,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
-  let(:service) { described_class.new(account: account, conversation: conversation) }
+  let(:service) { described_class.new(account: account, conversation: conversation, reason: :resolved) }
 
   describe '#remove!' do
     context 'when a waiting queue entry exists' do
@@ -31,7 +31,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
           stats = QueueStatistic.find_by(account_id: account.id, date: Date.current)
           expect(stats).not_to be_nil
           expect(stats.total_left).to eq(1)
-          expect(stats.total_queued).to eq(1)
+          expect(stats.total_queued).to eq(0)
         end
       end
 
@@ -52,6 +52,36 @@ RSpec.describe ChatQueue::Queue::RemovalService do
 
         expect(other_entry.reload.status).to eq('waiting')
         expect(other_entry.left_at).to be_nil
+      end
+    end
+
+    context 'when removed for a reason other than resolved' do
+      let(:service) { described_class.new(account: account, conversation: conversation, reason: :other) }
+      let!(:entry) do
+        create(:conversation_queue, :waiting,
+               conversation: conversation,
+               queued_at: 5.minutes.ago)
+      end
+
+      it 'marks the entry as assigned and sets assigned_at' do
+        freeze_time do
+          service.remove!
+
+          expect(entry.reload.status).to eq('assigned')
+          expect(entry.assigned_at).to eq(Time.current)
+          expect(entry.left_at).to be_nil
+        end
+      end
+
+      it 'counts the entry as assigned in statistics' do
+        freeze_time do
+          service.remove!
+
+          stats = QueueStatistic.find_by(account_id: account.id, date: Date.current)
+          expect(stats.total_assigned).to eq(1)
+          expect(stats.total_left).to eq(0)
+          expect(stats.average_wait_time_seconds).to be_positive
+        end
       end
     end
 
@@ -165,7 +195,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
       let(:other_account) { create(:account) }
       let(:other_inbox) { create(:inbox, account: other_account) }
       let(:other_conversation) { create(:conversation, account: other_account, inbox: other_inbox) }
-      let(:other_service) { described_class.new(account: other_account, conversation: other_conversation) }
+      let(:other_service) { described_class.new(account: other_account, conversation: other_conversation, reason: :resolved) }
 
       let!(:entry1) do
         create(:conversation_queue, :waiting,
@@ -203,8 +233,8 @@ RSpec.describe ChatQueue::Queue::RemovalService do
       end
 
       it 'handles race condition gracefully' do
-        service1 = described_class.new(account: account, conversation: conversation)
-        service2 = described_class.new(account: account, conversation: conversation)
+        service1 = described_class.new(account: account, conversation: conversation, reason: :resolved)
+        service2 = described_class.new(account: account, conversation: conversation, reason: :resolved)
 
         result1 = service1.remove!
         result2 = service2.remove!
@@ -235,7 +265,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
 
           stats = QueueStatistic.find_by(account_id: account.id, date: Date.current)
           expect(stats.total_left).to eq(1)
-          expect(stats.total_queued).to eq(1)
+          expect(stats.total_queued).to eq(0)
           expect(stats.average_wait_time_seconds).to eq(0)
         end
       end
@@ -261,7 +291,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
                        conversation: conversation)
 
         fresh_conversation = Conversation.find(conversation.id)
-        fresh_service = described_class.new(account: account, conversation: fresh_conversation)
+        fresh_service = described_class.new(account: account, conversation: fresh_conversation, reason: :resolved)
 
         result = fresh_service.remove!
 
@@ -289,7 +319,7 @@ RSpec.describe ChatQueue::Queue::RemovalService do
         service.remove!
 
         stats = QueueStatistic.find_by(account_id: account.id, date: Date.current)
-        expect(stats.total_queued).to eq(1)
+        expect(stats.total_queued).to eq(0)
         expect(stats.total_left).to eq(1)
         expect(stats.total_assigned).to eq(0)
       end
@@ -317,18 +347,17 @@ RSpec.describe ChatQueue::Queue::RemovalService do
 
         stats = QueueStatistic.find_by(account_id: account.id, date: Date.current)
         expect(stats.total_left).to eq(1)
-        expect(stats.total_queued).to eq(1)
 
         other_conversation = create(:conversation, account: account, inbox: inbox)
         create(:conversation_queue, :waiting,
                conversation: other_conversation,
                queued_at: 5.minutes.ago)
-        other_service = described_class.new(account: account, conversation: other_conversation)
+        other_service = described_class.new(account: account, conversation: other_conversation, reason: :resolved)
         other_service.remove!
 
         stats.reload
         expect(stats.total_left).to eq(2)
-        expect(stats.total_queued).to eq(2)
+        expect(stats.total_queued).to eq(0)
       end
     end
 

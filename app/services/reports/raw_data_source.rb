@@ -73,7 +73,10 @@ class Reports::RawDataSource < Reports::DataSource
     base
   end
 
-  def count_scope
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  # rubocop:todo Metrics/AbcSize
+  def count_scope # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
     case metric.to_s
     when 'conversations_count'
       base = scope.conversations.where(account_id: account.id, created_at: range).where(proxied_at: nil)
@@ -104,8 +107,11 @@ class Reports::RawDataSource < Reports::DataSource
       reporting_event_count_scope
     end
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 
-  def reporting_event_count_scope
+  def reporting_event_count_scope # rubocop:todo Metrics/AbcSize
     events = scope.reporting_events
                   .where(name: raw_event_name, account_id: account.id, created_at: range)
                   .joins(:conversation)

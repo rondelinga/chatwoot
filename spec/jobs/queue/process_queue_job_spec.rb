@@ -164,7 +164,7 @@ RSpec.describe Queue::ProcessQueueJob do
       it 'schedules next job run' do
         expect do
           described_class.new.perform(account.id, inbox.id)
-        end.to have_enqueued_job(described_class).with(account.id, inbox.id).on_queue('default')
+        end.to have_enqueued_job(described_class).with(account.id, inbox.id).on_queue('queue_processing')
       end
     end
 
@@ -187,7 +187,7 @@ RSpec.describe Queue::ProcessQueueJob do
       it 'schedules next job run' do
         expect do
           described_class.new.perform(account.id, inbox.id)
-        end.to have_enqueued_job(described_class).with(account.id, inbox.id).on_queue('default')
+        end.to have_enqueued_job(described_class).with(account.id, inbox.id).on_queue('queue_processing')
       end
     end
 

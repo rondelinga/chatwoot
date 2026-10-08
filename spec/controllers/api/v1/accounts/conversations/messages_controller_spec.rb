@@ -241,14 +241,19 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(JSON.parse(response.body, symbolize_names: true)).to eq(
           id: message.id, deleted: true, deleted_at: message.reload.deleted_at.as_json
         )
-        expect(message.content).to be_nil
-        expect(message.deleted).to be true
+        expect(message).to have_attributes(content: nil, deleted: true, deleted_by_id: agent.id, original_content: original_content)
         expect(message.content_attributes['bcc_emails']).to be_nil
         expect(message.deleted_at).to be_present
-        expect(message.deleted_by_id).to eq(agent.id)
-        expect(message.original_content).to eq(original_content)
+      end
 
-        audit_note = conversation.messages.find(message.audit_private_note_id)
+      it 'stores the original content in a private audit note' do
+        original_content = message.content
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        audit_note = conversation.messages.find(message.reload.audit_private_note_id)
         expect(audit_note.message_type).to eq('activity')
         expect(audit_note.private).to be true
         expect(audit_note.content).to include(original_content)

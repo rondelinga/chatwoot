@@ -137,7 +137,22 @@ describe('#ConversationAPI', () => {
     it('#mute', () => {
       conversationAPI.mute(45);
       expect(axiosMock.post).toHaveBeenCalledWith(
-        '/api/v1/conversations/45/mute'
+        '/api/v1/conversations/45/mute',
+        {
+          banned_until: null,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
+      );
+    });
+
+    it('#mute with banned until date', () => {
+      conversationAPI.mute(45, '2026-12-31');
+      expect(axiosMock.post).toHaveBeenCalledWith(
+        '/api/v1/conversations/45/mute',
+        {
+          banned_until: '2026-12-31',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
       );
     });
 

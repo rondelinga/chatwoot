@@ -18,19 +18,9 @@ shared_examples_for 'auto_assignment_handler' do
       )
     end
 
-    let(:assignment_service) { instance_double(AutoAssignment::AgentAssignmentService) }
-
     before do
       create(:inbox_member, inbox: inbox, user: agent)
-
-      allow(AutoAssignment::AgentAssignmentService)
-        .to receive(:new)
-        .and_return(assignment_service)
-
-      allow(assignment_service)
-        .to receive(:find_assignee)
-        .and_return(agent)
-
+      allow(OnlineStatusTracker).to receive(:get_available_users).and_return({ agent.id.to_s => 'online' })
       allow(account).to receive(:queue_enabled?).and_return(false)
     end
 
@@ -103,11 +93,11 @@ shared_examples_for 'auto_assignment_handler' do
     end
 
     it 'still assigns on a stale open transition when the earlier open found no agent' do
-      allow(Redis::Alfred).to receive(:rpoplpush).and_return(nil)
+      allow(OnlineStatusTracker).to receive(:get_available_users).and_return({})
       conversation.update!(status: 'pending', assignee: nil)
       stale = Conversation.find(conversation.id)
       conversation.update!(status: 'open')
-      allow(Redis::Alfred).to receive(:rpoplpush).and_return(agent.id)
+      allow(OnlineStatusTracker).to receive(:get_available_users).and_return({ agent.id.to_s => 'online' })
       allow(Rails.configuration.dispatcher).to receive(:dispatch)
 
       stale.update!(status: 'open')
@@ -126,7 +116,7 @@ shared_examples_for 'auto_assignment_handler' do
       # round robin changes assignee in this case since agent doesn't have access to inbox
       agent2 = create(:user, email: 'agent2@example.com', account: account, auto_offline: false)
       create(:inbox_member, inbox: inbox, user: agent2)
-      allow(assignment_service).to receive(:find_assignee).and_return(agent2)
+      allow(OnlineStatusTracker).to receive(:get_available_users).and_return({ agent2.id.to_s => 'online' })
       conversation.status = 'open'
       conversation.save!
       expect(conversation.reload.assignee).to eq(agent2)
