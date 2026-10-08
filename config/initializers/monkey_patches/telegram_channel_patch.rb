@@ -9,8 +9,8 @@
 #
 # Date modified: 12.05.2026
 
-Rails.application.config.after_initialize do
-  module TelegramIncomingMessageServicePatch
+Rails.application.config.after_initialize do # rubocop:todo Metrics/BlockLength
+  module TelegramIncomingMessageServicePatch # rubocop:todo Lint/ConstantDefinitionInBlock
     TELEGRAM_CUSTOM_ATTRIBUTE_KEY = 'channel_type'.freeze
     TELEGRAM_CHANNEL_VALUE = 'telegram'.freeze
 
@@ -57,7 +57,7 @@ Rails.application.config.after_initialize do
         attribute_display_type: :text,
         attribute_model: :contact_attribute
       )
-    rescue ActiveRecord::RecordNotUnique
+    rescue ActiveRecord::RecordNotUnique # rubocop:todo Lint/SuppressedException
     end
   end
 

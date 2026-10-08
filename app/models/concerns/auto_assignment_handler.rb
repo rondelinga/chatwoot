@@ -22,7 +22,8 @@ module AutoAssignmentHandler
     AutoAssignment::AgentAssignmentService.new(conversation: self, allowed_agent_ids: legacy_allowed_agent_ids).assign_under_lock
   end
 
-  def run_auto_assignment
+  # rubocop:todo Metrics/PerceivedComplexity
+  def run_auto_assignment # rubocop:todo Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     return if skip_due_to_queue_status_change?
 
     if account.queue_enabled?
@@ -49,6 +50,7 @@ module AutoAssignmentHandler
       AutoAssignment::AgentAssignmentService.new(conversation: self, allowed_agent_ids: legacy_allowed_agent_ids).perform
     end
   end
+  # rubocop:enable Metrics/PerceivedComplexity
 
   def skip_due_to_queue_status_change?
     saved_change_to_status? && status == 'open' && status_before_last_save == 'queued'

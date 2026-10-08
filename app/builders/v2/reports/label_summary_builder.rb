@@ -18,7 +18,7 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
   def exclude_proxy_chats?
     false
   end
-  
+
   def collect_metrics
     {
       conversation_counts: fetch_conversation_counts,
@@ -157,7 +157,7 @@ class V2::Reports::LabelSummaryBuilder < V2::Reports::BaseSummaryBuilder
     @metrics ||= collect_metrics
     @metrics.values.flat_map(&:keys).compact.uniq
   end
- 
+
   def build_single_label_report(label, metrics)
     {
       id: label.id,

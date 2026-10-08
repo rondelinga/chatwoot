@@ -128,9 +128,17 @@ describe('useAutomation', () => {
     expect(computedLabels.value).toEqual(labels);
     expect(computedTeams.value).toEqual(teams);
     expect(computedSlaPolicies.value).toEqual(slaPolicies);
+    expect(computedStatusFilterOptions.value.map(option => option.id)).toEqual([
+      'open',
+      'resolved',
+      'pending',
+      'queued',
+      'proxied',
+      'snoozed',
+    ]);
     expect(
-      computedStatusFilterOptions.value.filter(option => option.id === 'all')
-    ).toHaveLength(1);
+      computedStatusFilterOptions.value.find(option => option.id === 'all')
+    ).toBeUndefined();
   });
 
   it('appends new condition and action correctly', () => {

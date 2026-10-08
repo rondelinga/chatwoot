@@ -345,7 +345,7 @@ class Conversation < ApplicationRecord
     return unless account.queue_enabled?
     return unless saved_change_to_assignee_id?
     return if assignee_id.blank?
-  
+
     ChatQueue::QueueService.new(account: account).remove_from_queue(self, reason: :other)
   end
 
@@ -404,7 +404,7 @@ class Conversation < ApplicationRecord
     notify_conversation_updation
   end
 
-  def process_queue_on_assignment_change
+  def process_queue_on_assignment_change # rubocop:todo Metrics/CyclomaticComplexity
     return unless account.queue_enabled?
     return unless saved_change_to_assignee_id? || saved_change_to_status?
 
@@ -424,7 +424,7 @@ class Conversation < ApplicationRecord
     update_column(:resolved_at, Time.current)
     update_column(:waiting_since, nil)
     # rubocop:enable Rails/SkipsModelValidations
-end
+  end
 
   def ensure_snooze_until_reset
     self.snoozed_until = nil unless snoozed?
@@ -562,6 +562,7 @@ end
 
   def cascade_close_proxy_chain
     return unless resolved?
+
     Widget::ConversationCloseProxyService.new(self).call
   end
 

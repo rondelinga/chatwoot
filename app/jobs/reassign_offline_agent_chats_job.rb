@@ -57,7 +57,9 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
     )
   end
 
-  def reassign_conversation(conversation)
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/AbcSize
+  def reassign_conversation(conversation) # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/PerceivedComplexity
     allowed = online_agents_for(conversation)
     return unassign(conversation, 'No online agents') if allowed.empty?
 
@@ -81,6 +83,8 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
     enqueue_for_reassignment(conversation) if conversation.account.queue_enabled?
     unassign(conversation, 'Error')
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/PerceivedComplexity
 
   def reassign_via_auto_assignment(conversation, allowed)
     AutoAssignment::AgentAssignmentService.new(

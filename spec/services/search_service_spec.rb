@@ -6,6 +6,7 @@ describe SearchService do
   let(:search_type) { 'all' }
   let!(:account) { create(:account) }
   let!(:user) { create(:user, account: account) }
+  let(:admin) { create(:user, account: account, role: :administrator) }
   let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
   let!(:harry) { create(:contact, name: 'Harry Potter', email: 'test@test.com', account_id: account.id) }
   let!(:conversation) { create(:conversation, contact: harry, inbox: inbox, account: account) }
@@ -72,8 +73,13 @@ describe SearchService do
         harry4 = create(:contact, identifier: 'Potter1235', account_id: account.id, last_activity_at: 2.minutes.ago)
 
         params = { q: 'Potter ' }
-        search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Contact')
+        search = described_class.new(current_user: admin, current_account: account, params: params, search_type: 'Contact')
         expect(search.perform[:contacts].map(&:id)).to eq([harry4.id, harry3.id, harry2.id, harry.id])
+      end
+
+      it 'returns no contacts for agents without a custom role' do
+        search = described_class.new(current_user: user, current_account: account, params: { q: 'Potter' }, search_type: 'Contact')
+        expect(search.perform[:contacts]).to be_empty
       end
     end
 
@@ -318,7 +324,7 @@ describe SearchService do
 
       it 'caps since to 90 days ago and excludes older contacts' do
         params = { q: 'Potter', since: 100.days.ago.to_i, search_type: 'Contact' }
-        search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Contact')
+        search = described_class.new(current_user: admin, current_account: account, params: params, search_type: 'Contact')
         results = search.perform[:contacts]
 
         expect(results.map(&:id)).not_to include(old_contact.id)
@@ -327,7 +333,7 @@ describe SearchService do
 
       it 'caps until to 90 days from now' do
         params = { q: 'Potter', until: 100.days.from_now.to_i, search_type: 'Contact' }
-        search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Contact')
+        search = described_class.new(current_user: admin, current_account: account, params: params, search_type: 'Contact')
         results = search.perform[:contacts]
 
         # Both contacts should be included since their last_activity_at is before the capped time
@@ -440,12 +446,12 @@ describe SearchService do
           create(:inbox_member, user: user, inbox: other_inbox)
         end
 
-        it 'skips inbox filtering as optimization' do
+        it 'skips the direct inbox filter and scopes messages to accessible conversations' do
           base_query = search.send(:message_base_query)
 
-          # Should only have the time filter, not inbox filter
           expect(base_query.to_sql).to include('created_at >= ')
-          expect(base_query.to_sql).not_to include('inbox_id')
+          expect(base_query.to_sql).not_to include('"messages"."inbox_id"')
+          expect(base_query.to_sql).to include('"messages"."conversation_id" IN')
         end
       end
     end

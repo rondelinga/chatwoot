@@ -137,14 +137,13 @@ describe('#mutations', () => {
               created_at: 1602256198,
             },
           ],
-          unread_count: 0,
           timestamp: 1602256198,
         },
       ]);
       expect(emitter.emit).not.toHaveBeenCalled();
     });
 
-    it('add message to the conversation and emit scrollToMessage if it does not exist in the store', () => {
+    it('add message to the selected conversation without emitting scrollToMessage', () => {
       global.bus = { $emit: vi.fn() };
       const state = {
         allConversations: [{ id: 1, messages: [] }],
@@ -165,11 +164,71 @@ describe('#mutations', () => {
               created_at: 1602256198,
             },
           ],
-          unread_count: 0,
           timestamp: 1602256198,
         },
       ]);
-      expect(emitter.emit).toHaveBeenCalledWith('SCROLL_TO_MESSAGE');
+      expect(emitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('inserts new messages in created_at order and tracks the last non-activity message', () => {
+      const existingMessage = { id: 2, conversation_id: 1, created_at: 200 };
+      const state = {
+        allConversations: [{ id: 1, messages: [existingMessage] }],
+      };
+      const message = {
+        id: 1,
+        conversation_id: 1,
+        message_type: 0,
+        created_at: 100,
+      };
+      mutations[types.ADD_MESSAGE](state, message);
+      expect(state.allConversations[0].messages).toEqual([
+        message,
+        existingMessage,
+      ]);
+      expect(state.allConversations[0].timestamp).toEqual(100);
+      expect(state.allConversations[0].last_non_activity_message).toEqual(
+        message
+      );
+    });
+
+    it('does not update timestamp or last non-activity message for private notes', () => {
+      const state = {
+        allConversations: [{ id: 1, messages: [], timestamp: 50 }],
+      };
+      mutations[types.ADD_MESSAGE](state, {
+        id: 1,
+        conversation_id: 1,
+        message_type: 1,
+        private: true,
+        created_at: 100,
+      });
+      expect(state.allConversations[0].timestamp).toEqual(50);
+      expect(
+        state.allConversations[0].last_non_activity_message
+      ).toBeUndefined();
+    });
+
+    it('replaces the persisted message and drops the stale pending copy', () => {
+      const state = {
+        allConversations: [
+          {
+            id: 1,
+            messages: [
+              { id: 'temp-1', conversation_id: 1, status: 'progress' },
+              { id: 10, conversation_id: 1, content: 'Old' },
+            ],
+          },
+        ],
+      };
+      const message = {
+        id: 10,
+        echo_id: 'temp-1',
+        conversation_id: 1,
+        content: 'New',
+      };
+      mutations[types.ADD_MESSAGE](state, message);
+      expect(state.allConversations[0].messages).toEqual([message]);
     });
 
     it('update message if it exist in the store', () => {

@@ -245,11 +245,18 @@ RSpec.describe ChatQueue::QueueService do
   describe '#remove_from_queue' do
     let!(:queue_entry) { create(:conversation_queue, conversation: conversation, account: account, inbox: inbox, status: :waiting) }
 
-    it 'marks queue entry as left' do
-      service.remove_from_queue(conversation)
+    it 'marks queue entry as left when the conversation is resolved' do
+      service.remove_from_queue(conversation, reason: :resolved)
 
       expect(queue_entry.reload.status).to eq('left')
       expect(queue_entry.left_at).not_to be_nil
+    end
+
+    it 'marks queue entry as assigned by default' do
+      service.remove_from_queue(conversation)
+
+      expect(queue_entry.reload.status).to eq('assigned')
+      expect(queue_entry.assigned_at).not_to be_nil
     end
 
     it 'does not delete the queue entry' do

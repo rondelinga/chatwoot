@@ -34,7 +34,8 @@ RSpec.describe Conversation do
         'resolved' => 1,
         'pending' => 2,
         'snoozed' => 3,
-        'queued' => 4
+        'queued' => 4,
+        'proxied' => 5
       )
     end
 
@@ -380,7 +381,7 @@ RSpec.describe Conversation do
           conversation.update!(status: :queued)
           conversation.update!(status: :open)
 
-          expect(queue_service_double).to have_received(:remove_from_queue).with(conversation)
+          expect(queue_service_double).to have_received(:remove_from_queue).with(conversation, reason: :other)
         end
 
         it 'does not remove if old status was not queued' do
@@ -391,9 +392,16 @@ RSpec.describe Conversation do
 
         it 'does not remove if status stayed queued' do
           conversation.update!(status: :queued)
-          conversation.update!(assignee_id: new_assignee.id)
+          conversation.update!(priority: :high)
 
           expect(queue_service_double).not_to have_received(:remove_from_queue)
+        end
+
+        it 'removes conversation from queue when an assignee is set while queued' do
+          conversation.update!(status: :queued)
+          conversation.update!(assignee_id: new_assignee.id)
+
+          expect(queue_service_double).to have_received(:remove_from_queue).with(conversation, reason: :other).at_least(:once)
         end
       end
     end
@@ -604,7 +612,8 @@ RSpec.describe Conversation do
       mute!
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once).with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                                                                    message_type: :activity, content: "#{user.name} has muted the conversation" }))
+                                                                    message_type: :activity,
+                                                                    content: "#{user.name} has muted the conversation for " }))
     end
 
     context 'when contact is missing' do
@@ -805,7 +814,9 @@ RSpec.describe Conversation do
         updated_at: conversation.updated_at.to_f,
         waiting_since: conversation.waiting_since.to_i,
         priority: nil,
-        unread_count: 0
+        unread_count: 0,
+        resolved_by_contact: false,
+        csat_response: {}
       }
     end
 

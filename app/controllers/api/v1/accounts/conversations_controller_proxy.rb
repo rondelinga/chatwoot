@@ -1,4 +1,4 @@
-module Api::V1::Accounts::ConversationsControllerProxy
+module Api::V1::Accounts::ConversationsControllerProxy # rubocop:todo Metrics/ModuleLength
   def change_inbox
     widget_conversation = find_and_authorize_conversation
     target_inbox = find_and_authorize_inbox
@@ -56,25 +56,25 @@ module Api::V1::Accounts::ConversationsControllerProxy
 
   def link_conversations(widget_conversation, operator_conversation)
     tg_conversation = find_telegram_conversation_for(widget_conversation.contact)
-  
+
     root_widget = find_root_widget(widget_conversation)
-  
+
     widget_attrs = merged_attributes(root_widget, operator_conversation.id)
     widget_attrs['source_telegram_conversation_id'] = tg_conversation.id if tg_conversation
-  
+
     root_widget.update!(additional_attributes: widget_attrs)
-    
-    if root_widget.id != widget_conversation.id
-      widget_conversation.update!(
-        additional_attributes: merged_attributes(widget_conversation, operator_conversation.id)
-      )
-    end
+
+    return unless root_widget.id != widget_conversation.id
+
+    widget_conversation.update!(
+      additional_attributes: merged_attributes(widget_conversation, operator_conversation.id)
+    )
   end
-  
+
   def find_root_widget(conversation)
     widget_id = conversation.additional_attributes&.dig('source_widget_id')
     return conversation if widget_id.blank?
-  
+
     Conversation.find_by(id: widget_id) || conversation
   end
 
@@ -92,10 +92,13 @@ module Api::V1::Accounts::ConversationsControllerProxy
     (conversation.additional_attributes || {}).merge('linked_conversation_id' => linked_id)
   end
 
-  def copy_message_history(source_conversation, target_conversation)
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  # rubocop:todo Metrics/AbcSize
+  def copy_message_history(source_conversation, target_conversation) # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
     Thread.current[:copying_message_history] = true
 
-    source_conversation.messages.chat.order(:created_at).each do |message|
+    source_conversation.messages.chat.order(:created_at).each do |message| # rubocop:todo Metrics/BlockLength
       next if message.content.blank? && message.attachments.empty?
       next if target_conversation.messages.exists?(source_id: "history_#{message.id}")
 
@@ -141,6 +144,9 @@ module Api::V1::Accounts::ConversationsControllerProxy
   ensure
     Thread.current[:copying_message_history] = nil
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 
   def build_response(inbox, _operator_conversation)
     {
@@ -150,7 +156,7 @@ module Api::V1::Accounts::ConversationsControllerProxy
     }
   end
 
-  def find_or_create_contact_inbox(contact, inbox)
+  def find_or_create_contact_inbox(contact, inbox) # rubocop:todo Metrics/MethodLength
     existing = ContactInbox.find_by(contact: contact, inbox: inbox)
     return existing if existing
 

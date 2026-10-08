@@ -19,7 +19,8 @@ describe NotificationListener do
         notification_setting.save!
 
         create(:inbox_member, user: first_agent, inbox: inbox)
-        conversation.reload
+        # restricted agents are only notified about conversations that are unassigned or assigned to them
+        conversation.reload.update!(assignee: nil)
 
         event = Events::Base.new(event_name, Time.zone.now, conversation: conversation)
 
@@ -34,6 +35,21 @@ describe NotificationListener do
         notification_setting.save!
 
         create(:inbox_member, user: agent_with_out_notification, inbox: inbox)
+        conversation.reload
+
+        event = Events::Base.new(event_name, Time.zone.now, conversation: conversation)
+
+        listener.conversation_created(event)
+        expect(notification_setting.user.notifications.count).to eq(0)
+      end
+
+      it 'does not create notification for restricted agents when the conversation is assigned to another agent' do
+        notification_setting = first_agent.notification_settings.first
+        notification_setting.selected_email_flags = [:email_conversation_creation]
+        notification_setting.selected_push_flags = []
+        notification_setting.save!
+
+        create(:inbox_member, user: first_agent, inbox: inbox)
         conversation.reload
 
         event = Events::Base.new(event_name, Time.zone.now, conversation: conversation)
@@ -126,7 +142,7 @@ describe NotificationListener do
 
     it 'will not create duplicate new message notification for the same user for mentions participation & assignment' do
       create(:inbox_member, user: first_agent, inbox: inbox)
-      conversation.update(assignee: first_agent)
+      conversation.reload.update!(assignee: first_agent)
 
       message = build(
         :message,
@@ -144,6 +160,8 @@ describe NotificationListener do
 
     it 'will create a mention notification when a user is mentioned in a private note' do
       create(:inbox_member, user: first_agent, inbox: inbox)
+      # restricted agents are only notified about conversations that are unassigned or assigned to them
+      conversation.reload.update!(assignee: nil)
 
       message = build(
         :message,
@@ -192,7 +210,8 @@ describe NotificationListener do
         notification_setting.save!
 
         create(:inbox_member, user: first_agent, inbox: inbox)
-        conversation.reload
+        # restricted agents are only notified about conversations that are unassigned or assigned to them
+        conversation.reload.update!(assignee: nil)
 
         event = Events::Base.new(event_name, Time.zone.now, conversation: conversation)
 

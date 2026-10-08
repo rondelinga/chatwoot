@@ -44,7 +44,10 @@ describe('#findPendingMessageIndex', () => {
       messages: [{ id: 1, status: 'progress' }],
     };
     const message = { echo_id: 1 };
-    expect(findPendingMessageIndex(chat, message)).toEqual(0);
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: 0,
+      staleIndex: -1,
+    });
   });
 
   it('returns -1 if pending message with id is not present', () => {
@@ -52,7 +55,35 @@ describe('#findPendingMessageIndex', () => {
       messages: [{ id: 1, status: 'progress' }],
     };
     const message = { echo_id: 2 };
-    expect(findPendingMessageIndex(chat, message)).toEqual(-1);
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: -1,
+      staleIndex: -1,
+    });
+  });
+
+  it('returns the index of the persisted message when it is already present', () => {
+    const chat = {
+      messages: [{ id: 10, status: 'sent' }],
+    };
+    const message = { id: 10, echo_id: 'temp-1' };
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: 0,
+      staleIndex: -1,
+    });
+  });
+
+  it('returns the stale pending index when both pending and persisted messages are present', () => {
+    const chat = {
+      messages: [
+        { id: 'temp-1', status: 'progress' },
+        { id: 10, status: 'sent' },
+      ],
+    };
+    const message = { id: 10, echo_id: 'temp-1' };
+    expect(findPendingMessageIndex(chat, message)).toEqual({
+      index: 1,
+      staleIndex: 0,
+    });
   });
 });
 

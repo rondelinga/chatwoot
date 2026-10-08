@@ -7,41 +7,59 @@ const mountParams = {
     mocks: {
       $t: msg => msg,
     },
-    stubs: ['multiselect'],
   },
 };
 
-describe('ReportsFiltersDateGroupBy.vue', () => {
-  it('emits "on-grouping-change" event when changeFilterSelection is called', () => {
-    const wrapper = shallowMount(ReportsFiltersDateGroupBy, mountParams);
+const validGroupOptions = [
+  GROUP_BY_OPTIONS.DAY,
+  GROUP_BY_OPTIONS.WEEK,
+  GROUP_BY_OPTIONS.MONTH,
+];
 
-    const selectedFilter = GROUP_BY_OPTIONS.DAY;
-    wrapper.vm.changeFilterSelection(selectedFilter);
+describe('ReportsFiltersDateGroupBy.vue', () => {
+  it('emits "onGroupingChange" event when a grouping option is selected', async () => {
+    const wrapper = shallowMount(ReportsFiltersDateGroupBy, {
+      ...mountParams,
+      props: { validGroupOptions },
+    });
+
+    await wrapper.find('select').setValue(GROUP_BY_OPTIONS.WEEK.id);
 
     expect(wrapper.emitted('onGroupingChange')).toBeTruthy();
-    expect(wrapper.emitted('onGroupingChange')[0]).toEqual([selectedFilter]);
+    expect(wrapper.emitted('onGroupingChange')[0]).toEqual([
+      {
+        ...GROUP_BY_OPTIONS.WEEK,
+        groupBy: GROUP_BY_OPTIONS.WEEK.translationKey,
+      },
+    ]);
   });
 
-  it('updates currentSelectedFilter when selectedOption is changed', async () => {
-    const wrapper = shallowMount(ReportsFiltersDateGroupBy, mountParams);
-
-    const newSelectedOption = GROUP_BY_OPTIONS.MONTH;
-    await wrapper.setProps({ selectedOption: newSelectedOption });
-
-    expect(wrapper.vm.currentSelectedFilter).toEqual({
-      ...newSelectedOption,
-      groupBy: newSelectedOption.translationKey,
+  it('updates the selected value when selectedOption is changed', async () => {
+    const wrapper = shallowMount(ReportsFiltersDateGroupBy, {
+      ...mountParams,
+      props: { validGroupOptions },
     });
+
+    await wrapper.setProps({ selectedOption: GROUP_BY_OPTIONS.MONTH });
+
+    expect(wrapper.find('select').element.value).toBe(
+      GROUP_BY_OPTIONS.MONTH.id
+    );
   });
 
-  it('initializes translatedOptions correctly', () => {
-    const wrapper = shallowMount(ReportsFiltersDateGroupBy, mountParams);
+  it('renders translated options correctly', () => {
+    const wrapper = shallowMount(ReportsFiltersDateGroupBy, {
+      ...mountParams,
+      props: { validGroupOptions },
+    });
 
-    const expectedOptions = wrapper.vm.validGroupOptions.map(option => ({
-      ...option,
-      groupBy: option.translationKey,
-    }));
+    const options = wrapper.findAll('option');
 
-    expect(wrapper.vm.translatedOptions).toEqual(expectedOptions);
+    expect(options.map(option => option.element.value)).toEqual(
+      validGroupOptions.map(option => option.id)
+    );
+    expect(options.map(option => option.text())).toEqual(
+      validGroupOptions.map(option => option.translationKey)
+    );
   });
 });

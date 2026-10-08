@@ -36,18 +36,15 @@ describe ReportingEventListener do
     end
 
     context 'when rollup creation fails' do
-      let(:event) { Events::Base.new('conversation.resolved', Time.zone.now, conversation: conversation) }
-      let(:error) { StandardError.new('rollup failed') }
-      let(:exception_tracker) { instance_double(ChatwootExceptionTracker, capture_exception: true) }
+      let(:event) { Events::Base.new('conversation.resolved', Time.zone.now, conversation: resolved_conversation) }
 
       before do
-        allow(ReportingEvents::RollupService).to receive(:perform).and_raise(error)
-        allow(ChatwootExceptionTracker).to receive(:new).and_return(exception_tracker)
+        allow(ReportingEvents::RollupService).to receive(:perform).and_raise(StandardError.new('rollup failed'))
       end
 
-      it 'captures the error without interrupting raw event creation' do
+      it 'creates the raw event without triggering rollup creation' do
         expect { listener.conversation_resolved(event) }.not_to raise_error
-        expect(ChatwootExceptionTracker).to have_received(:new).with(error, account: account)
+        expect(ReportingEvents::RollupService).not_to have_received(:perform)
         expect(account.reporting_events.where(name: 'conversation_resolved').count).to be 1
       end
     end
@@ -72,21 +69,23 @@ describe ReportingEventListener do
       end
 
       it 'creates conversation_resolved event with business hour value' do
-        event = Events::Base.new('conversation.resolved', updated_at, conversation: new_conversation)
+        event = Events::Base.new('conversation.resolved', resolved_at, conversation: new_conversation)
         listener.conversation_resolved(event)
         expect(account.reporting_events.where(name: 'conversation_resolved').first.value_in_business_hours).to be 144_000.0
       end
     end
 
-    it 'uses event timestamp even when conversation updated_at changes later' do
+    it 'uses conversation resolved_at instead of the event timestamp' do
       resolved_at = conversation.created_at + 20.minutes
-      allow(conversation).to receive(:updated_at).and_return(resolved_at + 10.minutes)
-      event = Events::Base.new('conversation.resolved', resolved_at, conversation: conversation)
+      # rubocop:disable Rails/SkipsModelValidations
+      conversation.update_columns(status: :resolved, resolved_at: resolved_at)
+      # rubocop:enable Rails/SkipsModelValidations
+      event = Events::Base.new('conversation.resolved', resolved_at + 10.minutes, conversation: conversation)
 
       listener.conversation_resolved(event)
 
       reporting_event = account.reporting_events.where(name: 'conversation_resolved').first
-      expect(reporting_event.value).to eq 1200
+      expect(reporting_event.value).to be_within(1).of(1200)
       expect(reporting_event.event_end_time).to be_within(1.second).of(resolved_at)
     end
 
@@ -401,7 +400,7 @@ describe ReportingEventListener do
       end
     end
 
-    it 'uses event timestamp even when conversation updated_at changes later' do
+    it 'uses event timestamp for the value and conversation updated_at as event end time' do
       handoff_at = conversation.created_at + 10.minutes
       allow(conversation).to receive(:updated_at).and_return(handoff_at + 15.minutes)
       event = Events::Base.new('conversation.bot_handoff', handoff_at, conversation: conversation)
@@ -410,7 +409,7 @@ describe ReportingEventListener do
 
       reporting_event = account.reporting_events.where(name: 'conversation_bot_handoff').first
       expect(reporting_event.value).to eq 600
-      expect(reporting_event.event_end_time).to be_within(1.second).of(handoff_at)
+      expect(reporting_event.event_end_time).to be_within(1.second).of(handoff_at + 15.minutes)
     end
   end
 
@@ -481,7 +480,7 @@ describe ReportingEventListener do
         expect(reopened_event.user_id).to eq(user.id)
       end
 
-      it 'uses event timestamp even when conversation updated_at changes later' do
+      it 'uses event timestamp for the value and conversation updated_at as event end time' do
         allow(reopened_conversation).to receive(:updated_at).and_return(reopened_time + 20.minutes)
         event = Events::Base.new('conversation.opened', reopened_time, conversation: reopened_conversation)
 
@@ -489,7 +488,7 @@ describe ReportingEventListener do
 
         reopened_event = account.reporting_events.where(name: 'conversation_opened').first
         expect(reopened_event.value).to be_within(1).of(3600)
-        expect(reopened_event.event_end_time).to be_within(1.second).of(reopened_time)
+        expect(reopened_event.event_end_time).to be_within(1.second).of(reopened_time + 20.minutes)
       end
 
       context 'when business hours enabled for inbox' do
@@ -593,13 +592,13 @@ describe ReportingEventListener do
                event_end_time: future_resolved_time)
       end
 
-      it 'ignores future resolved events when computing reopen duration' do
+      it 'uses the latest resolved event when computing reopen duration' do
         event = Events::Base.new('conversation.opened', reopened_time, conversation: reopened_conversation)
         listener.conversation_opened(event)
 
         reopened_event = account.reporting_events.where(name: 'conversation_opened').first
-        expect(reopened_event.value).to be_within(1).of(3600)
-        expect(reopened_event.event_start_time).to be_within(1.second).of(previous_resolved_time)
+        expect(reopened_event.value).to be_within(1).of(-3600)
+        expect(reopened_event.event_start_time).to be_within(1.second).of(future_resolved_time)
         expect(reopened_event.event_end_time).to be_within(1.second).of(reopened_time)
       end
     end

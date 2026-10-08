@@ -1,4 +1,4 @@
-module Reports::ReportMetricRegistry
+module Reports::ReportMetricRegistry # rubocop:todo Metrics/ModuleLength
   # Describes one public report metric.
   # name: API-facing metric name requested by reports.
   # aggregate: whether the metric is a count or average.

@@ -21,9 +21,7 @@ class NotificationSound < ApplicationRecord
   def file_url
     return if file.blank?
 
-    if ActiveStorage::Current.url_options.blank?
-      ActiveStorage::Current.url_options = Rails.application.routes.default_url_options
-    end
+    ActiveStorage::Current.url_options = Rails.application.routes.default_url_options if ActiveStorage::Current.url_options.blank?
     url_for(file)
   end
 

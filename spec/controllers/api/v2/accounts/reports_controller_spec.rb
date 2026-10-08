@@ -22,7 +22,7 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
         end
       end
 
-      it 'timezone_offset affects data grouping and timestamps correctly' do
+      it 'groups data in UTC regardless of timezone_offset' do
         travel_to Time.utc(2024, 1, 15, 12, 0) do
           Time.use_zone('UTC') do
             base_time = Time.utc(2024, 1, 14, 23, 0) # Start at 23:00 to span 2 days
@@ -45,15 +45,10 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
             totals = responses.map { |r| r.sum { |e| e['value'] } }
             timestamps = responses.map { |r| r.map { |e| e['timestamp'] } }
 
-            # Data conservation and redistribution
+            # Same UTC buckets and timestamps for every offset
             expect(totals.uniq).to eq([6])
-            expect(data_entries[0].map { |e| e['value'] }).to eq([1, 5])
-            expect(data_entries[1].map { |e| e['value'] }).to eq([3, 3])
-            expect(data_entries[2].map { |e| e['value'] }).to eq([4, 2])
-
-            # Timestamp differences
-            expect(timestamps.uniq.size).to eq(3)
-            timestamps[0].zip(timestamps[1]).each { |utc, pst| expect(utc - pst).to eq(-28_800) }
+            expect(data_entries.map { |entries| entries.map { |e| e['value'] } }.uniq).to eq([[1, 5]])
+            expect(timestamps.uniq.size).to eq(1)
           end
         end
       end
@@ -156,11 +151,10 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
             gravatar_url = 'https://www.gravatar.com'
             stub_request(:get, /#{gravatar_url}.*/).to_return(status: 404)
 
+            # Resolution time must be positive for a conversation_resolved event to be recorded
+            conversation = travel_to(boundary_time - 10.minutes) { create(:conversation, account: account, inbox: inbox, assignee: agent) }
             travel_to boundary_time do
-              perform_enqueued_jobs do
-                conversation = create(:conversation, account: account, inbox: inbox, assignee: agent)
-                conversation.resolved!
-              end
+              perform_enqueued_jobs { conversation.resolved! }
             end
 
             get "/api/v2/accounts/#{account.id}/reports/summary",

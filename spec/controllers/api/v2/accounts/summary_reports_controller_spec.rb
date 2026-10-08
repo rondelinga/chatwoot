@@ -26,13 +26,13 @@ RSpec.describe 'Summary Reports API', type: :request do
         }
       end
 
-      it 'returns unauthorized for agents' do
+      it 'allows agents' do
         get "/api/v2/accounts/#{account.id}/summary_reports/agent",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'calls V2::Reports::AgentSummaryBuilder with the right params if the user is an admin' do

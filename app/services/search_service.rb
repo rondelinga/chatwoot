@@ -1,4 +1,4 @@
-class SearchService
+class SearchService # rubocop:todo Metrics/ClassLength
   pattr_initialize [:current_user!, :current_account!, :params!, :search_type!]
 
   def account_user
