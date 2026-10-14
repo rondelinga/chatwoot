@@ -24,7 +24,7 @@ class CsatSurveys::ResponseBuilder
     csat_survey_response.rating = rating
     csat_survey_response.feedback_message = feedback_message
     csat_survey_response.save!
-    create_like_dislike_activity_message(conversation, rating)
+    create_like_dislike_activity_message(conversation, csat_survey_response)
     csat_survey_response
   end
 
@@ -32,16 +32,17 @@ class CsatSurveys::ResponseBuilder
     CsatSurveyResponse.where(conversation_id: conversation.id).order(created_at: :asc).first
   end
 
-  def create_like_dislike_activity_message(conversation, rating)
-    return unless message.content_attributes&.dig('display_type') == 'like_dislike'
+  def create_like_dislike_activity_message(conversation, csat_survey_response)
+    return unless csat_survey_response.display_type == 'like_dislike'
 
-    content = I18n.t('conversations.activity.csat.rated', rating: rating.to_i == 5 ? 'good' : 'bad')
-    activity_message_params = {
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      message_type: :activity,
-      content: content
-    }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params)
+    ::Conversations::ActivityMessageJob.perform_later(
+      conversation,
+      {
+        account_id: conversation.account_id,
+        inbox_id: conversation.inbox_id,
+        message_type: :activity,
+        content: I18n.t('conversations.activity.csat.rated', rating: csat_survey_response.report_rating)
+      }
+    )
   end
 end

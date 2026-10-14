@@ -19,12 +19,11 @@ class V2::Reports::BotSummaryReportBuilder < V2::Reports::BaseSummaryBuilder
   end
 
   def fetch_conversations_count
-    pairs = AgentBotInbox.where(account_id: account.id, status: :active).pluck(:inbox_id, :agent_bot_id)
+    inbox_to_bot = AgentBotInbox.where(account_id: account.id, status: :active).pluck(:inbox_id, :agent_bot_id).to_h
     allowed = Array(params[:inbox_ids]).reject(&:blank?).map(&:to_i)
-    pairs = pairs.slice(*allowed) if allowed.present?
-    return {} if pairs.empty?
+    inbox_to_bot = inbox_to_bot.slice(*allowed) if allowed.present?
+    return {} if inbox_to_bot.empty?
 
-    inbox_to_bot = pairs.to_h
     account.conversations.where(created_at: range, inbox_id: inbox_to_bot.keys).group(:inbox_id).count
            .each_with_object(Hash.new(0)) { |(inbox_id, count), result| result[inbox_to_bot[inbox_id]] += count }
   end
@@ -79,6 +78,10 @@ class V2::Reports::BotSummaryReportBuilder < V2::Reports::BaseSummaryBuilder
 
   def group_by_key
     :agent_bot_id
+  end
+
+  def average_value_key
+    ActiveModel::Type::Boolean.new.cast(params[:business_hours]) ? :value_in_business_hours : :value
   end
 
   def reporting_events

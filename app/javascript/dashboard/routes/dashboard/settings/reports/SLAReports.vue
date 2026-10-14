@@ -4,10 +4,19 @@ import { useAlert } from 'dashboard/composables';
 import SLAMetrics from './components/SLA/SLAMetrics.vue';
 import SLATable from './components/SLA/SLATable.vue';
 import SLAReportFilters from './components/SLA/SLAReportFilters.vue';
+import ReportFilterPresets from './components/ReportFilterPresets.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
 import DownloadDropdown from 'dashboard/components/DownloadDropdown.vue';
 import { useReportDownloadOptions } from 'dashboard/composables/useReportDownloadOptions';
+import {
+  parseFilterURLParams,
+  parseReportURLParams,
+} from './helpers/reportFilterHelper';
+import {
+  buildPresetSLAReportQuery,
+  serializeSLAReportQuery,
+} from './helpers/reportFilterPresetHelper';
 
 export default {
   name: 'SLAReports',
@@ -17,6 +26,7 @@ export default {
     SLAMetrics,
     SLATable,
     SLAReportFilters,
+    ReportFilterPresets,
   },
   setup() {
     const { downloadOptions } = useReportDownloadOptions();
@@ -34,6 +44,8 @@ export default {
         sla_policy_id: null,
         label_list: null,
       },
+      // Remounts SLAReportFilters so it re-reads the URL after a preset is applied
+      filtersKey: 0,
     };
   },
   computed: {
@@ -43,6 +55,9 @@ export default {
       slaMeta: 'slaReports/getMeta',
       uiFlags: 'slaReports/getUIFlags',
     }),
+    presetFilters() {
+      return serializeSLAReportQuery(this.$route.query);
+    },
   },
   mounted() {
     this.$store.dispatch('agents/get');
@@ -70,6 +85,20 @@ export default {
       this.activeFilter = params;
       this.fetchSLAReports();
       this.fetchSLAMetrics();
+    },
+    async applyPreset(filters) {
+      const query = buildPresetSLAReportQuery(filters, this.$route.query);
+      await this.$router.replace({ query });
+      this.filtersKey += 1;
+
+      // SLAFilter re-emits on mount only when one of its filters is active
+      const hasSLAFilters = Object.values(parseFilterURLParams(query)).some(
+        Boolean
+      );
+      if (!hasSLAFilters) {
+        const { from, to } = parseReportURLParams(query);
+        this.onFilterChange({ from, to });
+      }
     },
     downloadReports(option) {
       const type = 'sla';
@@ -101,7 +130,10 @@ export default {
     />
   </ReportHeader>
   <div class="flex flex-col flex-1 gap-6">
-    <SLAReportFilters @filter-change="onFilterChange" />
+    <div class="flex flex-col gap-3">
+      <ReportFilterPresets :filters="presetFilters" @apply="applyPreset" />
+      <SLAReportFilters :key="filtersKey" @filter-change="onFilterChange" />
+    </div>
     <SLAMetrics
       :hit-rate="slaMetrics.hitRate"
       :no-of-breaches="slaMetrics.numberOfSLAMisses"
