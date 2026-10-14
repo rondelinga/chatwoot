@@ -1,5 +1,5 @@
 <script setup>
-import ReportFilterSelector from './FilterSelector.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { formatTime } from '@chatwoot/utils';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -372,7 +372,7 @@ defineExpose({ downloadReports });
 
 <template>
   <div class="flex flex-col gap-3">
-    <ReportFilterSelector
+    <AdvancedReportFilters
       :section="type"
       show-time-range-filter
       show-agents-filter

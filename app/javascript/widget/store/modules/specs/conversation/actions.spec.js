@@ -509,4 +509,22 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([]);
     });
   });
+
+  describe('#requestCSAT', () => {
+    it('requests a csat survey for the current conversation', async () => {
+      API.post.mockResolvedValue({});
+
+      await actions.requestCSAT();
+
+      expect(API.post).toHaveBeenCalledWith(
+        `/api/v1/widget/conversations/request_csat${window.location.search}`
+      );
+    });
+
+    it('ignores request errors', async () => {
+      API.post.mockRejectedValue(new Error('failed'));
+
+      await expect(actions.requestCSAT()).resolves.toBeUndefined();
+    });
+  });
 });

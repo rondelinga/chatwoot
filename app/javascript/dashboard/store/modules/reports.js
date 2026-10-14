@@ -22,10 +22,9 @@ const state = {
     customDateRange: null,
     businessHoursSelected: false,
     selectedAgents: [],
-    selectedLabel: null,
+    selectedLabel: [],
     selectedInbox: [],
     selectedTeam: [],
-    selectedRating: null,
     selectedTimeRange: { since: '00:00', until: '23:59' },
   },
   accountReport: {

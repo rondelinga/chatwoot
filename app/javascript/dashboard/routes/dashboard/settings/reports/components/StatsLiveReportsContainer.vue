@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import MetricCard from './overview/MetricCard.vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
-import FilterSelector from 'dashboard/routes/dashboard/settings/reports/components/FilterSelector.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 import { useI18n } from 'vue-i18n';
 import ReportsAPI from 'dashboard/api/reports';
 import { downloadFile } from 'dashboard/helper/downloadHelper';
@@ -173,7 +173,7 @@ defineExpose({
         <template #control>
           <div class="flex gap-2 flex-wrap w-full">
             <div class="w-full">
-              <FilterSelector
+              <AdvancedReportFilters
                 section="overview"
                 show-time-range-filter
                 show-agents-filter

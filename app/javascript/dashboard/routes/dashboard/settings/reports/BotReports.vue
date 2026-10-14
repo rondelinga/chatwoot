@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useAlert, useTrack } from 'dashboard/composables';
 import BotMetrics from './components/BotMetrics.vue';
 import BotSummaryTable from './components/BotSummaryTable.vue';
-import ReportFilterSelector from './components/FilterSelector.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 import { GROUP_BY_FILTER } from './constants';
 import ReportContainer from './ReportContainer.vue';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
@@ -17,7 +17,7 @@ export default {
     BotMetrics,
     BotSummaryTable,
     ReportHeader,
-    ReportFilterSelector,
+    AdvancedReportFilters,
     ReportContainer,
     DownloadDropdown,
   },
@@ -151,7 +151,7 @@ export default {
   </ReportHeader>
 
   <div class="flex flex-col gap-4">
-    <ReportFilterSelector
+    <AdvancedReportFilters
       section="bot"
       :show-agents-filter="false"
       show-inbox-filter
