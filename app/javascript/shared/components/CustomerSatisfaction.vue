@@ -1,9 +1,14 @@
 <script>
 import { mapGetters } from 'vuex';
 import Spinner from 'shared/components/Spinner.vue';
-import { CSAT_RATINGS, CSAT_DISPLAY_TYPES } from 'shared/constants/messages';
+import {
+  CSAT_RATINGS,
+  CSAT_DISPLAY_TYPES,
+  CSAT_LIKE_DISLIKE_RATINGS,
+} from 'shared/constants/messages';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import StarRating from 'shared/components/StarRating.vue';
+import LikeDislikeRating from 'shared/components/LikeDislikeRating.vue';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import { getContrastingTextColor } from '@chatwoot/utils';
 
@@ -12,6 +17,7 @@ export default {
     Spinner,
     FluentIcon,
     StarRating,
+    LikeDislikeRating,
   },
   props: {
     messageContentAttributes: {
@@ -46,8 +52,6 @@ export default {
       selectedRating: null,
       isUpdating: false,
       feedback: '',
-      likeIcon: '👍',
-      dislikeIcon: '👎',
     };
   },
   computed: {
@@ -60,18 +64,15 @@ export default {
         ?.feedback_message;
     },
     isButtonDisabled() {
+      if (!(this.selectedRating && this.feedback)) return true;
       if (this.isUpdating) return true;
-
-      return !this.selectedRating;
+      return false;
     },
     textColor() {
       return getContrastingTextColor(this.widgetColor);
     },
     title() {
-      if (this.isLikeDislikeType) {
-        return this.message || this.$t('CSAT.TITLE');
-      }
-      return this.isRatingSubmitted
+      return this.isRatingSubmitted && !this.isLikeDislikeType
         ? this.$t('CSAT.SUBMITTED_TITLE')
         : this.message || this.$t('CSAT.TITLE');
     },
@@ -87,29 +88,17 @@ export default {
     isLikeDislikeType() {
       return this.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE;
     },
-    goodRatingValue() {
-      return 5;
-    },
-    badRatingValue() {
-      return 1;
-    },
+    // Like/dislike keeps the feedback input open so the contact can re-rate and comment again.
     shouldShowFeedbackInput() {
-      if (this.isLikeDislikeType) {
-        return !!this.selectedRating;
-      }
+      if (this.isLikeDislikeType) return !!this.selectedRating;
       return !this.isFeedbackSubmitted;
     },
     feedbackPlaceholder() {
-      if (
-        this.isLikeDislikeType &&
-        this.selectedRating === this.badRatingValue
-      ) {
+      const [, dislike] = CSAT_LIKE_DISLIKE_RATINGS;
+      if (this.isLikeDislikeType && this.selectedRating === dislike.value) {
         return this.$t('CSAT.DISLIKE_PLACEHOLDER');
       }
       return this.$t('CSAT.PLACEHOLDER');
-    },
-    shouldShowChangeHint() {
-      return this.allowUpdate && this.isLikeDislikeType;
     },
   },
 
@@ -152,6 +141,7 @@ export default {
         this.isUpdating = false;
       }
     },
+
     selectRating(rating) {
       if (this.isFeedbackSubmitted || this.isUpdating) return;
       this.selectedRating = rating.value;
@@ -162,15 +152,12 @@ export default {
       this.selectedRating = value;
       this.onSubmit();
     },
-    selectLikeDislike(value) {
-      const isChangingFromBadToGood =
-        this.selectedRating === this.badRatingValue &&
-        value === this.goodRatingValue;
-
-      this.selectedRating = value;
-      if (isChangingFromBadToGood) {
+    selectLikeDislikeRating(value) {
+      const [like, dislike] = CSAT_LIKE_DISLIKE_RATINGS;
+      if (this.selectedRating === dislike.value && value === like.value) {
         this.feedback = '';
       }
+      this.selectedRating = value;
       this.onSubmit();
     },
   },
@@ -187,7 +174,7 @@ export default {
       class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center prose prose-bubble"
     />
     <p
-      v-if="shouldShowChangeHint"
+      v-if="allowUpdate && isLikeDislikeType"
       class="text-n-slate-11 text-xs px-4 pt-1 text-center"
     >
       {{ $t('CSAT.CHANGE_RATING_HINT') }}
@@ -208,25 +195,12 @@ export default {
       :is-disabled="isFeedbackSubmitted || isUpdating"
       @select-rating="selectStarRating"
     />
-    <div
+    <LikeDislikeRating
       v-else-if="isLikeDislikeType"
-      class="ratings flex justify-center gap-6 py-5 px-4"
-    >
-      <button
-        class="emoji-button"
-        :class="{ selected: selectedRating === goodRatingValue }"
-        @click="selectLikeDislike(goodRatingValue)"
-      >
-        {{ likeIcon }}
-      </button>
-      <button
-        class="emoji-button"
-        :class="{ selected: selectedRating === badRatingValue }"
-        @click="selectLikeDislike(badRatingValue)"
-      >
-        {{ dislikeIcon }}
-      </button>
-    </div>
+      :selected-rating="selectedRating"
+      :is-disabled="isUpdating"
+      @select-rating="selectLikeDislikeRating"
+    />
     <form
       v-if="shouldShowFeedbackInput"
       class="feedback-form flex"
@@ -239,7 +213,7 @@ export default {
       />
       <button
         class="button small"
-        :disabled="isButtonDisabled || isUpdating"
+        :disabled="isButtonDisabled"
         :style="{
           background: widgetColor,
           borderColor: widgetColor,

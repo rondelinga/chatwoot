@@ -15,27 +15,36 @@ export default {
       type: Boolean,
       default: false,
     },
+    isButtonDisabled: {
+      type: Boolean,
+      default: false,
+    },
+    selectedRating: {
+      type: Number,
+      default: null,
+    },
     initialFeedback: {
       type: String,
       default: '',
     },
-    placeholder: {
-      type: String,
-      default: '',
-    },
   },
-  emits: ['sendFeedback', 'updateFeedback'],
+  emits: ['sendFeedback'],
   data() {
     return {
       feedback: this.initialFeedback,
     };
   },
+  computed: {
+    isSubmitDisabled() {
+      return (
+        this.isButtonDisabled || !this.selectedRating || !this.feedback.trim()
+      );
+    },
+  },
   methods: {
     onClick() {
+      if (this.isSubmitDisabled) return;
       this.$emit('sendFeedback', this.feedback);
-    },
-    onInput(value) {
-      this.$emit('updateFeedback', value);
     },
   },
 };
@@ -49,11 +58,10 @@ export default {
     <TextArea
       v-model="feedback"
       class="my-5"
-      :placeholder="placeholder || $t('SURVEY.FEEDBACK.PLACEHOLDER')"
-      @update:model-value="onInput"
+      :placeholder="$t('SURVEY.FEEDBACK.PLACEHOLDER')"
     />
     <div class="flex items-center float-right font-medium">
-      <CustomButton :disabled="isUpdating" @click="onClick">
+      <CustomButton :disabled="isSubmitDisabled" @click="onClick">
         <Spinner v-if="isUpdating" class="p-0" />
         {{ $t('SURVEY.FEEDBACK.BUTTON_TEXT') }}
       </CustomButton>

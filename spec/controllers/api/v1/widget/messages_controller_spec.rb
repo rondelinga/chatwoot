@@ -75,6 +75,23 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
       end
     end
 
+    context 'when the message starts a conversation in a like/dislike csat inbox' do
+      it 'posts the rating hint before the contact message' do
+        conversation.destroy!
+        web_widget.inbox.update!(csat_survey_enabled: true, csat_config: { 'display_type' => 'like_dislike' })
+
+        post api_v1_widget_messages_url,
+             params: { website_token: web_widget.website_token, message: { content: 'hello world' } },
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        hint, contact_message = web_widget.inbox.conversations.last.messages.order(:id).first(2)
+        expect(hint.content).to eq(I18n.t('conversations.templates.csat_like_dislike_hint'))
+        expect(contact_message.content).to eq('hello world')
+      end
+    end
+
     context 'when post request is made' do
       it 'creates message in conversation' do
         conversation.destroy! # Test all params

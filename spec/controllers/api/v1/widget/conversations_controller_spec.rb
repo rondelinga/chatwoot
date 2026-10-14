@@ -209,6 +209,34 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
       json_response = response.parsed_body
       expect(json_response['contact']['phone_number']).to be_nil
     end
+
+    context 'when the inbox uses like/dislike csat' do
+      before { web_widget.inbox.update!(csat_survey_enabled: true, csat_config: { 'display_type' => 'like_dislike' }) }
+
+      it 'posts the rating hint before the first contact message' do
+        post '/api/v1/widget/conversations',
+             headers: { 'X-Auth-Token' => token },
+             params: conversation_params,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        messages = Conversation.find_by(display_id: response.parsed_body['id'], account: account).messages.order(:id)
+        expect(messages.map(&:message_type)).to eq(%w[template incoming])
+        expect(messages.first.content).to eq(I18n.t('conversations.templates.csat_like_dislike_hint'))
+      end
+
+      it 'does not post the hint when it is disabled' do
+        web_widget.inbox.update!(csat_config: { 'display_type' => 'like_dislike', 'like_dislike_hint_enabled' => false })
+
+        post '/api/v1/widget/conversations',
+             headers: { 'X-Auth-Token' => token },
+             params: conversation_params,
+             as: :json
+
+        messages = Conversation.find_by(display_id: response.parsed_body['id'], account: account).messages
+        expect(messages.map(&:message_type)).to eq(%w[incoming])
+      end
+    end
   end
 
   describe 'POST /api/v1/widget/conversations/toggle_typing' do

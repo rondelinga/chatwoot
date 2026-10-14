@@ -2,7 +2,7 @@
 import DownloadDropdown from 'dashboard/components/DownloadDropdown.vue';
 import { useReportDownloadOptions } from 'dashboard/composables/useReportDownloadOptions';
 import { useAlert, useTrack } from 'dashboard/composables';
-import ReportFilterSelector from './components/FilterSelector.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 import { GROUP_BY_FILTER } from './constants';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
@@ -24,7 +24,7 @@ export default {
   name: 'ConversationReports',
   components: {
     ReportHeader,
-    ReportFilterSelector,
+    AdvancedReportFilters,
     ReportContainer,
     DownloadDropdown,
   },
@@ -157,7 +157,7 @@ export default {
     />
   </ReportHeader>
   <div class="flex flex-col gap-3">
-    <ReportFilterSelector
+    <AdvancedReportFilters
       section="conversation"
       show-agents-filter
       show-inbox-filter
