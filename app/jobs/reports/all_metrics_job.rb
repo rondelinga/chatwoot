@@ -62,7 +62,7 @@ class Reports::AllMetricsJob < ApplicationJob
   end
 
   def render_view(format)
-    view_path = 'api/v2/accounts/reports/all_conversation_metrics'
+    view_path = 'report_extensions/api/v2/accounts/reports/all_conversation_metrics'
 
     ApplicationController.render(template: view_path, formats: [format.to_sym], locals: { report_data: @report_data },
                                  assigns: { report_data: @report_data })

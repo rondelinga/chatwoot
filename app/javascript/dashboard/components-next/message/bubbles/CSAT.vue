@@ -3,7 +3,11 @@ import { computed } from 'vue';
 import BaseBubble from './Base.vue';
 import FormattedContent from './Text/FormattedContent.vue';
 import { useI18n } from 'vue-i18n';
-import { CSAT_RATINGS, CSAT_DISPLAY_TYPES } from 'shared/constants/messages';
+import {
+  CSAT_RATINGS,
+  CSAT_DISPLAY_TYPES,
+  CSAT_LIKE_DISLIKE_RATINGS,
+} from 'shared/constants/messages';
 import { useMessageContext } from '../provider.js';
 
 const { contentAttributes, content } = useMessageContext();
@@ -25,13 +29,13 @@ const isStarRating = computed(() => {
   return displayType.value === CSAT_DISPLAY_TYPES.STAR;
 });
 
-const isLikeDislikeRating = computed(() => {
-  return displayType.value === CSAT_DISPLAY_TYPES.LIKE_DISLIKE;
-});
-
 const rating = computed(() => {
   if (isRatingSubmitted.value) {
-    return CSAT_RATINGS.find(
+    const ratingOptions =
+      displayType.value === CSAT_DISPLAY_TYPES.LIKE_DISLIKE
+        ? CSAT_LIKE_DISLIKE_RATINGS
+        : CSAT_RATINGS;
+    return ratingOptions.find(
       csatOption => csatOption.value === response.value.rating
     );
   }
@@ -53,13 +57,7 @@ const starRatingValue = computed(() => {
         {{ t('CONVERSATION.RATING_TITLE') }}
       </dt>
       <dd v-if="!isStarRating">
-        {{
-          isLikeDislikeRating
-            ? response.rating === 5
-              ? 'good'
-              : 'bad'
-            : t(rating.translationKey)
-        }}
+        {{ t(rating.translationKey) }}
       </dd>
       <dd v-else class="flex mt-1">
         <span v-for="n in 5" :key="n" class="text-2xl mr-1">

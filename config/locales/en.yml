@@ -317,6 +317,8 @@ en:
       conversations_count: No. of conversations
       avg_first_response_time: Avg first response time
       avg_resolution_time: Avg resolution time
+      avg_customer_waiting_time: Avg customer waiting time
+      resolution_count: Resolution Count
       csat_score: CSAT Score
     label_csv:
       label_title: Label

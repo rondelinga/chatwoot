@@ -1098,6 +1098,36 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(response).to have_http_status(:success)
       end
 
+      it 'defaults the like/dislike csat settings' do
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              params: { csat_survey_enabled: true, csat_config: csat_config },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(inbox.reload.csat_config).to include(
+          'message_enabled' => true, 'csat_on_resolve_enabled' => true,
+          'like_dislike_hint_enabled' => true, 'like_dislike_hint_message' => ''
+        )
+      end
+
+      it 'saves the like/dislike csat settings' do
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              params: {
+                csat_survey_enabled: true,
+                csat_config: csat_config.merge(
+                  'display_type' => 'like_dislike', 'message_enabled' => false, 'csat_on_resolve_enabled' => false,
+                  'like_dislike_hint_enabled' => false, 'like_dislike_hint_message' => 'Rate us anytime'
+                )
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(inbox.reload.csat_config).to include(
+          'display_type' => 'like_dislike', 'message_enabled' => false, 'csat_on_resolve_enabled' => false,
+          'like_dislike_hint_enabled' => false, 'like_dislike_hint_message' => 'Rate us anytime'
+        )
+      end
+
       context 'when CSAT is configured' do
         before do
           patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",

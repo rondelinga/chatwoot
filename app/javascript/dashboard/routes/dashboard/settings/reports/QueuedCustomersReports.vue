@@ -9,7 +9,7 @@ import { useAlert } from 'dashboard/composables';
 import BarChart from 'shared/components/charts/BarChart.vue';
 import BaseHeatmap from './components/heatmaps/BaseHeatmap.vue';
 import ReportHeader from './components/ReportHeader.vue';
-import ReportFilterSelector from './components/FilterSelector.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 
 const POLL_INTERVAL = 30_000;
 
@@ -194,7 +194,7 @@ onUnmounted(() => {
   />
 
   <div class="flex flex-col gap-4 pb-6">
-    <ReportFilterSelector
+    <AdvancedReportFilters
       section="queued_customers"
       :show-agents-filter="false"
       :show-group-by-filter="false"

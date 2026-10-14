@@ -298,6 +298,25 @@
       }
     ],
     "BUSINESS_HOURS": "Business Hours",
+    "FILTERS": {
+      "ADD_FILTER": "Add filter",
+      "CLEAR_ALL": "Clear all",
+      "NO_FILTER": "No filters available",
+      "AGENTS": "Agent",
+      "INBOXES": "Inbox",
+      "TEAMS": "Team",
+      "LABELS": "Label",
+      "INPUT_PLACEHOLDER": {
+        "AGENTS": "Search agents",
+        "INBOXES": "Search inboxes",
+        "TEAMS": "Search teams",
+        "LABELS": "Search labels"
+      },
+      "TIME_RANGE": {
+        "SINCE": "From",
+        "UNTIL": "To"
+      }
+    },
     "FILTER_PRESETS": {
       "SAVE": "Save filters",
       "MY_PRESETS": "My presets",
@@ -316,7 +335,6 @@
     },
     "FILTER_ACTIONS": {
       "CLEAR_FILTER": "Clear filter",
-      "CLEAR_ALL": "Clear all",
       "EMPTY_LIST": "No results found"
     },
     "DRILLDOWN": {

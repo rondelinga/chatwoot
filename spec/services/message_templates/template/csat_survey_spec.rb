@@ -37,5 +37,20 @@ describe MessageTemplates::Template::CsatSurvey do
         expect(message.content_attributes['display_type']).to eq('star')
       end
     end
+
+    context 'when an existing response is passed' do
+      let(:csat_survey_response) { create(:csat_survey_response, conversation: conversation, account: account, rating: 5, feedback_message: 'great') }
+
+      it 'allows the contact to update the previous rating' do
+        inbox.update(csat_config: { 'display_type' => 'like_dislike' })
+
+        described_class.new(conversation: conversation, existing_response: csat_survey_response).perform
+
+        message = conversation.messages.template.last
+        expect(message.content_attributes['display_type']).to eq('like_dislike')
+        expect(message.content_attributes['allow_update']).to be(true)
+        expect(message.content_attributes['submitted_values']['csat_survey_response']).to eq('rating' => 5, 'feedback_message' => 'great')
+      end
+    end
   end
 end

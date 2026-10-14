@@ -1,10 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import ReportFilterSelector from 'dashboard/routes/dashboard/settings/reports/components/FilterSelector.vue';
-import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
-import ReportsFiltersAgents from './Filters/Agents.vue';
-import ReportsFiltersInboxes from './Filters/Inboxes.vue';
-import ReportsFiltersTeams from './Filters/Teams.vue';
+import { ref } from 'vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 
 const emit = defineEmits(['filtersChange']);
 
@@ -34,33 +30,10 @@ const emitChange = () => {
   });
 };
 
-const extraFilters = computed(() => ({
-  agentIds: selectedAgents.value.map(agent => agent.id),
-  inboxIds: selectedInbox.value.map(inbox => inbox.id),
-  teamIds: selectedTeam.value.map(team => team.id),
-}));
-
-const onApplyExtraFilters = extra => {
-  selectedAgents.value = extra.agents || [];
-  selectedInbox.value = extra.inboxes || [];
-  selectedTeam.value = extra.teams || [];
-};
-
-const hasClearableFilters = computed(
-  () =>
-    selectedAgents.value.length > 0 ||
-    selectedInbox.value.length > 0 ||
-    selectedTeam.value.length > 0
-);
-
-const clearAllFilters = () => {
-  selectedAgents.value = [];
-  selectedInbox.value = [];
-  selectedTeam.value = [];
-  emitChange();
-};
-
 const onFilterChange = updatedFilter => {
+  selectedAgents.value = updatedFilter.selectedAgents;
+  selectedInbox.value = updatedFilter.selectedInbox;
+  selectedTeam.value = updatedFilter.selectedTeam;
   filterData.value = {
     from: updatedFilter.from,
     to: updatedFilter.to,
@@ -72,47 +45,12 @@ const onFilterChange = updatedFilter => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <ReportFilterSelector
-      section="all_metrics"
-      show-time-range-filter
-      :extra-filters="extraFilters"
-      @filter-change="onFilterChange"
-      @apply-extra-filters="onApplyExtraFilters"
-    />
-
-    <div
-      class="rounded-xl outline outline-1 outline-n-container flex items-center gap-3 flex-wrap"
-    >
-      <ReportsFiltersAgents
-        :selected-agents="selectedAgents"
-        @agents-filter-selection="
-          selectedAgents = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersInboxes
-        :selected-inbox="selectedInbox"
-        @inbox-filter-selection="
-          selectedInbox = [...$event];
-          emitChange();
-        "
-      />
-
-      <ReportsFiltersTeams
-        :selected-team="selectedTeam"
-        @team-filter-selection="
-          selectedTeam = [...$event];
-          emitChange();
-        "
-      />
-
-      <FilterButton
-        v-if="hasClearableFilters"
-        :button-text="$t('REPORT.FILTER_ACTIONS.CLEAR_ALL')"
-        @click="clearAllFilters"
-      />
-    </div>
-  </div>
+  <AdvancedReportFilters
+    section="all_metrics"
+    show-time-range-filter
+    show-agents-filter
+    show-inbox-filter
+    show-team-filter
+    @filter-change="onFilterChange"
+  />
 </template>

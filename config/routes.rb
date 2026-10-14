@@ -549,7 +549,7 @@ Rails.application.routes.draw do
             post :update_last_seen
             post :toggle_typing
             post :transcript
-            post :request_csat
+            post :request_csat, to: 'csat_requests#create'
             get  :toggle_status
           end
         end
@@ -576,20 +576,17 @@ Rails.application.routes.draw do
         scope module: :accounts do
           resources :summary_reports, only: [] do
             collection do
-              get :agent_activity
               get :agent
               get :team
               get :inbox
               get :label
               get :channel
-              get :bot
             end
           end
           resources :reports, only: [:index] do
             collection do
               get :summary
               get :bot_summary
-              get :agent_activity
               get :agents
               get :inboxes
               get :labels
@@ -602,10 +599,6 @@ Rails.application.routes.draw do
               get :inbox_label_matrix
               get :first_response_time_distribution
               get :outgoing_messages_count
-              get :queued_customers
-              get :overview_summary
-              get :bot_summary_download
-              get :all_conversation_metrics_download
             end
           end
           resource :year_in_review, only: [:show]
@@ -615,6 +608,7 @@ Rails.application.routes.draw do
               get :grouped_conversation_metrics
             end
           end
+          draw :report_extensions
         end
       end
     end
