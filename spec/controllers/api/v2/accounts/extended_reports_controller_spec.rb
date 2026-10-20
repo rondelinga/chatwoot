@@ -140,7 +140,7 @@ RSpec.describe 'Report extensions API', type: :request do
     end
   end
 
-  describe 'GET /api/v1/accounts/:account_id/applied_slas/download.xlsx' do
+  describe 'GET /api/v1/accounts/:account_id/applied_slas/download.xlsx', if: ChatwootApp.enterprise? do
     it 'returns breached conversations as XLSX' do
       account.enable_features!('sla')
       conversation = create(:conversation, account: account, inbox: inbox)

@@ -29,6 +29,8 @@ import {
   resolveSidebarSort,
   sortSidebarItems,
 } from 'dashboard/helper/sidebarSort';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -139,6 +141,12 @@ const expandedItem = ref(null);
 
 const setExpandedItem = name => {
   expandedItem.value = expandedItem.value === name ? null : name;
+  if (name === 'Supervision') {
+    LocalStorage.set(
+      LOCAL_STORAGE_KEYS.SUPERVISION_SIDEBAR_EXPANDED,
+      expandedItem.value === 'Supervision'
+    );
+  }
 };
 
 const {
@@ -255,6 +263,13 @@ const getSidebarSectionSort = useMapGetter(
 );
 
 onMounted(() => {
+  const supervisionExpanded = LocalStorage.get(
+    LOCAL_STORAGE_KEYS.SUPERVISION_SIDEBAR_EXPANDED
+  );
+  if (supervisionExpanded === true && !expandedItem.value) {
+    expandedItem.value = 'Supervision';
+  }
+
   store.dispatch('labels/get');
   store.dispatch('inboxes/get');
   store.dispatch('notifications/unReadCount');
@@ -516,6 +531,28 @@ const menuItems = computed(() => {
               label: label.title,
             }),
           })),
+        },
+      ],
+    },
+    {
+      name: 'Supervision',
+      label: t('SIDEBAR.SUPERVISION'),
+      icon: 'i-lucide-eye',
+      children: [
+        {
+          name: 'Supervise',
+          label: t('SIDEBAR.SUPERVISION_SUPERVISE'),
+          to: accountScopedRoute('supervision_supervise'),
+          activeOn: [
+            'supervision_supervise',
+            'supervision_supervise_conversation',
+          ],
+        },
+        {
+          name: 'Supervision Inbox',
+          label: t('SIDEBAR.SUPERVISION_INBOX'),
+          to: accountScopedRoute('supervision_inbox'),
+          activeOn: ['supervision_inbox'],
         },
       ],
     },
