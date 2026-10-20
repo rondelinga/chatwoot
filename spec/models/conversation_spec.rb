@@ -798,6 +798,7 @@ RSpec.describe Conversation do
         id: conversation.display_id,
         messages: [],
         labels: [],
+        only_automation_labels: false,
         last_activity_at: conversation.last_activity_at.to_i,
         inbox_id: conversation.inbox_id,
         status: conversation.status,
