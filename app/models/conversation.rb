@@ -582,7 +582,10 @@ class Conversation < ApplicationRecord
     added_by_automation = Current.executed_by.is_a?(AutomationRule) ? (current_labels - Array(previous_labels)) : []
 
     updated_titles = ((automation_label_titles | added_by_automation) & current_labels)
-    update_column(:automation_label_titles, updated_titles) if updated_titles.sort != automation_label_titles.sort
+    return if updated_titles.sort == automation_label_titles.sort
+
+    # after_save: a normal update would run callbacks again, including this one.
+    update_column(:automation_label_titles, updated_titles) # rubocop:disable Rails/SkipsModelValidations
   end
 
   def cascade_close_proxy_chain
