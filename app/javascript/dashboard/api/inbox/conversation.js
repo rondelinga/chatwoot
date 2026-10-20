@@ -6,29 +6,37 @@ class ConversationApi extends ApiClient {
     super('conversations', { accountScoped: true });
   }
 
-  get({
-    inboxId,
-    status,
-    assigneeType,
-    page,
-    labels,
-    teamId,
-    conversationType,
-    sortBy,
-    updatedWithin,
-  }) {
+  get(
+    {
+      inboxId,
+      status,
+      assigneeType,
+      page,
+      labels,
+      teamId,
+      conversationType,
+      sortBy,
+      updatedWithin,
+      agentId,
+    },
+    options = {}
+  ) {
+    const params = {
+      inbox_id: inboxId,
+      team_id: teamId,
+      status,
+      assignee_type: assigneeType,
+      page,
+      labels,
+      conversation_type: conversationType,
+      sort_by: sortBy,
+      updated_within: updatedWithin,
+    };
+    if (agentId) params.agent_id = agentId;
+
     return axios.get(this.url, {
-      params: {
-        inbox_id: inboxId,
-        team_id: teamId,
-        status,
-        assignee_type: assigneeType,
-        page,
-        labels,
-        conversation_type: conversationType,
-        sort_by: sortBy,
-        updated_within: updatedWithin,
-      },
+      signal: options.signal,
+      params,
     });
   }
 

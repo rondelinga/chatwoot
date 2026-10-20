@@ -9,10 +9,14 @@ import wootConstants from 'dashboard/constants/globals';
 import SelectMenu from 'dashboard/components-next/selectmenu/SelectMenu.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
-defineProps({
+const props = defineProps({
   isOnExpandedLayout: {
     type: Boolean,
     required: true,
+  },
+  alignMenuToEnd: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -118,6 +122,10 @@ const activeChatStatusLabel = computed(
       ?.label || ''
 );
 
+const menuAlignEnd = computed(
+  () => props.isOnExpandedLayout || props.alignMenuToEnd
+);
+
 const activeChatSortLabel = computed(
   () =>
     chatSortOptions.value.find(m => m.value === chatSortFilter.value)?.label ||
@@ -161,8 +169,8 @@ const handleSortChange = value => {
       v-on-click-outside="() => toggleDropdown()"
       class="mt-1 bg-n-alpha-3 backdrop-blur-[100px] border border-n-weak w-96 max-w-[calc(100vw-2rem)] rounded-xl p-4 absolute z-40 top-full"
       :class="{
-        'ltr:left-0 rtl:right-0': !isOnExpandedLayout,
-        'ltr:right-0 rtl:left-0': isOnExpandedLayout,
+        'ltr:left-0 rtl:right-0': !menuAlignEnd,
+        'ltr:right-0 rtl:left-0': menuAlignEnd,
       }"
     >
       <div class="flex items-center justify-between last:mt-4 gap-2">
@@ -173,7 +181,7 @@ const handleSortChange = value => {
           :model-value="chatStatusFilter"
           :options="chatStatusOptions"
           :label="activeChatStatusLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
+          :sub-menu-position="menuAlignEnd ? 'left' : 'right'"
           @update:model-value="handleStatusChange"
         />
       </div>
@@ -185,7 +193,7 @@ const handleSortChange = value => {
           :model-value="chatSortFilter"
           :options="chatSortOptions"
           :label="activeChatSortLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
+          :sub-menu-position="menuAlignEnd ? 'left' : 'right'"
           @update:model-value="handleSortChange"
         />
       </div>

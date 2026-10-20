@@ -21,7 +21,10 @@ class RoomChannel < ApplicationCable::Channel
 
     data = { account_id: @current_account.id, users: ::OnlineStatusTracker.get_available_users(@current_account.id) }
     data[:contacts] = ::OnlineStatusTracker.get_available_contacts(@current_account.id) if @current_user.is_a? User
-    ActionCable.server.broadcast(pubsub_token, { event: 'presence.update', data: data })
+    payload = { event: 'presence.update', data: data }
+    ActionCable.server.broadcast(pubsub_token, payload)
+    # Other dashboards, including Supervision, are on the account stream.
+    ActionCable.server.broadcast("account_#{@current_account.id}", payload)
   end
 
   def ensure_stream
