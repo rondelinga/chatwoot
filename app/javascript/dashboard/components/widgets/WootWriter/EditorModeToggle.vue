@@ -16,6 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  notesOnly: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 defineEmits(['toggleMode']);
@@ -68,7 +72,14 @@ const translateValue = computed(() => {
 </script>
 
 <template>
+  <div
+    v-if="notesOnly"
+    class="flex h-8 items-center rounded-full bg-n-amber-3 px-3 text-sm font-medium text-n-amber-11"
+  >
+    {{ $t('CONVERSATION.REPLYBOX.PRIVATE_NOTE') }}
+  </div>
   <button
+    v-else
     class="flex items-center w-auto h-8 p-1 transition-all border rounded-full bg-n-alpha-2 group relative duration-300 ease-in-out z-0 active:scale-[0.995] active:duration-75"
     :disabled="disabled || isReplyRestricted"
     :class="{

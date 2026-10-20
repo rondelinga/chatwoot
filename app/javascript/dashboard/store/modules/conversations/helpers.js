@@ -75,7 +75,14 @@ export const filterByUnattended = (
 };
 
 export const applyPageFilters = (conversation, filters) => {
-  const { inboxId, status, labels = [], teamId, conversationType } = filters;
+  const {
+    inboxId,
+    status,
+    labels = [],
+    teamId,
+    conversationType,
+    agentId,
+  } = filters;
   const {
     status: chatStatus,
     inbox_id: chatInboxId,
@@ -97,6 +104,12 @@ export const applyPageFilters = (conversation, filters) => {
     firstReplyOn,
     waitingSince
   );
+  if (agentId) {
+    const isHumanAssignee =
+      !meta.assignee_type || meta.assignee_type === 'User';
+    shouldFilter =
+      shouldFilter && isHumanAssignee && meta.assignee?.id === Number(agentId);
+  }
 
   return shouldFilter;
 };

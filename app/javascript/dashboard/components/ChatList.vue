@@ -56,8 +56,10 @@ const props = defineProps({
   label: { type: String, default: '' },
   conversationType: { type: String, default: '' },
   foldersId: { type: [String, Number], default: 0 },
+  agentId: { type: [String, Number], default: 0 },
   showConversationList: { default: true, type: Boolean },
   isOnExpandedLayout: { default: false, type: Boolean },
+  fluid: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['conversationLoad']);
@@ -71,7 +73,11 @@ const { buildConversationPath, buildConversationListPath } =
 
 const resolveAttributesModalRef = ref(null);
 
-const activeAssigneeTab = ref(wootConstants.ASSIGNEE_TYPE.ME);
+const activeAssigneeTab = ref(
+  props.agentId
+    ? wootConstants.ASSIGNEE_TYPE.ALL
+    : wootConstants.ASSIGNEE_TYPE.ME
+);
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -256,6 +262,7 @@ const conversationFilters = computed(() => {
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+    agentId: props.agentId ? Number(props.agentId) : undefined,
   };
 });
 
@@ -420,8 +427,28 @@ function fetchSavedFilteredConversations(payload) {
     .finally(emitConversationLoaded);
 }
 
+function withAgentAssignee(filters) {
+  if (!props.agentId) return filters;
+
+  const agentId = Number(props.agentId);
+  const agent = agentList.value.find(item => item.id === agentId);
+  const rest = filters.filter(filter => filter.attribute_key !== 'assignee_id');
+
+  return [
+    ...rest,
+    {
+      attribute_key: 'assignee_id',
+      attribute_model: 'standard',
+      filter_operator: 'equal_to',
+      values: [{ id: agentId, name: agent?.name || '' }],
+      query_operator: 'and',
+      custom_attribute_type: '',
+    },
+  ];
+}
+
 function onApplyFilter(payload) {
-  payload = useSnakeCase(payload);
+  payload = withAgentAssignee(useSnakeCase(payload));
   showAdvancedFilters.value = false;
   store
     .dispatch('applyConversationFilters', { filters: payload })
@@ -887,6 +914,15 @@ watch(
   computed(() => props.conversationType),
   () => resetAndFetchData()
 );
+watch(
+  () => props.agentId,
+  () => {
+    if (props.agentId) {
+      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ALL;
+    }
+    resetAndFetchData();
+  }
+);
 
 watch(activeFolder, (newVal, oldVal) => {
   if (newVal !== oldVal) {
@@ -908,7 +944,11 @@ watch(appliedFilters, () => resetBulkActions());
     class="flex flex-col flex-shrink-0 conversations-list-wrap bg-n-surface-1 relative"
     :class="[
       { hidden: !showConversationList },
-      isOnExpandedLayout ? 'basis-full' : 'w-[340px] 2xl:w-[412px]',
+      isOnExpandedLayout
+        ? 'basis-full'
+        : fluid
+          ? 'h-full w-full min-w-0 flex-1'
+          : 'w-[340px] 2xl:w-[412px]',
     ]"
   >
     <slot />
@@ -919,6 +959,7 @@ watch(appliedFilters, () => resetBulkActions());
       :has-active-folders="hasActiveFolders"
       :active-status="activeStatus"
       :is-on-expanded-layout="isOnExpandedLayout"
+      :align-menu-to-end="fluid"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
       @add-folders="onClickOpenAddFoldersModal"
@@ -950,7 +991,7 @@ watch(appliedFilters, () => resetBulkActions());
     />
 
     <ChatTypeTabs
-      v-if="!hasAppliedFiltersOrActiveFolders"
+      v-if="!hasAppliedFiltersOrActiveFolders && !agentId"
       :items="assigneeTabItems"
       :active-tab="activeAssigneeTab"
       is-compact
@@ -977,10 +1018,6 @@ watch(appliedFilters, () => resetBulkActions());
       :conversation-list="conversationList"
       :is-loading="chatListLoading"
       :show-end-of-list-message="showEndOfListMessage"
-      :label="label"
-      :team-id="teamId"
-      :folders-id="foldersId"
-      :conversation-type="conversationType"
       :show-assignee="showAssigneeInConversationCard"
       :is-on-expanded-layout="isOnExpandedLayout"
       :active-status="activeStatus"

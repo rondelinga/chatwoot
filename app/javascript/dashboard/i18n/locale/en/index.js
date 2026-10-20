@@ -45,6 +45,7 @@ import onboarding from './onboarding.json';
 import sessionLimit from './sessionLimit.json';
 import yearInReview from './yearInReview.json';
 import routingTypes from './routingTypes.json';
+import supervision from './supervision.json';
 
 export default {
   ...advancedFilters,
@@ -94,4 +95,5 @@ export default {
   ...sessionLimit,
   ...yearInReview,
   ...routingTypes,
+  ...supervision,
 };
