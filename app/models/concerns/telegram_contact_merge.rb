@@ -1,6 +1,18 @@
 module TelegramContactMerge
   extend ActiveSupport::Concern
 
+  EMAIL_MATCH_SQL = {
+    user_email: <<~SQL.squish,
+      LOWER(custom_attributes->>'user_email') = :user_email
+      OR LOWER(contacts.email) = :user_email
+    SQL
+    priv_email: <<~SQL.squish,
+      LOWER(custom_attributes->>'_email') = :priv_email
+      OR LOWER(contacts.email) = :priv_email
+    SQL
+    email: 'LOWER(contacts.email) = :email'
+  }.freeze
+
   included do
     alias_method :original_update, :update
 
@@ -51,28 +63,13 @@ module TelegramContactMerge
   end
 
   def email_match_clause(emails)
-    clauses = []
     binds = {}
+    clauses = EMAIL_MATCH_SQL.filter_map do |key, clause|
+      value = emails[key]
+      next if value.blank?
 
-    if emails[:user_email].present?
-      binds[:user_email] = emails[:user_email]
-      clauses << <<~SQL.squish
-        LOWER(custom_attributes->>'user_email') = :user_email
-        OR LOWER(contacts.email) = :user_email
-      SQL
-    end
-
-    if emails[:priv_email].present?
-      binds[:priv_email] = emails[:priv_email]
-      clauses << <<~SQL.squish
-        LOWER(custom_attributes->>'_email') = :priv_email
-        OR LOWER(contacts.email) = :priv_email
-      SQL
-    end
-
-    if emails[:email].present?
-      binds[:email] = emails[:email]
-      clauses << 'LOWER(contacts.email) = :email'
+      binds[key] = value
+      clause
     end
 
     [clauses.join(' OR '), binds]
