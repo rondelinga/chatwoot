@@ -49,6 +49,10 @@ import {
   stripUnsupportedMarkdown,
 } from 'dashboard/helper/editorHelper';
 import { useCopilotReply } from 'dashboard/composables/useCopilotReply';
+import {
+  createSupervisorTypingChannel,
+  editorPlainText,
+} from 'dashboard/helper/supervisorTyping';
 import { useMacroExecution } from 'dashboard/composables/useMacroExecution';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
@@ -196,6 +200,7 @@ export default {
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
       isQuoteRemoved: false,
+      supervisorTyping: null,
     };
   },
   computed: {
@@ -248,6 +253,7 @@ export default {
       );
     },
     canSendPublicReply() {
+      if (this.isSuperviseView) return false;
       return (
         this.isWithinMessagingWindow &&
         !this.isAIOwnedPendingConversation &&
@@ -263,6 +269,12 @@ export default {
     },
     isInstagramReplyRestricted() {
       return this.isMetaMessageSendingDisabled && this.isAnInstagramChannel;
+    },
+    isSuperviseView() {
+      return [
+        'supervision_supervise',
+        'supervision_supervise_conversation',
+      ].includes(this.$route?.name);
     },
     isPrivate() {
       return (
@@ -319,6 +331,9 @@ export default {
           return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED_API');
         }
         return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED');
+      }
+      if (this.isSuperviseView) {
+        return this.$t('SUPERVISION.NOTE_PLACEHOLDER');
       }
       return this.isPrivate
         ? this.$t('CONVERSATION.FOOTER.PRIVATE_MSG_INPUT')
@@ -408,7 +423,9 @@ export default {
     },
     replyButtonLabel() {
       let sendMessageText = this.$t('CONVERSATION.REPLYBOX.SEND');
-      if (this.isPrivate) {
+      if (this.isSuperviseView) {
+        sendMessageText = this.$t('SUPERVISION.SEND_NOTE');
+      } else if (this.isPrivate) {
         sendMessageText = this.$t('CONVERSATION.REPLYBOX.CREATE');
       }
       const keyLabel = this.isEditorHotKeyEnabled('cmd_enter')
@@ -543,6 +560,9 @@ export default {
   },
   watch: {
     currentChat(conversation, oldConversation) {
+      if (!oldConversation || oldConversation.id !== conversation?.id) {
+        this.bindSupervisorTyping(conversation?.id);
+      }
       if (oldConversation && oldConversation.id !== conversation.id) {
         // Only update email fields when switching to a completely different conversation (by ID)
         // This prevents overwriting user input (e.g., CC/BCC fields) when performing actions
@@ -558,7 +578,7 @@ export default {
         }
       }
 
-      if (this.isInstagramReplyRestricted) {
+      if (this.isSuperviseView || this.isInstagramReplyRestricted) {
         this.replyType = REPLY_EDITOR_MODES.NOTE;
         return;
       }
@@ -595,6 +615,7 @@ export default {
     message() {
       // Autosave the current message draft.
       this.doAutoSaveDraft();
+      this.queueSupervisorTyping();
     },
     showWhatsappTemplates(isAvailable) {
       if (!isAvailable) this.hideWhatsappTemplatesModal();
@@ -611,7 +632,11 @@ export default {
   },
 
   mounted() {
-    if (this.isInstagramReplyRestricted || this.isVoiceCallConversation) {
+    if (
+      this.isSuperviseView ||
+      this.isInstagramReplyRestricted ||
+      this.isVoiceCallConversation
+    ) {
       this.replyType = REPLY_EDITOR_MODES.NOTE;
     }
 
@@ -645,6 +670,7 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.on(CMD_AI_ASSIST, this.executeCopilotAction);
+    this.bindSupervisorTyping(this.conversationId);
     emitter.on(
       BUS_EVENTS.INSERT_INTO_RICH_EDITOR,
       this.onInsertWhileCopilotActive
@@ -658,6 +684,8 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
+    this.supervisorTyping?.disconnect();
+    this.supervisorTyping = null;
     emitter.off(
       BUS_EVENTS.INSERT_INTO_RICH_EDITOR,
       this.onInsertWhileCopilotActive
@@ -1034,6 +1062,10 @@ export default {
       this.hideContentTemplatesModal();
     },
     setReplyMode(mode = REPLY_EDITOR_MODES.REPLY) {
+      if (this.isSuperviseView) {
+        this.replyType = REPLY_EDITOR_MODES.NOTE;
+        return;
+      }
       // Clear attachments when switching between private note and reply modes
       // This is to prevent from breaking the upload rules
       if (this.attachedFiles.length > 0) this.attachedFiles = [];
@@ -1107,6 +1139,26 @@ export default {
     },
     onTypingOff() {
       this.toggleTyping('off');
+      this.supervisorTyping?.send('');
+    },
+    bindSupervisorTyping(conversationId) {
+      const pubsubToken = this.currentUser?.pubsub_token;
+      if (!pubsubToken || !this.accountId || !this.currentUser?.id) return;
+      if (!this.supervisorTyping) {
+        this.supervisorTyping = createSupervisorTypingChannel({
+          accountId: this.accountId,
+          userId: this.currentUser.id,
+          pubsubToken,
+        });
+      }
+      if (conversationId) {
+        this.supervisorTyping.subscribe(conversationId);
+        this.queueSupervisorTyping();
+      }
+    },
+    queueSupervisorTyping() {
+      if (!this.supervisorTyping || !this.conversationId) return;
+      this.supervisorTyping.send(editorPlainText(this.message));
     },
     onBlur() {
       this.isFocused = false;
@@ -1384,6 +1436,7 @@ export default {
       :mode="replyType"
       :conversation-id="conversationId"
       :is-reply-restricted="!canSendPublicReply"
+      :notes-only="isSuperviseView"
       :disabled="
         (copilot.isActive.value && copilot.isButtonDisabled.value) ||
         showAudioRecorderEditor

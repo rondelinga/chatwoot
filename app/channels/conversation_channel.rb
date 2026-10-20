@@ -1,9 +1,36 @@
 class ConversationChannel < ApplicationCable::Channel
   def subscribed
     conversation = current_account.conversations.find_by!(display_id: params[:id])
-    reject unless conversation_accessible?(conversation)
+    unless conversation_accessible?(conversation)
+      reject
+      return
+    end
 
     stream_for conversation
+    # Account-wide stream so a supervisor watching one chat still receives
+    # typing text from the agent's other chats. Agents and contacts never join it.
+    stream_from supervision_stream if administrator?
+  end
+
+  # Relays the agent's draft to administrators only. Nothing is persisted and
+  # the conversation stream (clients, other agents) is not used.
+  def supervisor_typing(data)
+    conversation = current_account.conversations.find_by!(display_id: params[:id])
+    return unless conversation_accessible?(conversation)
+
+    text = data.is_a?(Hash) ? data['text'].to_s[0, 5000] : ''
+    ActionCable.server.broadcast(
+      supervision_stream,
+      {
+        event: 'supervisor_typing_update',
+        data: {
+          account_id: current_account.id,
+          conversation_id: conversation.display_id,
+          user: current_user.push_event_data,
+          text: text
+        }
+      }
+    )
   end
 
   private
@@ -25,6 +52,14 @@ class ConversationChannel < ApplicationCable::Channel
 
   def account_user
     @account_user ||= AccountUser.find_by(account_id: current_account.id, user_id: current_user.id)
+  end
+
+  def administrator?
+    account_user&.administrator?
+  end
+
+  def supervision_stream
+    "supervision_#{current_account.id}"
   end
 
   def current_user
