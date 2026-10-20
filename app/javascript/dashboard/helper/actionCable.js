@@ -46,6 +46,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'assignee.changed': this.onAssigneeChanged,
       'conversation.typing_on': this.onTypingOn,
       'conversation.typing_off': this.onTypingOff,
+      'conversation.supervisor_typing': this.onSupervisorTyping,
       'conversation.contact_changed': this.onConversationContactChange,
       'presence.update': this.onPresenceUpdate,
       'contact.deleted': this.onContactDelete,
@@ -107,6 +108,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       return;
 
     this.app.$store.dispatch('updateMessage', data);
+    this.emitSupervision('message.updated', data);
   };
 
   onPresenceUpdate = data => {
@@ -144,6 +146,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       }
     }
     this.fetchConversationStats();
+    this.emitSupervision('assignee.changed', payload);
   };
 
   onConversationCreated = data => {
@@ -152,6 +155,7 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('addConversation', data);
     DashboardAudioNotificationHelper.onConversationCreated(data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.created', data);
   };
 
   onConversationRead = data => {
@@ -173,6 +177,7 @@ class ActionCableConnector extends BaseActionCableConnector {
     } = data;
     DashboardAudioNotificationHelper.onNewMessage(data);
     this.app.$store.dispatch('addMessage', data);
+    this.emitSupervision('message.created', data);
     if (!isPrivate) {
       this.app.$store.dispatch('updateConversationLastActivity', {
         lastActivityAt,
@@ -189,6 +194,7 @@ class ActionCableConnector extends BaseActionCableConnector {
 
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.status_changed', data);
   };
 
   onConversationUpdated = data => {
@@ -196,6 +202,7 @@ class ActionCableConnector extends BaseActionCableConnector {
 
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.updated', data);
   };
 
   onConversationUnreadCountChanged = () => {
@@ -320,6 +327,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       user,
     });
     this.initTimer({ conversation, user });
+    this.emitSupervision('conversation.typing_on', { conversation, user });
   };
 
   onTypingOff = ({ conversation, user }) => {
@@ -332,6 +340,16 @@ class ActionCableConnector extends BaseActionCableConnector {
       conversationId,
       user,
     });
+    this.emitSupervision('conversation.typing_off', { conversation, user });
+  };
+
+  onSupervisorTyping = data => {
+    this.emitSupervision('conversation.supervisor_typing', data);
+  };
+
+  emitSupervision = (event, data) => {
+    if (!this.app) return;
+    emitter.emit(BUS_EVENTS.SUPERVISION_EVENT, { event, data });
   };
 
   onConversationMentioned = data => {

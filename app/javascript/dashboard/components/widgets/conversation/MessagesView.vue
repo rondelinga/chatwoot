@@ -138,6 +138,26 @@ export default {
 
       return '';
     },
+    supervisorTypingPreview() {
+      const superviseRoutes = [
+        'supervision_supervise',
+        'supervision_supervise_conversation',
+      ];
+      if (!superviseRoutes.includes(this.$route.name)) return null;
+
+      const assigneeId = this.currentChat?.meta?.assignee?.id;
+      if (!assigneeId) return null;
+
+      const typing =
+        this.$store.getters['supervision/getTypingByUserId'][assigneeId];
+      if (
+        !typing ||
+        Number(typing.conversationId) !== Number(this.currentChat.id)
+      ) {
+        return null;
+      }
+      return typing;
+    },
     getMessages() {
       const messages = this.currentChat.messages || [];
       if (this.isAWhatsAppChannel) {
@@ -568,6 +588,23 @@ export default {
             alt="Someone is typing"
           />
         </div>
+      </div>
+      <div
+        v-if="supervisorTypingPreview"
+        class="mx-4 mb-2 rounded-lg border border-n-amber-6 bg-n-amber-3 px-3 py-2 text-sm text-n-amber-12"
+      >
+        <p class="text-xs font-medium">
+          {{
+            $t('SUPERVISION.TYPING_PREVIEW', {
+              name:
+                supervisorTypingPreview.user?.name ||
+                currentChat.meta.assignee.name,
+            })
+          }}
+        </p>
+        <p v-if="supervisorTypingPreview.text" class="mt-1 whitespace-pre-wrap">
+          {{ supervisorTypingPreview.text }}
+        </p>
       </div>
       <ResizableEditorWrapper
         v-if="!isProxyChat"

@@ -52,6 +52,10 @@ export default {
       type: [String, Number],
       default: 0,
     },
+    agentId: {
+      type: [String, Number],
+      default: 0,
+    },
   },
   setup() {
     const { uiSettings, updateUISettings } = useUISettings();
@@ -66,6 +70,7 @@ export default {
   data() {
     return {
       showSearchModal: false,
+      superviseTab: this.conversationId ? 'chat' : 'chats',
     };
   },
   computed: {
@@ -96,10 +101,35 @@ export default {
       const { is_contact_sidebar_open: isContactSidebarOpen } = this.uiSettings;
       return isContactSidebarOpen;
     },
+    agentChatCount() {
+      const agentId = Number(this.agentId);
+      if (!agentId) return 0;
+
+      const conversations =
+        this.$store.getters['supervision/getOpenConversations'] || [];
+      return conversations.filter(conversation => {
+        const assigneeType = conversation.meta?.assignee_type;
+        const isHumanAssignee = !assigneeType || assigneeType === 'User';
+        return isHumanAssignee && conversation.meta?.assignee?.id === agentId;
+      }).length;
+    },
+    superviseTabs() {
+      return [
+        { key: 'chat', label: this.$t('SUPERVISION.CHAT_TAB') },
+        {
+          key: 'chats',
+          label: this.$t('SUPERVISION.AGENT_CHATS_TAB', {
+            count: this.agentChatCount,
+          }),
+        },
+      ];
+    },
   },
   watch: {
-    conversationId() {
+    conversationId(id) {
       this.fetchConversationIfUnavailable();
+      if (!this.agentId) return;
+      this.superviseTab = id ? 'chat' : 'chats';
     },
   },
 
@@ -195,7 +225,47 @@ export default {
 </script>
 
 <template>
-  <section class="flex w-full h-full min-w-0">
+  <section v-if="agentId" class="flex h-full min-h-0 w-full min-w-0 flex-col">
+    <div class="flex shrink-0 gap-1 border-b border-n-weak px-4">
+      <button
+        v-for="tab in superviseTabs"
+        :key="tab.key"
+        type="button"
+        class="border-b-2 px-3 py-3 text-sm"
+        :class="
+          superviseTab === tab.key
+            ? 'border-n-brand text-n-slate-12'
+            : 'border-transparent text-n-slate-11'
+        "
+        @click="superviseTab = tab.key"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+    <div class="flex min-h-0 flex-1">
+      <ChatList
+        v-show="superviseTab === 'chats'"
+        fluid
+        :conversation-inbox="inboxId"
+        :agent-id="agentId"
+        :is-on-expanded-layout="false"
+        @conversation-load="onConversationLoad"
+      />
+      <ConversationBox
+        v-show="superviseTab === 'chat'"
+        :inbox-id="inboxId"
+        :is-on-expanded-layout="false"
+      >
+        <SidepanelSwitch v-if="currentChat.id" />
+      </ConversationBox>
+      <ConversationSidebar
+        v-if="superviseTab === 'chat' && shouldShowSidebar"
+        :current-chat="currentChat"
+      />
+    </div>
+    <CmdBarConversationSnooze />
+  </section>
+  <section v-else class="flex w-full h-full min-w-0">
     <ChatList
       :show-conversation-list="showConversationList"
       :conversation-inbox="inboxId"
@@ -203,6 +273,7 @@ export default {
       :team-id="teamId"
       :conversation-type="conversationType"
       :folders-id="foldersId"
+      :agent-id="agentId"
       :is-on-expanded-layout="isOnExpandedLayout"
       @conversation-load="onConversationLoad"
     />

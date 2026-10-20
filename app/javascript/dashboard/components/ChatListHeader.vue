@@ -14,6 +14,7 @@ const props = defineProps({
   hasActiveFolders: { type: Boolean, required: true },
   activeStatus: { type: String, required: true },
   isOnExpandedLayout: { type: Boolean, required: true },
+  alignMenuToEnd: { type: Boolean, default: false },
   conversationStats: { type: Object, required: true },
   isListLoading: { type: Boolean, required: true },
 });
@@ -110,7 +111,9 @@ const toggleConversationLayout = () => {
           <div
             id="saveFilterTeleportTarget"
             class="absolute z-50 mt-2"
-            :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            :class="{
+              'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+            }"
           />
         </div>
         <NextButton
@@ -136,7 +139,9 @@ const toggleConversationLayout = () => {
           <div
             id="conversationFilterTeleportTarget"
             class="absolute z-50 mt-2"
-            :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            :class="{
+              'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+            }"
           />
         </div>
         <NextButton
@@ -162,12 +167,15 @@ const toggleConversationLayout = () => {
         <div
           id="conversationFilterTeleportTarget"
           class="absolute z-50 mt-2"
-          :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+          :class="{
+            'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+          }"
         />
       </div>
       <ConversationBasicFilter
         v-if="!hasAppliedFiltersOrActiveFolders"
         :is-on-expanded-layout="isOnExpandedLayout"
+        :align-menu-to-end="alignMenuToEnd"
         @change-filter="onBasicFilterChange"
       />
       <SwitchLayout

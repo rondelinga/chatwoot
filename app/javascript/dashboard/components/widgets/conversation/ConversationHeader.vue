@@ -12,7 +12,7 @@ import ConversationCallButton from './ConversationCallButton.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 import wootConstants from 'dashboard/constants/globals';
-import { conversationListPageURL } from 'dashboard/helper/URLHelper';
+import { useConversationRoutePath } from 'dashboard/composables/useConversationRoutePath';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useAlert } from 'dashboard/composables';
@@ -33,36 +33,23 @@ const props = defineProps({
 const { t } = useI18n();
 const store = useStore();
 const route = useRoute();
+const { buildConversationListPath } = useConversationRoutePath();
 const { isMuted, toggleMute } = useMutedConversations();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
 
 const currentChat = computed(() => store.getters.getSelectedChat);
-const accountId = computed(() => store.getters.getCurrentAccountId);
 
 const chatMetadata = computed(() => props.chat.meta);
 
-const backButtonUrl = computed(() => {
-  const {
-    params: { inbox_id: inboxId, label, teamId, id: customViewId },
-    name,
-  } = route;
+const backButtonUrl = computed(() => buildConversationListPath());
 
-  const conversationTypeMap = {
-    conversation_through_mentions: 'mention',
-    conversation_through_participating: 'participating',
-    conversation_through_unattended: 'unattended',
-  };
-  return conversationListPageURL({
-    accountId: accountId.value,
-    inboxId,
-    label,
-    teamId,
-    conversationType: conversationTypeMap[name],
-    customViewId,
-  });
-});
+const isSuperviseView = computed(() =>
+  ['supervision_supervise', 'supervision_supervise_conversation'].includes(
+    route.name
+  )
+);
 
 const isHMACVerified = computed(() => {
   if (!isAWebWidgetInbox.value) {
@@ -138,6 +125,18 @@ const copyConversationId = async () => {
             class="text-sm font-medium truncate leading-tight text-n-slate-12"
           >
             {{ currentContact.name }}
+          </span>
+          <span
+            v-if="isSuperviseView"
+            class="inline-flex shrink-0 items-center gap-1 rounded-full bg-n-teal-3 px-1.5 py-0.5 text-xs font-medium text-n-teal-11"
+          >
+            <span class="relative flex size-1.5">
+              <span
+                class="absolute inline-flex size-full animate-ping rounded-full bg-n-teal-9 opacity-75"
+              />
+              <span class="relative size-1.5 rounded-full bg-n-teal-9" />
+            </span>
+            {{ $t('SUPERVISION.LIVE') }}
           </span>
           <fluent-icon
             v-if="!isHMACVerified"
