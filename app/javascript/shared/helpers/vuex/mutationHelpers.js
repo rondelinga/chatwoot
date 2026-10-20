@@ -32,11 +32,12 @@ export const updateAttributes = (state, data) => {
   });
 };
 
-export const updatePresence = (state, data) => {
-  state.records.forEach((element, index) => {
-    const availabilityStatus = data[element.id];
-    state.records[index].availability_status = availabilityStatus || 'offline';
-  });
+export const updatePresence = (state, data = {}) => {
+  // Replace the list so getters and screens refresh without another interaction.
+  state.records = state.records.map(element => ({
+    ...element,
+    availability_status: data[element.id] || 'offline',
+  }));
 };
 
 export const updateSingleRecordPresence = (

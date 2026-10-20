@@ -17,22 +17,26 @@ class ConversationApi extends ApiClient {
       conversationType,
       sortBy,
       updatedWithin,
+      agentId,
     },
     options = {}
   ) {
+    const params = {
+      inbox_id: inboxId,
+      team_id: teamId,
+      status,
+      assignee_type: assigneeType,
+      page,
+      labels,
+      conversation_type: conversationType,
+      sort_by: sortBy,
+      updated_within: updatedWithin,
+    };
+    if (agentId) params.agent_id = agentId;
+
     return axios.get(this.url, {
       signal: options.signal,
-      params: {
-        inbox_id: inboxId,
-        team_id: teamId,
-        status,
-        assignee_type: assigneeType,
-        page,
-        labels,
-        conversation_type: conversationType,
-        sort_by: sortBy,
-        updated_within: updatedWithin,
-      },
+      params,
     });
   }
 

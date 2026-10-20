@@ -22,9 +22,19 @@ export function useConversationRoutePath() {
     { keepFolderScope = true } = {}
   ) => {
     const {
-      params: { accountId, inbox_id: inboxId, label, teamId },
+      params: { accountId, inbox_id: inboxId, label, teamId, agentId },
       name,
     } = route;
+
+    if (
+      agentId &&
+      (name === 'supervision_supervise' ||
+        name === 'supervision_supervise_conversation')
+    ) {
+      return frontendURL(
+        `accounts/${accountId}/supervision/supervise/${agentId}/conversations/${conversationId}`
+      );
+    }
 
     let conversationType = '';
     if (isOnMentionsView({ route: { name } })) {
@@ -52,10 +62,20 @@ export function useConversationRoutePath() {
 
   const buildConversationListPath = ({ keepFolderScope = true } = {}) => {
     const {
-      params: { accountId, inbox_id: inboxId, label, teamId },
+      params: { accountId, inbox_id: inboxId, label, teamId, agentId },
       name,
     } = route;
     const { CONVERSATION_TYPE } = wootConstants;
+
+    if (
+      agentId &&
+      (name === 'supervision_supervise' ||
+        name === 'supervision_supervise_conversation')
+    ) {
+      return frontendURL(
+        `accounts/${accountId}/supervision/supervise/${agentId}`
+      );
+    }
 
     let conversationType = '';
     if (isOnMentionsView({ route: { name } })) {
