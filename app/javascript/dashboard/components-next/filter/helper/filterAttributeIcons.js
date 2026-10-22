@@ -24,6 +24,8 @@ const ATTRIBUTE_ICONS = {
   contact_id: 'i-lucide-contact',
   display_id: 'i-lucide-hash',
   campaign_id: 'i-lucide-megaphone',
+  csat_rating: 'i-lucide-smile',
+  only_system_labels: 'i-lucide-tag',
   browser_language: 'i-lucide-globe',
   referer: 'i-lucide-link',
   // Automation attributes

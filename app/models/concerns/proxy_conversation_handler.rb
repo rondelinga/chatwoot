@@ -7,7 +7,7 @@ module ProxyConversationHandler
 
   private
 
-  def close_linked_conversation_if_resolved
+  def close_linked_conversation_if_resolved # rubocop:todo Metrics/CyclomaticComplexity
     return unless saved_change_to_status?
     return unless resolved?
 

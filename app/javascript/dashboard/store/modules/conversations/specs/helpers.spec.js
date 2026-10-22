@@ -59,7 +59,7 @@ describe('Conversation Helpers', () => {
     });
 
     // Test for agent role
-    it('always returns true for agent role regardless of permissions', () => {
+    it('returns true for agent role only for own or unassigned conversations', () => {
       const role = 'agent';
       const permissions = [];
       const currentUserId = 1;
@@ -79,7 +79,7 @@ describe('Conversation Helpers', () => {
           permissions,
           currentUserId
         )
-      ).toBe(true);
+      ).toBe(false);
       expect(
         applyRoleFilter(
           conversationWithoutAssignee,
@@ -88,6 +88,17 @@ describe('Conversation Helpers', () => {
           currentUserId
         )
       ).toBe(true);
+    });
+
+    it('ignores permissions for agent role when conversation is assigned to someone else', () => {
+      expect(
+        applyRoleFilter(
+          conversationWithDifferentAssignee,
+          'agent',
+          ['conversation_manage'],
+          1
+        )
+      ).toBe(false);
     });
 
     // Test for custom role with 'conversation_manage' permission

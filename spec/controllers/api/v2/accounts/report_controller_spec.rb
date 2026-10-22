@@ -37,13 +37,13 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'allows agents' do
         get "/api/v2/accounts/#{account.id}/reports",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'return timeseries metrics' do
@@ -170,13 +170,13 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'allows agents' do
         get "/api/v2/accounts/#{account.id}/reports/summary",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary metrics' do
@@ -353,12 +353,12 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'allows agents' do
         get "/api/v2/accounts/#{account.id}/reports/agents.csv",
             params: params,
             headers: agent.create_new_auth_token
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary' do
@@ -457,12 +457,12 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for labels' do
+      it 'allows agents to view labels' do
         get "/api/v2/accounts/#{account.id}/reports/labels.csv",
             params: params,
             headers: agent.create_new_auth_token
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary' do
@@ -577,7 +577,7 @@ RSpec.describe 'Reports API', type: :request do
             headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
-        expect(response.parsed_body.keys).to match_array(%w[conversation_count message_count resolution_rate handoff_rate])
+        expect(response.parsed_body.keys).to match_array(%w[conversation_count message_count resolution_rate handoff_rate avg_resolution_time])
       end
     end
   end

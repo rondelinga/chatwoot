@@ -17,7 +17,7 @@ const filterTypes = [
   {
     attributeKey: 'assignee_id',
     attributeI18nKey: 'ASSIGNEE_NAME',
-    inputType: 'search_select',
+    inputType: 'multi_select',
     dataType: 'text',
     filterOperators: OPERATOR_TYPES_2,
     attributeModel: 'standard',
@@ -33,7 +33,7 @@ const filterTypes = [
   {
     attributeKey: 'inbox_id',
     attributeI18nKey: 'INBOX_NAME',
-    inputType: 'search_select',
+    inputType: 'multi_select',
     dataType: 'text',
     filterOperators: OPERATOR_TYPES_2,
     attributeModel: 'standard',
@@ -76,6 +76,22 @@ const filterTypes = [
     inputType: 'multi_select',
     dataType: 'text',
     filterOperators: OPERATOR_TYPES_2,
+    attributeModel: 'standard',
+  },
+  {
+    attributeKey: 'only_system_labels',
+    attributeI18nKey: 'ONLY_SYSTEM_LABELS',
+    inputType: 'multi_select',
+    dataType: 'text',
+    filterOperators: OPERATOR_TYPES_2,
+    attributeModel: 'standard',
+  },
+  {
+    attributeKey: 'csat_rating',
+    attributeI18nKey: 'CSAT_RATING',
+    inputType: 'search_select',
+    dataType: 'text',
+    filterOperators: OPERATOR_TYPES_1,
     attributeModel: 'standard',
   },
   {

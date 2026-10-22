@@ -15,12 +15,12 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       end
     end
 
-    context 'when authenticated but not authorized' do
-      it 'returns forbidden' do
+    context 'when authenticated as an agent' do
+      it 'returns success' do
         get "/api/v2/accounts/#{account.id}/live_reports/conversation_metrics",
             headers: agent.create_new_auth_token,
             as: :json
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
     end
 
@@ -106,13 +106,13 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       end
     end
 
-    context 'when authenticated but not authorized' do
-      it 'returns forbidden' do
+    context 'when authenticated as an agent' do
+      it 'returns success' do
         get "/api/v2/accounts/#{account.id}/live_reports/grouped_conversation_metrics",
             params: { group_by: 'team_id' },
             headers: agent.create_new_auth_token,
             as: :json
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
     end
 

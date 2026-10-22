@@ -2,40 +2,35 @@ import { shallowMount } from '@vue/test-utils';
 import ReportFiltersDateRange from '../../Filters/DateRange.vue';
 import { DATE_RANGE_OPTIONS } from '../../../constants';
 
-const mountParams = {
-  global: {
-    mocks: {
-      $t: msg => msg,
-    },
-    stubs: ['multiselect'],
-  },
-};
-
 describe('ReportFiltersDateRange.vue', () => {
-  it('emits "onRangeChange" event when updateRange is called', () => {
-    const wrapper = shallowMount(ReportFiltersDateRange, mountParams);
+  it('emits "onRangeChange" event when a range is selected', async () => {
+    const wrapper = shallowMount(ReportFiltersDateRange);
 
     const selectedRange = DATE_RANGE_OPTIONS.LAST_7_DAYS;
-    wrapper.vm.updateRange(selectedRange);
+    await wrapper.find('select').setValue(selectedRange.id);
 
     expect(wrapper.emitted('onRangeChange')).toBeTruthy();
-    expect(wrapper.emitted('onRangeChange')[0]).toEqual([selectedRange]);
+    expect(wrapper.emitted('onRangeChange')[0]).toEqual([
+      { ...selectedRange, name: selectedRange.translationKey },
+    ]);
   });
 
-  it('initializes options correctly', () => {
-    const wrapper = shallowMount(ReportFiltersDateRange, mountParams);
+  it('renders options correctly', () => {
+    const wrapper = shallowMount(ReportFiltersDateRange);
 
     const expectedIds = Object.values(DATE_RANGE_OPTIONS).map(
       option => option.id
     );
-    const receivedIds = wrapper.vm.options.map(option => option.id);
+    const receivedIds = wrapper
+      .findAll('option')
+      .map(option => option.element.value);
 
     expect(receivedIds).toEqual(expectedIds);
   });
 
-  it('initializes selectedOption correctly', () => {
-    const wrapper = shallowMount(ReportFiltersDateRange, mountParams);
+  it('selects the first range by default', () => {
+    const wrapper = shallowMount(ReportFiltersDateRange);
     const expectedId = Object.values(DATE_RANGE_OPTIONS)[0].id;
-    expect(wrapper.vm.selectedOption.id).toBe(expectedId);
+    expect(wrapper.find('select').element.value).toBe(expectedId);
   });
 });

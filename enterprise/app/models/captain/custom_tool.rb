@@ -8,20 +8,24 @@
 #  description       :text
 #  enabled           :boolean          default(TRUE), not null
 #  endpoint_url      :text             not null
+#  headers           :jsonb            not null
 #  http_method       :string           default("GET"), not null
 #  param_schema      :jsonb
 #  request_template  :text
 #  response_template :text
 #  slug              :string           not null
+#  source_metadata   :jsonb
 #  title             :string           not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
 #  account_id        :bigint           not null
+#  assistant_id      :bigint
 #
 # Indexes
 #
-#  index_captain_custom_tools_on_account_id           (account_id)
-#  index_captain_custom_tools_on_account_id_and_slug  (account_id,slug) UNIQUE
+#  index_captain_custom_tools_on_account_id             (account_id)
+#  index_captain_custom_tools_on_account_id_and_slug    (account_id,slug) UNIQUE
+#  index_captain_custom_tools_on_assistant_id_and_slug  (assistant_id,slug) UNIQUE
 #
 class Captain::CustomTool < ApplicationRecord
   class LimitExceededError < StandardError; end

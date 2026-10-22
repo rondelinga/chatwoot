@@ -117,7 +117,7 @@ RSpec.describe Captain::BaseTaskService do
     let(:messages) { [{ role: 'system', content: 'Test' }, { role: 'user', content: 'Hello' }] }
     let(:mock_chat) { instance_double(RubyLLM::Chat) }
     let(:mock_context) { instance_double(RubyLLM::Context, chat: mock_chat) }
-    let(:mock_response) { instance_double(RubyLLM::Message, content: 'Response', input_tokens: 10, output_tokens: 20) }
+    let(:mock_response) { instance_double(RubyLLM::Message, content: 'Response', tokens: instance_double(RubyLLM::Tokens, input: 10, output: 20)) }
 
     before do
       allow(Llm::Config).to receive(:with_api_key).and_yield(mock_context)
@@ -192,11 +192,11 @@ RSpec.describe Captain::BaseTaskService do
     end
 
     it 'prefers account overrides over supplied feature fallback models' do
-      account.update!(captain_models: { 'help_center_article_generation' => 'gpt-4.1' })
+      account.update!(captain_models: { 'editor' => 'gpt-4.1' })
 
       expect(mock_context).to receive(:chat).with(model: 'gpt-4.1').and_return(mock_chat)
 
-      service.send(:make_api_call, feature: 'help_center_article_generation', model: 'gpt-5.2', messages: messages)
+      service.send(:make_api_call, feature: 'editor', model: 'gpt-5.2', messages: messages)
     end
 
     it 'returns formatted response with tokens' do
@@ -213,12 +213,10 @@ RSpec.describe Captain::BaseTaskService do
     let(:model) { 'gpt-4' }
     let(:mock_chat) { instance_double(RubyLLM::Chat) }
     let(:mock_context) { instance_double(RubyLLM::Context, chat: mock_chat) }
-    let(:mock_response) { instance_double(RubyLLM::Message, content: 'Response', input_tokens: 10, output_tokens: 20) }
+    let(:mock_response) { instance_double(RubyLLM::Message, content: 'Response', tokens: instance_double(RubyLLM::Tokens, input: 10, output: 20)) }
 
     before do
       allow(Llm::Config).to receive(:with_api_key).and_yield(mock_context)
-      allow(mock_response).to receive(:input_tokens).and_return(10)
-      allow(mock_response).to receive(:output_tokens).and_return(20)
     end
 
     context 'with system instructions' do

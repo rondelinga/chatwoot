@@ -399,6 +399,8 @@ RSpec.describe 'Api::V1::Accounts::MacrosController', type: :request do
         end
 
         it 'Assign the agent when he is inbox member' do
+          # new open conversations are auto-assigned to an inbox member on creation
+          conversation.update!(assignee: nil)
           expect(conversation.assignee).to be_nil
 
           perform_enqueued_jobs do

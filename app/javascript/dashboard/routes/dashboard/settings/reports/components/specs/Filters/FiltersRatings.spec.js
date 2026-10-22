@@ -7,37 +7,33 @@ const mountParams = {
     mocks: {
       $t: msg => msg,
     },
-    stubs: ['multiselect'],
   },
 };
 
 describe('ReportFiltersRatings.vue', () => {
-  it('emits "rating-filter-selection" event when handleInput is called', async () => {
-    const wrapper = shallowMount(ReportFiltersRatings, {
-      ...mountParams,
-    });
+  it('emits "ratingFilterSelection" event when a rating is selected', async () => {
+    const wrapper = shallowMount(ReportFiltersRatings, mountParams);
 
-    const selectedRating = { value: 1, label: 'Rating 1' };
-    await wrapper.setData({ selectedOption: selectedRating });
-
-    await wrapper.vm.handleInput(selectedRating);
+    const selectedRating = CSAT_RATINGS[0];
+    await wrapper.find('select').setValue(String(selectedRating.value));
 
     expect(wrapper.emitted('ratingFilterSelection')).toBeTruthy();
     expect(wrapper.emitted('ratingFilterSelection')[0]).toEqual([
-      selectedRating,
+      { ...selectedRating, label: selectedRating.translationKey },
     ]);
   });
 
-  it('initializes options correctly', () => {
-    const wrapper = shallowMount(ReportFiltersRatings, {
-      ...mountParams,
-    });
+  it('renders options from the highest to the lowest rating', () => {
+    const wrapper = shallowMount(ReportFiltersRatings, mountParams);
 
-    const expectedOptions = CSAT_RATINGS.map(option => ({
-      ...option,
-      label: option.translationKey,
-    }));
+    const ratingOptions = wrapper.findAll('option:not([disabled])');
+    const expectedOptions = [...CSAT_RATINGS].reverse();
 
-    expect(wrapper.vm.options).toEqual(expectedOptions);
+    expect(ratingOptions.map(option => option.element.value)).toEqual(
+      expectedOptions.map(option => String(option.value))
+    );
+    expect(ratingOptions.map(option => option.text())).toEqual(
+      expectedOptions.map(option => option.translationKey)
+    );
   });
 });

@@ -499,11 +499,8 @@ describe('#getters', () => {
         rootGetters
       );
 
-      expect(result).toEqual([
-        mockConversations[2],
-        mockConversations[1],
-        mockConversations[0],
-      ]);
+      // Agents only see conversations assigned to them or unassigned ones
+      expect(result).toEqual([mockConversations[1], mockConversations[0]]);
     });
 
     it('filters conversations for custom role with conversation_manage permission', () => {
@@ -707,11 +704,19 @@ describe('#getters', () => {
         appliedFilters: [],
       };
 
+      const rootGetters = {
+        ...mockRootGetters,
+        getCurrentUser: {
+          ...mockRootGetters.getCurrentUser,
+          accounts: [{ id: 1, role: 'administrator', permissions: [] }],
+        },
+      };
+
       const result = getters.getFilteredConversations(
         state,
         {},
         {},
-        mockRootGetters
+        rootGetters
       );
 
       expect(result).toEqual([

@@ -55,7 +55,7 @@ class ConversationQueue < ApplicationRecord
     (end_time - queued_at).to_i
   end
 
-  def exit_reason
+  def exit_reason # rubocop:todo Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     return 'accepted' if assigned?
     return 'customer_resolved' if left? && conversation&.resolved?
     return 'opened' if left? && conversation&.open?

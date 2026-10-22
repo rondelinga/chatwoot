@@ -164,9 +164,9 @@ describe ActionCableListener do
     let(:contact_data) { contact.push_event_data.merge(account_id: contact.account_id) }
     let!(:event) { Events::Base.new(event_name, Time.zone.now, contact_data: contact_data) }
 
-    it 'sends message to account admins, inbox agents' do
+    it 'sends message to account admins only' do
       expect(ActionCableBroadcastJob).to receive(:perform_later).with(
-        ["account_#{account.id}"],
+        [admin.pubsub_token],
         'contact.deleted',
         contact_data
       )

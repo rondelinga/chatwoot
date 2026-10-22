@@ -2,38 +2,39 @@
 #
 # Table name: conversations
 #
-#  id                     :integer          not null, primary key
-#  additional_attributes  :jsonb
-#  agent_last_seen_at     :datetime
-#  ai_assignee_type       :string
-#  assignee_last_seen_at  :datetime
-#  cached_label_list      :text
-#  contact_last_seen_at   :datetime
-#  custom_attributes      :jsonb
-#  first_reply_created_at :datetime
-#  identifier             :string
-#  last_activity_at       :datetime         not null
-#  priority               :integer
-#  proxied_at             :datetime
-#  resolved_at            :datetime
-#  resolved_by_contact    :boolean          default(FALSE)
-#  snoozed_until          :datetime
-#  status                 :integer          default("open"), not null
-#  status_changed_at      :datetime
-#  uuid                   :uuid             not null
-#  waiting_since          :datetime
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :integer          not null
-#  assignee_agent_bot_id  :bigint
-#  assignee_id            :integer
-#  campaign_id            :bigint
-#  contact_id             :bigint
-#  contact_inbox_id       :bigint
-#  display_id             :integer          not null
-#  inbox_id               :integer          not null
-#  sla_policy_id          :bigint
-#  team_id                :bigint
+#  id                      :integer          not null, primary key
+#  additional_attributes   :jsonb
+#  agent_last_seen_at      :datetime
+#  ai_assignee_type        :string
+#  assignee_last_seen_at   :datetime
+#  automation_label_titles :string           default([]), not null, is an Array
+#  cached_label_list       :text
+#  contact_last_seen_at    :datetime
+#  custom_attributes       :jsonb
+#  first_reply_created_at  :datetime
+#  identifier              :string
+#  last_activity_at        :datetime         not null
+#  priority                :integer
+#  proxied_at              :datetime
+#  resolved_at             :datetime
+#  resolved_by_contact     :boolean          default(FALSE)
+#  snoozed_until           :datetime
+#  status                  :integer          default("open"), not null
+#  status_changed_at       :datetime
+#  uuid                    :uuid             not null
+#  waiting_since           :datetime
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :integer          not null
+#  assignee_agent_bot_id   :bigint
+#  assignee_id             :integer
+#  campaign_id             :bigint
+#  contact_id              :bigint
+#  contact_inbox_id        :bigint
+#  display_id              :integer          not null
+#  inbox_id                :integer          not null
+#  sla_policy_id           :bigint
+#  team_id                 :bigint
 #
 # Indexes
 #
@@ -190,6 +191,7 @@ class Conversation < ApplicationRecord
   after_create_commit :load_attributes_created_by_db_triggers
   before_destroy :set_unread_count_deletion_data
   after_destroy_commit :notify_conversation_deletion
+  after_save :track_automation_label_titles, if: :saved_change_to_label_list?
 
   delegate :auto_resolve_after, to: :account
 
@@ -256,6 +258,15 @@ class Conversation < ApplicationRecord
 
   def cached_label_list_array
     (cached_label_list || '').split(',').map(&:strip)
+  end
+
+  # True when the conversation has labels and every one of them is currently tracked in
+  # `automation_label_titles`, i.e. none were added manually by an agent (or anything else).
+  # `automation_label_titles` is kept in sync with the live label set by
+  # #track_automation_label_titles, so this is a simple set-containment check rather than a
+  # guess based on label names.
+  def only_automation_labels?
+    label_list.present? && (label_list - automation_label_titles).empty?
   end
 
   def csat_response_status
@@ -345,7 +356,7 @@ class Conversation < ApplicationRecord
     return unless account.queue_enabled?
     return unless saved_change_to_assignee_id?
     return if assignee_id.blank?
-  
+
     ChatQueue::QueueService.new(account: account).remove_from_queue(self, reason: :other)
   end
 
@@ -404,7 +415,7 @@ class Conversation < ApplicationRecord
     notify_conversation_updation
   end
 
-  def process_queue_on_assignment_change
+  def process_queue_on_assignment_change # rubocop:todo Metrics/CyclomaticComplexity
     return unless account.queue_enabled?
     return unless saved_change_to_assignee_id? || saved_change_to_status?
 
@@ -424,7 +435,7 @@ class Conversation < ApplicationRecord
     update_column(:resolved_at, Time.current)
     update_column(:waiting_since, nil)
     # rubocop:enable Rails/SkipsModelValidations
-end
+  end
 
   def ensure_snooze_until_reset
     self.snoozed_until = nil unless snoozed?
@@ -560,8 +571,26 @@ end
     create_label_removed(user_name, previous_labels - current_labels)
   end
 
+  # Keeps `automation_label_titles` equal to "labels this conversation currently has that were
+  # added while an Automation Rule was executing" (AutomationRules::ActionService sets
+  # Current.executed_by to the rule). Titles for labels that are no longer present are dropped
+  # by intersecting with the live `label_list`, so a manually re-added label isn't mistaken for
+  # an automation one, and a label an automation adds on top of existing manual ones doesn't
+  # make the whole set look automation-only.
+  def track_automation_label_titles
+    previous_labels, current_labels = previous_changes[:label_list]
+    added_by_automation = Current.executed_by.is_a?(AutomationRule) ? (current_labels - Array(previous_labels)) : []
+
+    updated_titles = ((automation_label_titles | added_by_automation) & current_labels)
+    return if updated_titles.sort == automation_label_titles.sort
+
+    # after_save: a normal update would run callbacks again, including this one.
+    update_column(:automation_label_titles, updated_titles) # rubocop:disable Rails/SkipsModelValidations
+  end
+
   def cascade_close_proxy_chain
     return unless resolved?
+
     Widget::ConversationCloseProxyService.new(self).call
   end
 

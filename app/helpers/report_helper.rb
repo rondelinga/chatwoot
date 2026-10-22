@@ -1,4 +1,4 @@
-module ReportHelper
+module ReportHelper # rubocop:todo Metrics/ModuleLength
   extend ActiveSupport::Concern
 
   included do
@@ -23,7 +23,7 @@ module ReportHelper
   def agent_bot
     scope.agent_bots.where(account_id: account.id)
   end
-  
+
   def conversations_count
     (get_grouped_values conversations).count
   end

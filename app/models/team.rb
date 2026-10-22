@@ -3,7 +3,7 @@
 # Table name: teams
 #
 #  id                :bigint           not null, primary key
-#  allow_auto_assign :boolean          default(TRUE)
+#  allow_auto_assign :boolean          default(FALSE)
 #  description       :text
 #  icon              :string           default("")
 #  icon_color        :string           default("")

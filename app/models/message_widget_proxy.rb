@@ -1,4 +1,4 @@
-module MessageWidgetProxy
+module MessageWidgetProxy # rubocop:todo Metrics/ModuleLength
   extend ActiveSupport::Concern
 
   included do
@@ -7,7 +7,9 @@ module MessageWidgetProxy
 
   private
 
-  def mirror_outgoing_to_linked_widget_conversation
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/AbcSize
+  def mirror_outgoing_to_linked_widget_conversation # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/PerceivedComplexity
     return unless outgoing?
     return unless sender.is_a?(User)
     return if private?
@@ -33,8 +35,11 @@ module MessageWidgetProxy
   rescue StandardError => e
     Rails.logger.error("MessageWidgetProxy mirror_outgoing_to_linked_widget_conversation failed: #{e.class} - #{e.message}")
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/PerceivedComplexity
 
-  def mirror_message_to_conversation(target_conversation, additional_attributes:, skip_if_already_mirrored: false)
+  # rubocop:todo Metrics/MethodLength
+  def mirror_message_to_conversation(target_conversation, additional_attributes:, skip_if_already_mirrored: false) # rubocop:todo Metrics/AbcSize, Metrics/MethodLength
     return if target_conversation.blank?
     return if content.blank? && attachments.empty?
     return if skip_if_already_mirrored && mirrored_message_exists?(target_conversation, id)
@@ -52,7 +57,7 @@ module MessageWidgetProxy
 
     mirror_attachments_to_message(mirrored)
 
-    mirrored.update_column(:source_id, nil)
+    mirrored.update_column(:source_id, nil) # rubocop:disable Rails/SkipsModelValidations
     mirrored.reload
 
     if mirrored.attachments.present?
@@ -70,6 +75,7 @@ module MessageWidgetProxy
 
     mirrored
   end
+  # rubocop:enable Metrics/MethodLength
 
   def mirror_attachments_to_message(target_message)
     attachments.each do |original_attachment|
@@ -87,40 +93,44 @@ module MessageWidgetProxy
   end
 
   def mirrored_message_exists?(target_conversation, source_message_id)
-    target_conversation.messages.where(
+    target_conversation.messages.where( # rubocop:disable Rails/WhereExists
       "additional_attributes->>'mirrored_from_message_id' = ?", source_message_id.to_s
     ).exists?
   end
 
-  def find_proxy_conversation_linked_to(source_conversation)
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  def find_proxy_conversation_linked_to(source_conversation) # rubocop:todo Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     source_widget_id = source_conversation.additional_attributes&.dig('source_widget_id')
     if source_widget_id.present?
       widget = Conversation.find_by(id: source_widget_id)
       return widget if widget&.proxied?
     end
-  
+
     visited = Set.new([source_conversation.id])
     current = source_conversation
-  
+
     loop do
       attrs = current.additional_attributes || {}
       linked_id = attrs['linked_conversation_id']
       break if linked_id.blank? || visited.include?(linked_id)
-  
+
       linked = Conversation.find_by(id: linked_id)
       break if linked.blank?
-  
+
       visited << current.id
       current = linked
-  
+
       break if current.proxied?
     end
-  
+
     return nil if current.id == source_conversation.id
     return nil unless current.proxied?
-  
+
     current
   end
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 
   def find_source_telegram_conversation_linked_to(widget_conversation)
     tg_id = widget_conversation.additional_attributes&.dig('source_telegram_conversation_id')

@@ -8,6 +8,14 @@
 #  updated_at :datetime         not null
 #  user_id    :bigint           not null
 #
+# Indexes
+#
+#  index_notification_sounds_on_user_id  (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 
 class NotificationSound < ApplicationRecord
   include Rails.application.routes.url_helpers
@@ -21,9 +29,7 @@ class NotificationSound < ApplicationRecord
   def file_url
     return if file.blank?
 
-    if ActiveStorage::Current.url_options.blank?
-      ActiveStorage::Current.url_options = Rails.application.routes.default_url_options
-    end
+    ActiveStorage::Current.url_options = Rails.application.routes.default_url_options if ActiveStorage::Current.url_options.blank?
     url_for(file)
   end
 

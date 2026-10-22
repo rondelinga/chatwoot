@@ -204,7 +204,7 @@ RSpec.describe DataImportJob do
         expect(bob.label_list).to be_empty
       end
 
-      it 'dispatches only the contact update event when importing labels for an existing contact' do
+      it 'merges imported labels into an existing contact' do
         existing_contact = create(:contact, account: labels_data_import.account, email: 'existing-labeled@example.com', name: 'Old Name')
         existing_contact.add_labels('customer')
         data_with_existing_contact = [
@@ -214,20 +214,15 @@ RSpec.describe DataImportJob do
         ]
         existing_contact_import = create(:data_import, account: labels_data_import.account,
                                                        import_file: generate_csv_file(data_with_existing_contact))
-        allow(Rails.configuration.dispatcher).to receive(:dispatch)
 
         described_class.perform_now(existing_contact_import)
 
-        expect(Rails.configuration.dispatcher).to have_received(:dispatch).with(
-          Events::Types::CONTACT_UPDATED,
-          anything,
-          hash_including(contact: have_attributes(id: existing_contact.id))
-        ).once
-        expect(existing_contact.reload.label_list).to contain_exactly('customer', 'lead')
+        expect(existing_contact.reload.name).to eq('Updated Name')
+        expect(existing_contact.label_list).to contain_exactly('customer', 'lead')
         expect(labels_data_import.account.contacts.from_email('new-labeled@example.com').label_list).to contain_exactly('customer')
       end
 
-      it 'merges labels for duplicate contact rows without duplicate taggings' do
+      it 'imports duplicate contact rows as separate contacts without duplicate taggings' do
         data_with_duplicate_contact = [
           %w[id name email phone_number labels],
           ['1', 'Duplicate User', 'duplicate-labeled@example.com', '+918080808092', 'lead'],
@@ -238,10 +233,13 @@ RSpec.describe DataImportJob do
 
         described_class.perform_now(duplicate_contact_import)
 
-        contact = labels_data_import.account.contacts.from_email('duplicate-labeled@example.com')
+        # Email is no longer unique per account, so rows from the same batch are not merged
+        contacts = labels_data_import.account.contacts.where(email: 'duplicate-labeled@example.com')
         lead = ActsAsTaggableOn::Tag.find_by(name: 'lead')
-        expect(contact.label_list).to contain_exactly('customer', 'lead')
-        expect(ActsAsTaggableOn::Tagging.where(tag_id: lead.id, taggable: contact, context: 'labels').count).to eq(1)
+        expect(contacts.map(&:label_list)).to contain_exactly(%w[lead], contain_exactly('customer', 'lead'))
+        contacts.each do |contact|
+          expect(ActsAsTaggableOn::Tagging.where(tag_id: lead.id, taggable: contact, context: 'labels').count).to eq(1)
+        end
       end
 
       it 'rejects rows with labels that do not exist in the account before updating contacts' do

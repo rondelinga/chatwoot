@@ -17,6 +17,8 @@ export const CONVERSATION_ATTRIBUTES = {
   DISPLAY_ID: 'display_id',
   CAMPAIGN_ID: 'campaign_id',
   LABELS: 'labels',
+  ONLY_SYSTEM_LABELS: 'only_system_labels',
+  CSAT_RATING: 'csat_rating',
   BROWSER_LANGUAGE: 'browser_language',
   REFERER: 'referer',
   CREATED_AT: 'created_at',

@@ -28,7 +28,7 @@ RSpec.describe 'Super Admin accounts API', type: :request do
   describe 'GET /super_admin/accounts/{account_id}' do
     context 'when it is an authenticated user' do
       it 'shows effective Captain model routing', if: ChatwootApp.enterprise? do
-        account.update!(captain_models: { 'editor' => 'gpt-4.1', 'conversation_completion' => 'gpt-5.2' })
+        account.update!(captain_models: { 'editor' => 'gpt-4.1' })
         sign_in(super_admin, scope: :super_admin)
 
         get "/super_admin/accounts/#{account.id}"
@@ -42,8 +42,8 @@ RSpec.describe 'Super Admin accounts API', type: :request do
         expect(summaries).to include('View model routing')
         expect(summaries).not_to include('All features', 'Captain models')
         expect(routing_panel.text.squish).to include('Customer features', 'Internal features')
-        expect(completion_card.text.squish).to include('Inactive conversation completion evaluator', 'GPT-5.2', 'Account override')
-        expect(response.body).to include('Editor', 'OpenAI', 'openai', 'gpt-4.1', 'Label suggestion', 'Default')
+        expect(completion_card.text.squish).to include('Inactive conversation completion evaluator', 'gpt-4.1', 'Default')
+        expect(response.body).to include('Editor', 'OpenAI', 'openai', 'gpt-4.1', 'Account override', 'Label suggestion', 'Default')
       end
 
       it 'shows the installation model for internal routing on self-hosted Enterprise', if: ChatwootApp.enterprise? do
@@ -131,7 +131,7 @@ RSpec.describe 'Super Admin accounts API', type: :request do
                   captain_models: {
                     editor: '',
                     assistant: 'gpt-5.2',
-                    conversation_completion: 'gpt-5.2'
+                    copilot: 'gpt-5.2'
                   }
                 }
               }
@@ -139,7 +139,7 @@ RSpec.describe 'Super Admin accounts API', type: :request do
         expect(response).to have_http_status(:redirect)
         expect(account.reload.captain_models).to eq(
           'assistant' => 'gpt-5.2',
-          'conversation_completion' => 'gpt-5.2'
+          'copilot' => 'gpt-5.2'
         )
         expect(account.keep_pending_on_bot_failure).to be true
       end

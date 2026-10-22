@@ -51,13 +51,11 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
     @csat_messages = Current.account.messages.input_csat
     @csat_messages = @csat_messages.joins(:conversation).where(conversations: { created_at: range }) if range.present?
     @csat_messages = apply_agent_csat_messages_scope(@csat_messages)
-    if excluded_label_titles.present?
-      @csat_messages = @csat_messages.where.not(conversation_id: excluded_conversation_ids)
-    end
+    @csat_messages = @csat_messages.where.not(conversation_id: excluded_conversation_ids) if excluded_label_titles.present?
     @total_sent_messages_count = @csat_messages.count
   end
 
-  def set_csat_survey_responses
+  def set_csat_survey_responses # rubocop:todo Metrics/AbcSize
     base_query = Current.account.csat_survey_responses
                         .includes([:conversation, :assigned_agent, :contact])
 

@@ -36,7 +36,7 @@ module TelegramContactMerge
     ids
   end
 
-  def find_target_contact(account, inbox_ids)
+  def find_target_contact(account, inbox_ids) # rubocop:todo Metrics/AbcSize
     user_email = @contact.custom_attributes&.dig('user_email').to_s.downcase.strip.presence
     priv_email = @contact.custom_attributes&.dig('_email').to_s.downcase.strip.presence
     email      = @contact.email.to_s.downcase.strip.presence
@@ -47,7 +47,7 @@ module TelegramContactMerge
            .joins(:contact_inboxes)
            .where(contact_inboxes: { inbox_id: inbox_ids })
            .where.not(id: @contact.id)
-           .where(<<~SQL, user_email: user_email, priv_email: priv_email, email: email)
+           .where(<<~SQL, user_email: user_email, priv_email: priv_email, email: email) # rubocop:disable Rails/SquishedSQLHeredocs
              (:user_email IS NOT NULL AND LOWER(custom_attributes->>'user_email') = :user_email)
              OR (:user_email IS NOT NULL AND LOWER(contacts.email) = :user_email)
              OR (:priv_email IS NOT NULL AND LOWER(custom_attributes->>'_email') = :priv_email)

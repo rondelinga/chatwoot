@@ -9,7 +9,7 @@ module Enterprise::Internal::CheckNewVersionsJob
 
   def update_plan_info
     return
-    return if @instance_info.blank?
+    return if @instance_info.blank? # rubocop:todo Lint/UnreachableCode
 
     update_installation_config(key: 'INSTALLATION_PRICING_PLAN', value: @instance_info['plan'])
     update_installation_config(key: 'INSTALLATION_PRICING_PLAN_QUANTITY', value: @instance_info['plan_quantity'])

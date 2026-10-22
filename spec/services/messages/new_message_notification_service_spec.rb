@@ -18,8 +18,8 @@ describe Messages::NewMessageNotificationService do
   context 'when message is notifiable' do
     let(:account) { create(:account) }
     let(:assignee) { create(:user, account: account) }
-    let(:participating_agent_1) { create(:user, account: account) }
-    let(:participating_agent_2) { create(:user, account: account) }
+    let(:participating_agent_1) { create(:user, account: account, role: :administrator) }
+    let(:participating_agent_2) { create(:user, account: account, role: :administrator) }
     let(:inbox) { create(:inbox, account: account) }
     let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: assignee) }
 
@@ -66,6 +66,18 @@ describe Messages::NewMessageNotificationService do
       it 'creates notifications for assignee' do
         expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message', account: account,
                                             primary_actor: message.conversation, secondary_actor: message)).to exist
+      end
+
+      it 'does not notify participating agents who cannot access the conversation' do
+        restricted_agent = create(:user, account: account)
+        create(:inbox_member, inbox: inbox, user: restricted_agent)
+        create(:conversation_participant, conversation: conversation, user: restricted_agent)
+
+        described_class.new(message: message).perform
+
+        expect(restricted_agent.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                    account: account, primary_actor: message.conversation,
+                                                    secondary_actor: message)).not_to exist
       end
 
       it 'creates notifications for all participating users' do

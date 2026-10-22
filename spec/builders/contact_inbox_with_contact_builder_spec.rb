@@ -70,6 +70,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with email' do
+      existing_contact_inbox
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -84,6 +86,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact when an uppercase email is passed for an already existing contact email' do
+      existing_contact_inbox
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -98,6 +102,8 @@ describe ContactInboxWithContactBuilder do
     end
 
     it 'doesnot create contact if it already exist with phone number' do
+      existing_contact_inbox
+
       contact_inbox = described_class.new(
         source_id: '123456',
         inbox: inbox,
@@ -109,6 +115,22 @@ describe ContactInboxWithContactBuilder do
       ).perform
 
       expect(contact_inbox.contact.id).to be(contact.id)
+    end
+
+    it 'creates a new contact when the email only matches a contact from another inbox' do
+      create(:contact_inbox, contact: contact, inbox: create(:inbox, account: account))
+
+      contact_inbox = described_class.new(
+        source_id: '123456',
+        inbox: inbox,
+        contact_attributes: {
+          name: 'Contact',
+          phone_number: '+1234567890',
+          email: contact.email
+        }
+      ).perform
+
+      expect(contact_inbox.contact.id).not_to eq(contact.id)
     end
 
     it 'reuses contact if it exists with the same source_id in a Facebook inbox when creating for Instagram inbox' do

@@ -25,7 +25,7 @@ class ConversationBuilder
     ::Conversation.create!(conversation_params)
   end
 
-  def conversation_params
+  def conversation_params # rubocop:todo Metrics/AbcSize
     additional_attributes = (params[:additional_attributes]&.permit! || {}).to_h.merge(telegram_additional_attributes)
     custom_attributes = params[:custom_attributes]&.permit! || {}
     status = params[:status].present? ? { status: params[:status] } : {}

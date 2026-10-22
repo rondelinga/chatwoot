@@ -10,7 +10,7 @@ import {
   CONVERSATION_ATTRIBUTES,
 } from './helper/filterHelper';
 import { groupFilterTypes } from './helper/filterAttributeIcons';
-import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages.js';
+import { UNASSIGNED_ID } from 'dashboard/constants/filters.js';
 
 /**
  * @typedef {Object} FilterOption
@@ -61,13 +61,14 @@ export function useConversationFilterContext() {
   const agents = useMapGetter('agents/getAgents');
   const inboxes = useMapGetter('inboxes/getInboxes');
   const teams = useMapGetter('teams/getTeams');
-  const campaigns = useMapGetter('campaigns/getAllCampaigns');
 
   const {
     equalityOperators,
     presenceOperators,
+    labelOperators,
     containmentOperators,
     dateOperators,
+    operators,
     getOperatorTypes,
   } = useOperators();
 
@@ -155,13 +156,20 @@ export function useConversationFilterContext() {
       value: CONVERSATION_ATTRIBUTES.ASSIGNEE_ID,
       attributeName: t('FILTER.ATTRIBUTES.ASSIGNEE_NAME'),
       label: t('FILTER.ATTRIBUTES.ASSIGNEE_NAME'),
-      inputType: 'searchSelect',
-      options: agents.value.map(agent => {
-        return {
+      inputType: 'multiSelect',
+      alwaysShowSearch: true,
+      options: [
+        {
+          id: UNASSIGNED_ID,
+          name: t('FILTER.UNASSIGNED'),
+          icon: 'i-lucide-user-x',
+        },
+        ...agents.value.map(agent => ({
           id: agent.id,
           name: agent.name,
-        };
-      }),
+          thumbnail: agent.thumbnail ?? '',
+        })),
+      ],
       dataType: 'text',
       filterOperators: presenceOperators.value,
       attributeModel: 'standard',
@@ -171,7 +179,8 @@ export function useConversationFilterContext() {
       value: CONVERSATION_ATTRIBUTES.INBOX_ID,
       attributeName: t('FILTER.ATTRIBUTES.INBOX_NAME'),
       label: t('FILTER.ATTRIBUTES.INBOX_NAME'),
-      inputType: 'searchSelect',
+      inputType: 'multiSelect',
+      alwaysShowSearch: true,
       options: inboxes.value.map(inbox => {
         return {
           ...inbox,
@@ -226,20 +235,6 @@ export function useConversationFilterContext() {
       attributeModel: 'standard',
     },
     {
-      attributeKey: CONVERSATION_ATTRIBUTES.CAMPAIGN_ID,
-      value: CONVERSATION_ATTRIBUTES.CAMPAIGN_ID,
-      attributeName: t('FILTER.ATTRIBUTES.CAMPAIGN_NAME'),
-      label: t('FILTER.ATTRIBUTES.CAMPAIGN_NAME'),
-      inputType: 'searchSelect',
-      options: campaigns.value.map(campaign => ({
-        id: campaign.id,
-        name: campaign.title,
-      })),
-      dataType: 'number',
-      filterOperators: presenceOperators.value,
-      attributeModel: 'standard',
-    },
-    {
       attributeKey: CONVERSATION_ATTRIBUTES.LABELS,
       value: CONVERSATION_ATTRIBUTES.LABELS,
       attributeName: t('FILTER.ATTRIBUTES.LABELS'),
@@ -260,45 +255,43 @@ export function useConversationFilterContext() {
         };
       }),
       dataType: 'text',
-      filterOperators: presenceOperators.value,
+      filterOperators: labelOperators.value,
       attributeModel: 'standard',
     },
     {
-      attributeKey: CONVERSATION_ATTRIBUTES.BROWSER_LANGUAGE,
-      value: CONVERSATION_ATTRIBUTES.BROWSER_LANGUAGE,
-      attributeName: t('FILTER.ATTRIBUTES.BROWSER_LANGUAGE'),
-      label: t('FILTER.ATTRIBUTES.BROWSER_LANGUAGE'),
-      inputType: 'searchSelect',
-      options: languages,
-      dataType: 'text',
-      filterOperators: equalityOperators.value,
-      attributeModel: 'additional',
-    },
-    {
-      attributeKey: CONVERSATION_ATTRIBUTES.REFERER,
-      value: CONVERSATION_ATTRIBUTES.REFERER,
-      attributeName: t('FILTER.ATTRIBUTES.REFERER_LINK'),
-      label: t('FILTER.ATTRIBUTES.REFERER_LINK'),
+      attributeKey: CONVERSATION_ATTRIBUTES.ONLY_SYSTEM_LABELS,
+      value: CONVERSATION_ATTRIBUTES.ONLY_SYSTEM_LABELS,
+      attributeName: t('FILTER.ATTRIBUTES.ONLY_SYSTEM_LABELS'),
+      label: t('FILTER.ATTRIBUTES.ONLY_SYSTEM_LABELS'),
       inputType: 'plainText',
       dataType: 'text',
-      filterOperators: containmentOperators.value,
-      attributeModel: 'additional',
+      filterOperators: [
+        {
+          ...operators.value.is_present,
+          label: t('FILTER.OPERATOR_LABELS.only_system_labels'),
+        },
+      ],
+      attributeModel: 'standard',
+    },
+    {
+      attributeKey: CONVERSATION_ATTRIBUTES.CSAT_RATING,
+      value: CONVERSATION_ATTRIBUTES.CSAT_RATING,
+      attributeName: t('FILTER.ATTRIBUTES.CSAT_RATING'),
+      label: t('FILTER.ATTRIBUTES.CSAT_RATING'),
+      inputType: 'searchSelect',
+      options: ['rated', 'positive', 'negative', 'not_rated'].map(id => ({
+        id,
+        name: t(`FILTER.CSAT_RATING_OPTIONS.${id}`),
+      })),
+      dataType: 'text',
+      filterOperators: [operators.value.equal_to],
+      attributeModel: 'standard',
     },
     {
       attributeKey: CONVERSATION_ATTRIBUTES.CREATED_AT,
       value: CONVERSATION_ATTRIBUTES.CREATED_AT,
       attributeName: t('FILTER.ATTRIBUTES.CREATED_AT'),
       label: t('FILTER.ATTRIBUTES.CREATED_AT'),
-      inputType: 'date',
-      dataType: 'text',
-      filterOperators: dateOperators.value,
-      attributeModel: 'standard',
-    },
-    {
-      attributeKey: CONVERSATION_ATTRIBUTES.LAST_ACTIVITY_AT,
-      value: CONVERSATION_ATTRIBUTES.LAST_ACTIVITY_AT,
-      attributeName: t('FILTER.ATTRIBUTES.LAST_ACTIVITY'),
-      label: t('FILTER.ATTRIBUTES.LAST_ACTIVITY'),
       inputType: 'date',
       dataType: 'text',
       filterOperators: dateOperators.value,

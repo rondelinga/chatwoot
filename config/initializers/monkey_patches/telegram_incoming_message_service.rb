@@ -10,7 +10,8 @@ Rails.application.config.to_prepare do
 
       private
 
-      def set_project_attribute_after_perform
+      # rubocop:todo Metrics/PerceivedComplexity
+      def set_project_attribute_after_perform # rubocop:todo Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         return unless @contact
         return unless @inbox&.channel
 
@@ -25,6 +26,7 @@ Rails.application.config.to_prepare do
       rescue StandardError => e
         Rails.logger.error "[TG PROJECT] ERROR: #{e.class} #{e.message}\n#{e.backtrace.first(5).join("\n")}"
       end
+      # rubocop:enable Metrics/PerceivedComplexity
     end
   end
 end

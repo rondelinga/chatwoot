@@ -77,9 +77,20 @@ conversations:
     data_type: "labels"
     filter_operators:
       - "equal_to"
+      - "contains_all"
       - "not_equal_to"
       - "is_present"
       - "is_not_present"
+  only_system_labels:
+    attribute_type: "standard"
+    data_type: "system_labels"
+    filter_operators:
+      - "is_present"
+  csat_rating:
+    attribute_type: "standard"
+    data_type: "csat"
+    filter_operators:
+      - "equal_to"
   browser_language:
     attribute_type: "additional_attributes"
     data_type: "text"

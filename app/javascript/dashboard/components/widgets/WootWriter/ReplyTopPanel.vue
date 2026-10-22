@@ -29,6 +29,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    notesOnly: {
+      type: Boolean,
+      default: false,
+    },
     disabled: {
       type: Boolean,
       default: false,
@@ -158,6 +162,7 @@ export default {
       :mode="mode"
       :disabled="disabled"
       :is-reply-restricted="isReplyRestricted"
+      :notes-only="notesOnly"
       @toggle-mode="handleModeToggle"
     />
     <div class="flex items-center mx-4 my-0">

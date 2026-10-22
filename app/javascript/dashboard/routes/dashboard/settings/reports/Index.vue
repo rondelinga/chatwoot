@@ -148,7 +148,10 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('REPORT.HEADER')">
+  <ReportHeader
+    :header-title="$t('REPORT.HEADER')"
+    :header-description="$t('REPORT.DESCRIPTION')"
+  >
     <DownloadDropdown
       :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
       :options="downloadOptions"

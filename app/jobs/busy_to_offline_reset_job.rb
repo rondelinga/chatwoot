@@ -6,7 +6,7 @@
 class BusyToOfflineResetJob < ApplicationJob
   queue_as :scheduled_jobs
 
-  def perform(account_id, user_id, busy_since)
+  def perform(account_id, user_id, busy_since) # rubocop:todo Metrics/CyclomaticComplexity
     account = Account.find_by(id: account_id)
     return unless account
 

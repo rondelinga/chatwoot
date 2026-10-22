@@ -29,13 +29,13 @@ RSpec.describe QueueStatistic do
     let(:account) { create(:account) }
 
     context 'when stats record does not exist' do
-      it 'creates a new stat with queued count incremented' do
+      it 'creates a new stat without counting it as queued' do
         expect do
           described_class.update_statistics_for(account.id, wait_time_seconds: 0)
         end.to change(described_class, :count).by(1)
 
         stat = described_class.last
-        expect(stat.total_queued).to eq(1)
+        expect(stat.total_queued).to eq(0)
         expect(stat.total_assigned).to eq(0)
         expect(stat.total_left).to eq(0)
       end
@@ -46,7 +46,7 @@ RSpec.describe QueueStatistic do
         described_class.update_statistics_for(account.id, wait_time_seconds: 100, assigned: true)
         stat = described_class.last
 
-        expect(stat.total_queued).to eq(1)
+        expect(stat.total_queued).to eq(0)
         expect(stat.total_assigned).to eq(1)
         expect(stat.average_wait_time_seconds).to eq(100)
         expect(stat.max_wait_time_seconds).to eq(100)
@@ -65,11 +65,11 @@ RSpec.describe QueueStatistic do
     end
 
     context 'when left without assignment' do
-      it 'increments only left and queued' do
+      it 'increments only left' do
         described_class.update_statistics_for(account.id, wait_time_seconds: 0, left: true)
         stat = described_class.last
 
-        expect(stat.total_queued).to eq(1)
+        expect(stat.total_queued).to eq(0)
         expect(stat.total_left).to eq(1)
         expect(stat.total_assigned).to eq(0)
       end
@@ -82,8 +82,21 @@ RSpec.describe QueueStatistic do
 
         stats = described_class.where(account_id: account.id, date: Date.current)
         expect(stats.count).to eq(1)
-        expect(stats.first.total_queued).to eq(2)
+        expect(stats.first.total_queued).to eq(0)
       end
+    end
+  end
+
+  describe '.increment_queued' do
+    let(:account) { create(:account) }
+
+    it 'increments the queued count on the same daily record' do
+      described_class.increment_queued(account.id)
+      described_class.increment_queued(account.id)
+
+      stats = described_class.where(account_id: account.id, date: Date.current)
+      expect(stats.count).to eq(1)
+      expect(stats.first.total_queued).to eq(2)
     end
   end
 end

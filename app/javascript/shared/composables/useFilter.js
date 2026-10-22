@@ -114,7 +114,7 @@ export const useFilter = ({ filteri18nKey, attributeModel }) => {
       return {
         attribute_key: 'assignee_id',
         filter_operator: 'equal_to',
-        values: currentUserDetails,
+        values: [currentUserDetails],
         query_operator: 'and',
         custom_attribute_type: '',
       };

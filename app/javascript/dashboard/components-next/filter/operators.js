@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n';
  * @property {string} IS_LESS_THAN - Less than comparison
  * @property {string} DAYS_BEFORE - Days before check
  * @property {string} STARTS_WITH - Starts with check
+ * @property {string} CONTAINS_ALL - Contains every selected value
  */
 
 /**
@@ -35,6 +36,7 @@ const FILTER_OPS = {
   IS_LESS_THAN: 'is_less_than',
   DAYS_BEFORE: 'days_before',
   STARTS_WITH: 'starts_with',
+  CONTAINS_ALL: 'contains_all',
 };
 
 const NO_INPUT_OPTS = [FILTER_OPS.IS_PRESENT, FILTER_OPS.IS_NOT_PRESENT];
@@ -57,6 +59,7 @@ const filterOperatorIcon = {
   [FILTER_OPS.IS_LESS_THAN]: 'i-ph-less-than-bold',
   [FILTER_OPS.DAYS_BEFORE]: 'i-ph-calendar-minus-bold',
   [FILTER_OPS.STARTS_WITH]: 'i-ph-caret-line-right-bold',
+  [FILTER_OPS.CONTAINS_ALL]: 'i-ph-list-checks-bold',
 };
 
 /**
@@ -65,6 +68,7 @@ const filterOperatorIcon = {
  * @property {import('vue').ComputedRef<Record<string, Operator>>} operators - All available operators
  * @property {import('vue').ComputedRef<Operator[]>} equalityOperators - Equality comparison operators
  * @property {import('vue').ComputedRef<Operator[]>} presenceOperators - Presence check operators
+ * @property {import('vue').ComputedRef<Operator[]>} labelOperators - Label operators, including match any / match all
  * @property {import('vue').ComputedRef<Operator[]>} containmentOperators - Containment check operators
  * @property {import('vue').ComputedRef<Operator[]>} comparisonOperators - Numeric comparison operators
  * @property {import('vue').ComputedRef<Operator[]>} dateOperators - Date-specific operators
@@ -98,6 +102,18 @@ export function useOperators() {
   /** @type {import('vue').ComputedRef<Array<Operator>>} */
   const presenceOperators = computed(() => [
     operators.value[FILTER_OPS.EQUAL_TO],
+    operators.value[FILTER_OPS.NOT_EQUAL_TO],
+    operators.value[FILTER_OPS.IS_PRESENT],
+    operators.value[FILTER_OPS.IS_NOT_PRESENT],
+  ]);
+
+  /** @type {import('vue').ComputedRef<Array<Operator>>} */
+  const labelOperators = computed(() => [
+    {
+      ...operators.value[FILTER_OPS.EQUAL_TO],
+      label: t('FILTER.OPERATOR_LABELS.any_of'),
+    },
+    operators.value[FILTER_OPS.CONTAINS_ALL],
     operators.value[FILTER_OPS.NOT_EQUAL_TO],
     operators.value[FILTER_OPS.IS_PRESENT],
     operators.value[FILTER_OPS.IS_NOT_PRESENT],
@@ -156,6 +172,7 @@ export function useOperators() {
     operators,
     equalityOperators,
     presenceOperators,
+    labelOperators,
     containmentOperators,
     comparisonOperators,
     dateOperators,

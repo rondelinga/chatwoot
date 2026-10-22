@@ -17,8 +17,8 @@ describe CsatSurveys::ResponseBuilder do
       expect(csat_survey_response.valid?).to be(true)
     end
 
-    it 'updates the value of csat survey response if response already exists' do
-      existing_survey_response = create(:csat_survey_response, message: message)
+    it 'updates the existing csat survey response of the conversation' do
+      existing_survey_response = create(:csat_survey_response, message: message, conversation: message.conversation)
       csat_survey_response = described_class.new(
         message: message
       ).perform

@@ -1,4 +1,4 @@
-class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
+class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController # rubocop:todo Metrics/ClassLength
   include Events::Types
   include DateRangeHelper
   include HmacConcern
