@@ -162,6 +162,17 @@ export default {
         'INBOX_MGMT.SETTINGS_POPUP.ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT'
       );
     },
+    systemMessagesEnabled: {
+      get() {
+        return (
+          this.queueNotificationEnabled && this.resolutionNotificationEnabled
+        );
+      },
+      set(enabled) {
+        this.queueNotificationEnabled = enabled;
+        this.resolutionNotificationEnabled = enabled;
+      },
+    },
     selectedTabKey() {
       return this.tabs[this.selectedTabIndex]?.key;
     },
@@ -1389,6 +1400,19 @@ export default {
                 :hide-toggle="isContinuityDisabled"
                 :class="
                   isContinuityDisabled ? 'cursor-not-allowed opacity-50' : ''
+                "
+              />
+
+              <SettingsToggleSection
+                v-if="isAWhatsAppChannel"
+                v-model="systemMessagesEnabled"
+                :header="
+                  $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SYSTEM_MESSAGES')
+                "
+                :description="
+                  $t(
+                    'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SYSTEM_MESSAGES_SUB_TEXT'
+                  )
                 "
               />
 
