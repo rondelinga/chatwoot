@@ -169,6 +169,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
 
   def create_resolution_message(conversation, inbox)
     return unless captain_assistant.send_inactivity_resolution_message?
+    return unless inbox.resolution_notification_enabled?
 
     I18n.with_locale(inbox.account.locale) do
       resolution_message = captain_assistant.config['resolution_message']

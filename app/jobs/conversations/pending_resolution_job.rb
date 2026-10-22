@@ -20,8 +20,10 @@ class Conversations::PendingResolutionJob < ApplicationJob
   end
 
   def send_pending_resolve_message(conversation, account)
+    return unless conversation.inbox.resolution_notification_enabled?
+
     message_text = account.auto_resolve_pending_message.presence
-    return if message_text.blank?
+    return if message_text.blank? || !conversation.inbox.resolution_notification_enabled?
 
     if conversation.can_reply?
       conversation.messages.create!(

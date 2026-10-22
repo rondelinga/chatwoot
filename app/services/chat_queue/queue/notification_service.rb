@@ -11,6 +11,8 @@ class ChatQueue::Queue::NotificationService
   end
 
   def send_assigned_notification
+    return unless conversation.inbox.queue_notification_enabled?
+
     cid = conversation.id
     Rails.logger.info("[QUEUE][notify_assigned][conv=#{cid}] Sending assigned template")
 
