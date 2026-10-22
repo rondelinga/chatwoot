@@ -6,6 +6,8 @@ describe Conversations::FilterService do
   let!(:account) { create(:account) }
   let!(:user_1) { create(:user, account: account) }
   let!(:user_2) { create(:user, account: account) }
+  # plain agents only see conversations that are unassigned or assigned to them, so cross-agent filters run as an administrator
+  let(:administrator) { create(:user, account: account, role: :administrator) }
   let!(:campaign_1) { create(:campaign, title: 'Test Campaign', account: account) }
   let!(:campaign_2) { create(:campaign, title: 'Campaign', account: account) }
   let!(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
@@ -302,7 +304,7 @@ describe Conversations::FilterService do
             query_operator: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expect(result[:count][:all_count]).to be 1
       end
 
@@ -486,7 +488,7 @@ describe Conversations::FilterService do
             query_operator: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expect(result[:conversations].length).to be 1
         expect(result[:conversations][0][:id]).to be user_2_assigned_conversation.id
       end
@@ -514,7 +516,7 @@ describe Conversations::FilterService do
             query_operator: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expect(result[:conversations].length).to be 1
         expect(result[:conversations][0][:id]).to be user_2_assigned_conversation.id
       end
@@ -536,7 +538,7 @@ describe Conversations::FilterService do
             custom_attribute_type: ''
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expect(result[:conversations].length).to be 1
       end
 
@@ -557,7 +559,7 @@ describe Conversations::FilterService do
             custom_attribute_type: nil
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expect(result[:conversations].length).to be 1
       end
 
@@ -603,7 +605,7 @@ describe Conversations::FilterService do
             custom_attribute_type: ''
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
         expect(result[:conversations].length).to eq expected_count
       end
@@ -660,7 +662,7 @@ describe Conversations::FilterService do
             custom_attribute_type: ''
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expected_count = account.conversations.where("created_at > ? AND custom_attributes->>'conversation_type' = ?",
                                                      DateTime.parse('2022-01-20'), 'platinum').count
 
@@ -789,7 +791,7 @@ describe Conversations::FilterService do
             custom_attribute_type: ''
           }.with_indifferent_access
         ]
-        result = filter_service.new(params, user_1, account).perform
+        result = filter_service.new(params, administrator, account).perform
         expected_count = account.conversations.where('created_at > ?', DateTime.parse('2022-01-20')).count
 
         expect(Current.account).to be_nil
@@ -820,11 +822,12 @@ describe Conversations::FilterService do
       params[:payload] = payload
       result = filter_service.new(params, user_1, account).perform
 
+      # user_1 is a plain agent, so the conversation assigned to user_2 is excluded
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 4,
+        assigned_count: 3,
         unassigned_count: 1,
-        all_count: 5
+        all_count: 4
       )
     end
 
@@ -834,11 +837,12 @@ describe Conversations::FilterService do
 
       result = filter_service.new(params, user_1, account).perform
 
+      # user_1 is a plain agent, so the conversation assigned to user_2 is excluded
       expect(result[:count]).to eq(
         mine_count: 3,
-        assigned_count: 5,
+        assigned_count: 4,
         unassigned_count: 1,
-        all_count: 6
+        all_count: 5
       )
     end
 

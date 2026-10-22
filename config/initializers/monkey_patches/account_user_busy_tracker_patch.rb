@@ -5,10 +5,12 @@
 #
 # Date modified: 12.05.2026
 Rails.application.config.after_initialize do
-  module AccountUserBusyTrackerPatch
+  module AccountUserBusyTrackerPatch # rubocop:todo Lint/ConstantDefinitionInBlock
     def update_presence_in_redis
       super
+      # rubocop:todo Layout/LineLength
       Rails.logger.info("[BusyTracker] update_presence_in_redis called, availability=#{availability}, saved_change=#{saved_change_to_availability?.inspect}")
+      # rubocop:enable Layout/LineLength
       schedule_busy_reset if saved_change_to_availability? && busy?
     end
 

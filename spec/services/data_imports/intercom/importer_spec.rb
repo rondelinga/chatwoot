@@ -299,7 +299,8 @@ RSpec.describe DataImports::Intercom::Importer do
       allow(importer).to receive(:bulk_write_message_entries).and_raise(ActiveRecord::StatementInvalid, 'bulk failed')
       allow(importer).to receive(:fallback_message_entries).and_wrap_original do |method, conversation, contact, batch_builder, entries|
         source_entry = entries.first
-        message = create(
+        # Importer workers write messages with insert_all!, skipping the resolved-conversation check on incoming messages.
+        message = build(
           :message,
           account: account,
           inbox: conversation.inbox,
@@ -308,6 +309,7 @@ RSpec.describe DataImports::Intercom::Importer do
           created_at: Time.zone.at(source_entry.part['created_at']),
           updated_at: Time.zone.at(source_entry.part['created_at'])
         )
+        message.save!(validate: false)
         DataImportMapping.create!(
           account: account,
           data_import: data_import,

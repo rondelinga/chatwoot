@@ -4,7 +4,7 @@ class AutoAssignment::AgentAssignmentService
   # examples: Agents with assignment capacity, Agents who are members of a team etc
   pattr_initialize [:conversation!, :allowed_agent_ids!]
 
-  def find_assignee
+  def find_assignee # rubocop:todo Metrics/AbcSize
     ids = allowed_online_agent_ids
     Rails.logger.debug { "AutoAssignment [conv=#{conversation.id}] online+allowed ids: #{ids}" }
 

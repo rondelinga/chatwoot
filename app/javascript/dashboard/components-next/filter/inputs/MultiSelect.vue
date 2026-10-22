@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { picoSearch } from '@chatwoot/pico-search';
 import { DROPDOWN_SEARCH_THRESHOLD } from '../helper/filterHelper';
+import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'next/icon/Icon.vue';
 import EmojiIcon from 'next/emoji-icon-picker/EmojiIcon.vue';
 import Button from 'next/button/Button.vue';
@@ -11,7 +12,7 @@ import DropdownSection from 'next/dropdown-menu/base/DropdownSection.vue';
 import DropdownBody from 'next/dropdown-menu/base/DropdownBody.vue';
 import DropdownItem from 'next/dropdown-menu/base/DropdownItem.vue';
 
-const { options, maxChips, dropdownMaxHeight } = defineProps({
+const { options, maxChips, dropdownMaxHeight, alwaysShowSearch } = defineProps({
   options: {
     type: Array,
     required: true,
@@ -23,6 +24,10 @@ const { options, maxChips, dropdownMaxHeight } = defineProps({
   dropdownMaxHeight: {
     type: String,
     default: 'max-h-80',
+  },
+  alwaysShowSearch: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -36,7 +41,9 @@ const selected = defineModel({
 
 const searchTerm = ref('');
 
-const showSearch = computed(() => options.length > DROPDOWN_SEARCH_THRESHOLD);
+const showSearch = computed(
+  () => alwaysShowSearch || options.length > DROPDOWN_SEARCH_THRESHOLD
+);
 
 const searchResults = computed(() => {
   // picoSearch throws on a whitespace-only query, which trims down to no search terms.
@@ -86,6 +93,13 @@ const remainingTooltip = computed(() => {
 const toggleDropdown = toggle => {
   searchTerm.value = '';
   toggle();
+};
+
+// Agent options carry a thumbnail (possibly empty), which falls back to an initials avatar
+const hasThumbnail = option => option.thumbnail !== undefined;
+
+const clearAll = () => {
+  selected.value = [];
 };
 
 const toggleOption = option => {
@@ -179,12 +193,23 @@ const toggleOption = option => {
             preserve-open
             @click="toggleOption(option)"
           >
-            <template v-if="option.emoji || option.color" #icon>
+            <template
+              v-if="option.emoji || option.color || hasThumbnail(option)"
+              #icon
+            >
               <EmojiIcon
                 v-if="option.emoji"
                 :value="option.emoji"
                 :color="option.iconColor"
                 class="flex-shrink-0 size-4"
+              />
+              <Avatar
+                v-else-if="hasThumbnail(option)"
+                :name="option.name"
+                :src="option.thumbnail"
+                :size="16"
+                rounded-full
+                class="flex-shrink-0"
               />
               <span
                 v-else
@@ -213,6 +238,15 @@ const toggleOption = option => {
           </DropdownItem>
         </template>
       </DropdownSection>
+      <li v-if="hasItems" class="list-none">
+        <button
+          type="button"
+          class="w-full p-2 text-sm text-start rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+          @click="clearAll"
+        >
+          {{ t('COMBOBOX.CLEAR_ALL') }}
+        </button>
+      </li>
     </DropdownBody>
   </DropdownContainer>
 </template>

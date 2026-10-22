@@ -1,6 +1,6 @@
 class AddUniqueIndexToCsatSurveyResponsesConversationId < ActiveRecord::Migration[7.1]
   def change
-    execute <<-SQL
+    execute <<-SQL # rubocop:todo Rails/ReversibleMigration, Rails/SquishedSQLHeredocs
       DELETE FROM csat_survey_responses
       WHERE id NOT IN (
         SELECT MAX(id)

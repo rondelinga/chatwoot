@@ -23,6 +23,7 @@
     "MULTI_VALUE_INPUT_PLACEHOLDER_SHORT": "Type a value",
     "CONTACT_SEARCH_PLACEHOLDER": "Search contacts",
     "CONTACT_FALLBACK": "Contact #{id}",
+    "UNASSIGNED": "Unassigned",
     "OPERATOR_LABELS": {
       "equal_to": "Equal to",
       "not_equal_to": "Not equal to",
@@ -33,6 +34,9 @@
       "is_less_than": "Is lesser than",
       "days_before": "Is x days before",
       "starts_with": "Starts with",
+      "contains_all": "Is all of",
+      "any_of": "Is any of",
+      "only_system_labels": "Enabled",
       "equalTo": "Equal to",
       "notEqualTo": "Not equal to",
       "contains": "Contains",
@@ -57,6 +61,8 @@
       "CONVERSATION_IDENTIFIER": "Conversation identifier",
       "CAMPAIGN_NAME": "Campaign name",
       "LABELS": "Labels",
+      "ONLY_SYSTEM_LABELS": "Only system labels",
+      "CSAT_RATING": "CSAT rating",
       "BROWSER_LANGUAGE": "Browser language",
       "PRIORITY": "Priority",
       "COUNTRY_NAME": "Country name",
@@ -68,6 +74,12 @@
       "CUSTOM_ATTRIBUTE_CHECKBOX": "Checkbox",
       "CREATED_AT": "Created at",
       "LAST_ACTIVITY": "Last activity"
+    },
+    "CSAT_RATING_OPTIONS": {
+      "rated": "Has rating",
+      "positive": "👍 Positive",
+      "negative": "👎 Negative",
+      "not_rated": "Not rated"
     },
     "ERRORS": {
       "VALUE_REQUIRED": "Value is required",

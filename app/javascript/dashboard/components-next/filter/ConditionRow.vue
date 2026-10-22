@@ -223,6 +223,7 @@ defineExpose({ validate, resetValidation });
             v-if="inputType === 'multiSelect'"
             v-model="values"
             :options="currentFilter.options"
+            :always-show-search="currentFilter.alwaysShowSearch"
             dropdown-max-height="max-h-72"
           />
           <SingleSelect

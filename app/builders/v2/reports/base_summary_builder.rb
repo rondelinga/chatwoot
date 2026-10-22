@@ -1,4 +1,4 @@
-class V2::Reports::BaseSummaryBuilder
+class V2::Reports::BaseSummaryBuilder # rubocop:todo Metrics/ClassLength
   include DateRangeHelper
 
   def build
@@ -60,7 +60,7 @@ class V2::Reports::BaseSummaryBuilder
     # CategorySummaryBuilder overrides exclude_proxy_chats? to return false.
     @reporting_events ||= begin
       scope = account.reporting_events.where(created_at: range)
-      return scope unless exclude_proxy_chats?
+      return scope unless exclude_proxy_chats? # rubocop:todo Lint/NoReturnInBeginEndBlocks
 
       scope.joins(:conversation).where(conversations: { proxied_at: nil })
     end

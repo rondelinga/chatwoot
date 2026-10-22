@@ -8,7 +8,8 @@
     "EMPTY_SEARCH_RESULTS": "Не найдено элементов для поиска `{searchTerm}`",
     "EMPTY_STATE": "Результаты не найдены.",
     "SEARCH_PLACEHOLDER": "Поиск...",
-    "MORE": "+{count} еще"
+    "MORE": "+{count} еще",
+    "CLEAR_ALL": "Очистить всё"
   },
   "DROPDOWN_MENU": {
     "SEARCH_PLACEHOLDER": "Поиск...",

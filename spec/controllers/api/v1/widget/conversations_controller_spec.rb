@@ -163,6 +163,7 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
 
     it 'saves contact custom attributes on the surviving contact when merged into an existing contact' do
       existing_contact = create(:contact, account: account, email: 'contact-email@chatwoot.com', custom_attributes: { 'cpf' => 'old-value' })
+      create(:contact_inbox, contact: existing_contact, inbox: web_widget.inbox)
 
       post '/api/v1/widget/conversations',
            headers: { 'X-Auth-Token' => token },

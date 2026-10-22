@@ -81,7 +81,7 @@ describe ConversationBuilder do
       end
     end
 
-    context 'for web widget inbox' do
+    context 'with a web widget inbox' do
       let!(:widget_channel) { create(:channel_widget, account: account) }
       let!(:widget_inbox) { create(:inbox, channel: widget_channel, account: account) }
       let(:contact_widget_inbox) { create(:contact_inbox, contact: contact, inbox: widget_inbox) }
@@ -104,14 +104,14 @@ describe ConversationBuilder do
       end
     end
 
-    context 'for telegram inbox' do
+    context 'with a telegram inbox' do
       let!(:telegram_channel) { create(:channel_telegram, account: account) }
       let!(:telegram_inbox) { create(:inbox, channel: telegram_channel, account: account) }
       let(:contact_telegram_inbox) { create(:contact_inbox, contact: contact, inbox: telegram_inbox, source_id: '12345') }
 
       it 'reuses the last non-resolved conversation instead of creating a new one' do
         existing_conversation = create(:conversation, contact_inbox: contact_telegram_inbox, status: :open,
-                                                        additional_attributes: { 'chat_id' => '12345' })
+                                                      additional_attributes: { 'chat_id' => '12345' })
 
         conversation = described_class.new(contact_inbox: contact_telegram_inbox, params: {}).perform
 
@@ -120,7 +120,7 @@ describe ConversationBuilder do
 
       it 'creates a new conversation with the chat_id carried over when the last one is resolved' do
         create(:conversation, contact_inbox: contact_telegram_inbox, status: :resolved,
-                               additional_attributes: { 'chat_id' => '12345' })
+                              additional_attributes: { 'chat_id' => '12345' })
 
         conversation = described_class.new(contact_inbox: contact_telegram_inbox, params: {}).perform
 

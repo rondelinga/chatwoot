@@ -44,7 +44,7 @@ class ChatQueue::ForceTransferService
     least_loaded.min_by { |h| h[:last_assigned_at] || Time.zone.at(0) }[:agent]
   end
 
-  def fetch_available_agents
+  def fetch_available_agents # rubocop:todo Metrics/CyclomaticComplexity
     online_users = OnlineStatusTracker.get_available_users(conversation.account.id) || {}
     online_agent_ids = online_users
                        .select { |_id, status| status == 'online' }

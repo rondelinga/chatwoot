@@ -17,7 +17,15 @@ RSpec.describe CsatSurveyResponsePolicy, type: :policy do
     context 'when administrator' do
       it { expect(csat_policy).to permit(administrator_context, csat_survey_response) }
     end
+  end
 
+  permissions :index?, :metrics? do
+    context 'when agent' do
+      it { expect(csat_policy).to permit(agent_context, csat_survey_response) }
+    end
+  end
+
+  permissions :download? do
     context 'when agent' do
       it { expect(csat_policy).not_to permit(agent_context, csat_survey_response) }
     end

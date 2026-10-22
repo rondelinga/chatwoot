@@ -767,7 +767,7 @@ describe('#addMentions', () => {
       });
     });
 
-    it('should not dispatch fetchPreviousMessages if dataFetched is already set', async () => {
+    it('should dispatch reloadConversationMessages instead of fetchPreviousMessages if dataFetched is already set', async () => {
       const localCommit = vi.fn();
       const localDispatch = vi.fn();
       const data = { id: 42, messages: [{ id: 100 }], dataFetched: true };
@@ -781,7 +781,9 @@ describe('#addMentions', () => {
         [types.SET_CURRENT_CHAT_WINDOW, data],
         [types.CLEAR_ALL_MESSAGES_LOADED, 42],
       ]);
-      expect(localDispatch).not.toHaveBeenCalled();
+      expect(localDispatch.mock.calls).toEqual([
+        ['reloadConversationMessages', { conversationId: 42 }],
+      ]);
     });
 
     it('should commit SET_CHAT_DATA_FETCHED by ID, not mutate the data object directly (race condition fix)', async () => {

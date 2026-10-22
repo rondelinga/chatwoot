@@ -58,14 +58,17 @@ class Notifications::SoundFileValidator
 
     value = stdout.to_f
     value if value.positive?
-  rescue Errno::ENOENT, StandardError
+  rescue StandardError
     nil
   end
 
-  def wav_duration(path)
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  # rubocop:todo Metrics/AbcSize
+  def wav_duration(path) # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
     File.open(path, 'rb') do |io|
       header = io.read(12)
-      return unless header&.start_with?('RIFF') && header.end_with?('WAVE')
+      return unless header&.start_with?('RIFF') && header.end_with?('WAVE') # rubocop:todo Lint/NonLocalExitFromIterator
 
       byte_rate = nil
       data_size = nil
@@ -90,11 +93,14 @@ class Notifications::SoundFileValidator
         end
       end
 
-      return unless byte_rate&.positive? && data_size
+      return unless byte_rate&.positive? && data_size # rubocop:todo Lint/NonLocalExitFromIterator
 
       data_size.to_f / byte_rate
     end
   rescue StandardError
     nil
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 end

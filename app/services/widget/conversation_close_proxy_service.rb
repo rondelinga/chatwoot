@@ -28,10 +28,10 @@ class Widget::ConversationCloseProxyService
     return false if root_widget_id.blank?
 
     other_active = Conversation
-      .where("additional_attributes->>'source_widget_id' = ?", root_widget_id.to_s)
-      .where(status: [:open, :pending])
-      .where.not(id: @conversation.id)
-      .exists?
+                   .where("additional_attributes->>'source_widget_id' = ?", root_widget_id.to_s)
+                   .where(status: [:open, :pending])
+                   .where.not(id: @conversation.id)
+                   .exists?
 
     !other_active
   end
@@ -46,7 +46,10 @@ class Widget::ConversationCloseProxyService
     close_conversation_chain(root_widget)
   end
 
-  def close_conversation_chain(start_conversation)
+  # rubocop:todo Metrics/PerceivedComplexity
+  # rubocop:todo Metrics/MethodLength
+  # rubocop:todo Metrics/AbcSize
+  def close_conversation_chain(start_conversation) # rubocop:todo Metrics/CyclomaticComplexity, Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
     visited = Set.new
     queue = [start_conversation]
 
@@ -63,7 +66,7 @@ class Widget::ConversationCloseProxyService
       end
 
       linked_id = conv.additional_attributes&.dig('linked_conversation_id')
-      if linked_id.present? && !visited.include?(linked_id)
+      if linked_id.present? && !visited.include?(linked_id) # rubocop:disable Rails/NegateInclude
         linked = Conversation.find_by(id: linked_id)
         queue << linked if linked.present?
       end
@@ -74,4 +77,7 @@ class Widget::ConversationCloseProxyService
         .find_each { |c| queue << c }
     end
   end
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
+  # rubocop:enable Metrics/PerceivedComplexity
 end

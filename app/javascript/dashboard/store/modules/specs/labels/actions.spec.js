@@ -27,6 +27,38 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([
         [types.default.SET_LABEL_UI_FLAG, { isFetching: true }],
         [types.default.SET_LABELS, labelsList],
+        [types.default.SET_PINNED_LABELS, []],
+        [types.default.SET_LABEL_UI_FLAG, { isFetching: false }],
+      ]);
+    });
+    it('commits labels sorted by title and ids of labels pinned by the current user', async () => {
+      const labels = [
+        { id: 2, title: 'support', pinned_by_current_user: true },
+        { id: 3, title: 'billing', pinned_by_current_user: false },
+        { id: 1, title: 'account', pinned_by_current_user: true },
+      ];
+      axios.get = vi.fn(url => {
+        if (url === '/api/v1/labels') {
+          return Promise.resolve({ data: { payload: labels } });
+        }
+        if (url === '/api/v1/accounts//cache_keys') {
+          return Promise.resolve({ data: { cache_keys: { labels: 0 } } });
+        }
+        return Promise.reject(new Error('Unexpected request: ' + url));
+      });
+
+      await actions.get({ commit });
+      expect(commit.mock.calls).toEqual([
+        [types.default.SET_LABEL_UI_FLAG, { isFetching: true }],
+        [
+          types.default.SET_LABELS,
+          [
+            { id: 1, title: 'account', pinned_by_current_user: true },
+            { id: 3, title: 'billing', pinned_by_current_user: false },
+            { id: 2, title: 'support', pinned_by_current_user: true },
+          ],
+        ],
+        [types.default.SET_PINNED_LABELS, [1, 2]],
         [types.default.SET_LABEL_UI_FLAG, { isFetching: false }],
       ]);
     });

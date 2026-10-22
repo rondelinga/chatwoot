@@ -8,7 +8,8 @@
     "EMPTY_SEARCH_RESULTS": "No items found for the search term `{searchTerm}`",
     "EMPTY_STATE": "No results found.",
     "SEARCH_PLACEHOLDER": "Search...",
-    "MORE": "+{count} more"
+    "MORE": "+{count} more",
+    "CLEAR_ALL": "Clear all"
   },
   "DROPDOWN_MENU": {
     "SEARCH_PLACEHOLDER": "Search...",

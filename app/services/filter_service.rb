@@ -3,9 +3,11 @@ require 'json'
 class FilterService
   include Filters::FilterHelper
   include Filters::CustomAttributeFilterHelper
+  include Filters::LabelFilterHelper
   include CustomExceptions::CustomFilter
 
   ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
+  UNASSIGNED_VALUE = 'unassigned'.freeze
   ATTRIBUTE_TYPES = {
     date: 'date', text: 'text', number: 'numeric', link: 'text', list: 'text', checkbox: 'boolean'
   }.with_indifferent_access
@@ -51,6 +53,7 @@ class FilterService
     return conversation_priority_values(values) if attribute_key == 'priority'
     return message_type_values(values) if attribute_key == 'message_type'
     return downcase_array_values(values) if attribute_key == 'content'
+    return Array.wrap(values).reject { |value| value.to_s == UNASSIGNED_VALUE } if attribute_key == 'assignee_id'
 
     case_insensitive_values(query_hash)
   end
@@ -122,29 +125,6 @@ class FilterService
     )
     # pick short-circuits to nil on a none relation (e.g. permission scope with no access)
     counts ? counts.map(&:to_i) : [0, 0, 0]
-  end
-
-  def tag_filter_query(query_hash, current_index)
-    model_name = filter_config[:entity]
-    table_name = filter_config[:table_name]
-    query_operator = query_hash[:query_operator]
-    @filter_values["value_#{current_index}"] = filter_values(query_hash)
-
-    tag_model_relation_query =
-      "SELECT * FROM taggings WHERE taggings.taggable_id = #{table_name}.id AND taggings.taggable_type = '#{model_name}'"
-    tag_query =
-      "AND taggings.tag_id IN (SELECT tags.id FROM tags WHERE tags.name IN (:value_#{current_index}))"
-
-    case query_hash[:filter_operator]
-    when 'equal_to'
-      "EXISTS (#{tag_model_relation_query} #{tag_query}) #{query_operator}"
-    when 'not_equal_to'
-      "NOT EXISTS (#{tag_model_relation_query} #{tag_query}) #{query_operator}"
-    when 'is_present'
-      "EXISTS (#{tag_model_relation_query}) #{query_operator}"
-    when 'is_not_present'
-      "NOT EXISTS (#{tag_model_relation_query}) #{query_operator}"
-    end
   end
 
   private

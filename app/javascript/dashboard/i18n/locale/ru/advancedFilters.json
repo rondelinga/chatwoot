@@ -21,6 +21,7 @@
     "INPUT_PLACEHOLDER": "Введите значение",
     "CONTACT_SEARCH_PLACEHOLDER": "Поиск контактов",
     "CONTACT_FALLBACK": "Contact #{id}",
+    "UNASSIGNED": "Не назначен",
     "OPERATOR_LABELS": {
       "equal_to": "Равно",
       "not_equal_to": "Не равно",
@@ -31,6 +32,9 @@
       "is_less_than": "Меньше чем",
       "days_before": "x дней до",
       "starts_with": "Начинается с",
+      "contains_all": "Все из",
+      "any_of": "Любой из",
+      "only_system_labels": "Включено",
       "equalTo": "Равно",
       "notEqualTo": "Не равно",
       "contains": "Содержит",
@@ -55,6 +59,8 @@
       "CONVERSATION_IDENTIFIER": "Идентификатор беседы",
       "CAMPAIGN_NAME": "Название кампании",
       "LABELS": "Категории",
+      "ONLY_SYSTEM_LABELS": "Только системные категории",
+      "CSAT_RATING": "Оценка CSAT",
       "BROWSER_LANGUAGE": "Язык браузера",
       "PRIORITY": "Приоритет",
       "COUNTRY_NAME": "Название страны",
@@ -66,6 +72,12 @@
       "CUSTOM_ATTRIBUTE_CHECKBOX": "Флажок",
       "CREATED_AT": "Дата создания",
       "LAST_ACTIVITY": "Последние действия"
+    },
+    "CSAT_RATING_OPTIONS": {
+      "rated": "Есть оценка",
+      "positive": "👍 Положительная",
+      "negative": "👎 Отрицательная",
+      "not_rated": "Без оценки"
     },
     "ERRORS": {
       "VALUE_REQUIRED": "Необходимо указать значение",

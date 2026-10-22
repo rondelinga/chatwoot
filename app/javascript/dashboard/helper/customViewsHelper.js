@@ -37,6 +37,12 @@ export const getValuesName = (values, list, idKey, nameKey) => {
   };
 };
 
+export const getMultiValuesName = (values, list, idKey, nameKey) =>
+  values.map(value => {
+    const item = list?.find(v => v[idKey] === value);
+    return { id: value, name: item ? item[nameKey] : value };
+  });
+
 const getValuesForContact = (values, contacts) => ({
   id: values[0],
   name:
@@ -97,9 +103,11 @@ export const getValuesForFilter = (filter, params) => {
     case 'status':
       return getValuesForStatus(values);
     case 'assignee_id':
-      return getValuesName(values, agents, 'id', 'name');
+      return getMultiValuesName(values, agents, 'id', 'name');
     case 'inbox_id':
-      return getValuesName(values, inboxes, 'id', 'name');
+      return getMultiValuesName(values, inboxes, 'id', 'name');
+    case 'only_system_labels':
+      return [];
     case 'team_id':
       return getValuesName(values, teams, 'id', 'name');
     case 'contact_id':

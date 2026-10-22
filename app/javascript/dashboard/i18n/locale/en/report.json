@@ -1,6 +1,7 @@
 {
   "REPORT": {
     "HEADER": "Conversations",
+    "DESCRIPTION": "Counts conversations created in the selected period (excluding proxy chats). Includes unassigned and bot-assigned conversations. This total is not the same as the sum of Agents overview rows.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_CONVERSATION_REPORTS": "Download conversation reports",
@@ -11,7 +12,7 @@
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversations",
-        "DESC": "( Total )"
+        "DESC": "(Created in period, including unassigned)"
       },
       "INCOMING_MESSAGES": {
         "NAME": "Messages received",
@@ -36,8 +37,8 @@
         "TOOLTIP_TEXT": "Resolution Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_TIME_WITHOUT_BOT": {
-        "NAME":"Resolution Time (Without Bot)",
-        "TOOLTIP_TEXT":"Resolution Time is {metricValue} (based on {conversationCount} conversations)"
+        "NAME": "Resolution Time (Without Bot)",
+        "TOOLTIP_TEXT": "Resolution Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "AGENT_CHAT_DURATION": {
         "NAME": "Chat Duration",
@@ -213,7 +214,7 @@
   },
   "AGENT_REPORTS": {
     "HEADER": "Agents Overview",
-    "DESCRIPTION": "Easily track agent performance with key metrics such as conversations, response times, resolution times, and resolved cases. Click an agent's name to learn more.",
+    "DESCRIPTION": "Per-agent metrics for conversations currently assigned to each agent and created in the selected period (excluding proxy chats). Unassigned and bot-only conversations are not included here, so the sum of this table can be lower than Conversations reports for the same period.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_AGENT_REPORTS": "Download agent reports",
@@ -226,7 +227,7 @@
     "METRICS": {
       "CONVERSATIONS": {
         "NAME": "Conversations",
-        "DESC": "( Total )"
+        "DESC": "(Currently assigned to the agent)"
       },
       "INCOMING_MESSAGES": {
         "NAME": "Incoming Messages",

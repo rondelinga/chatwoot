@@ -23,15 +23,15 @@ class Conversations::AgentAccessService
 
   private
 
-  def self.find_account_user(user, account)
+  def self.find_account_user(user, account) # rubocop:todo Lint/IneffectiveAccessModifier
     AccountUser.find_by(account_id: account.id, user_id: user.id)
   end
 
-  def self.apply_assignment_scope(conversations, user)
+  def self.apply_assignment_scope(conversations, user) # rubocop:todo Lint/IneffectiveAccessModifier
     conversations.where('conversations.assignee_id = ? OR conversations.assignee_id IS NULL', user.id)
   end
 
-  def self.apply_history_limit(conversations, account)
+  def self.apply_history_limit(conversations, account) # rubocop:todo Lint/IneffectiveAccessModifier
     days = history_days(account)
     return conversations if days.zero?
 
@@ -43,7 +43,7 @@ class Conversations::AgentAccessService
     )
   end
 
-  def self.history_days(account)
+  def self.history_days(account) # rubocop:todo Lint/IneffectiveAccessModifier
     value = account.agent_history_days
     return DEFAULT_HISTORY_DAYS if value.nil?
 

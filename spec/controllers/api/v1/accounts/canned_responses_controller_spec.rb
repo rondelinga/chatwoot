@@ -56,7 +56,7 @@ RSpec.describe 'Canned Responses API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
-        expect(response.parsed_body).to eq([matching_response].as_json)
+        expect(response.parsed_body).to eq([matching_response].as_json(include: :canned_response_scopes))
       end
     end
   end

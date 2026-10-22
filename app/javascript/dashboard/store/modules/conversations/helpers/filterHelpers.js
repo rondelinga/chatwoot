@@ -48,6 +48,7 @@
  */
 import { coerceToDate } from '@chatwoot/utils';
 import jsonLogic from 'json-logic-js';
+import { UNASSIGNED_ID } from 'dashboard/constants/filters';
 
 /**
  * Gets a value from a conversation based on the attribute key
@@ -259,6 +260,14 @@ const matchesCondition = (conversationValue, filter) => {
     case 'not_equal_to':
       return !equalTo(filterValue, conversationValue);
 
+    case 'contains_all':
+      // Mirrors the backend count of matched tags being equal to the number of selected labels
+      return (
+        Array.isArray(filterValue) &&
+        Array.isArray(conversationValue) &&
+        filterValue.every(val => conversationValue.includes(val))
+      );
+
     case 'contains':
       return contains(filterValue, conversationValue);
 
@@ -293,7 +302,59 @@ const matchesCondition = (conversationValue, filter) => {
   }
 };
 
+/**
+ * Matches the `csat_rating` filter against the conversation's CSAT response status
+ * (positive, neutral or negative). Mirrors FilterService#csat_filter_query.
+ */
+const matchesCsatRating = (conversation, filter) => {
+  const status = conversation.csat_response?.status;
+  const [rating] = [].concat(filter.values).map(resolveValue);
+
+  switch (rating) {
+    case 'rated':
+      return !!status;
+    case 'positive':
+      return status === 'positive';
+    case 'negative':
+      return status === 'negative';
+    case 'not_rated':
+      return !status;
+    default:
+      return false;
+  }
+};
+
+/**
+ * Matches conversations that have labels and where every one of them was tagged by an
+ * Automation Rule (none added manually). The frontend has no visibility into who/what applied
+ * each tag, so this relies on `only_automation_labels`, computed server-side by
+ * Labelable#only_automation_labels? and sent on both the conversation payload and realtime
+ * events. Mirrors FilterService#system_labels_filter_query.
+ */
+const hasOnlyAutomationLabels = conversation =>
+  !!conversation.only_automation_labels;
+
+/**
+ * Matches an assignee filter whose values contain the special `unassigned` entry.
+ * Mirrors Filters::FilterHelper#assignee_with_unassigned_filter.
+ */
+const matchesAssigneeWithUnassigned = (assigneeId, filter) => {
+  const ids = filter.values.map(resolveValue);
+  const isListed = ids.includes(assigneeId);
+
+  if (filter.filter_operator === 'equal_to') return isListed || !assigneeId;
+  return !!assigneeId && !isListed;
+};
+
 const matchesConversationCondition = (conversation, filter) => {
+  if (filter.attribute_key === 'csat_rating') {
+    return matchesCsatRating(conversation, filter);
+  }
+
+  if (filter.attribute_key === 'only_system_labels') {
+    return hasOnlyAutomationLabels(conversation);
+  }
+
   const isHumanAssigneeFilter =
     filter.attribute_key === 'assignee_id' &&
     ['equal_to', 'not_equal_to'].includes(filter.filter_operator);
@@ -303,6 +364,17 @@ const matchesConversationCondition = (conversation, filter) => {
 
   if (isHumanAssigneeFilter && isAiAssignee) {
     return false;
+  }
+
+  if (
+    isHumanAssigneeFilter &&
+    Array.isArray(filter.values) &&
+    filter.values.map(resolveValue).includes(UNASSIGNED_ID)
+  ) {
+    return matchesAssigneeWithUnassigned(
+      conversation.meta?.assignee?.id,
+      filter
+    );
   }
 
   return matchesCondition(

@@ -137,19 +137,34 @@ describe('customViewsHelper', () => {
     it('should return id and name if attribute_key is assignee_id', () => {
       const filter = { attribute_key: 'assignee_id', values: [1] };
       const params = { agents: [{ id: 1, name: 'test' }] };
-      expect(getValuesForFilter(filter, params)).toEqual({
-        id: 1,
-        name: 'test',
-      });
+      expect(getValuesForFilter(filter, params)).toEqual([
+        { id: 1, name: 'test' },
+      ]);
     });
 
     it('should return id and name if attribute_key is inbox_id', () => {
       const filter = { attribute_key: 'inbox_id', values: [1] };
       const params = { inboxes: [{ id: 1, name: 'test' }] };
-      expect(getValuesForFilter(filter, params)).toEqual({
-        id: 1,
-        name: 'test',
-      });
+      expect(getValuesForFilter(filter, params)).toEqual([
+        { id: 1, name: 'test' },
+      ]);
+    });
+
+    it('should keep unassigned and unknown ids for assignee_id', () => {
+      const filter = {
+        attribute_key: 'assignee_id',
+        values: [1, 'unassigned'],
+      };
+      const params = { agents: [{ id: 1, name: 'test' }] };
+      expect(getValuesForFilter(filter, params)).toEqual([
+        { id: 1, name: 'test' },
+        { id: 'unassigned', name: 'unassigned' },
+      ]);
+    });
+
+    it('should return no values for only_system_labels', () => {
+      const filter = { attribute_key: 'only_system_labels', values: [] };
+      expect(getValuesForFilter(filter, {})).toEqual([]);
     });
 
     it('should return id and name if attribute_key is team_id', () => {
@@ -216,10 +231,9 @@ describe('customViewsHelper', () => {
         allCustomAttributes: [],
         agents: [{ id: 1, name: 'test' }],
       };
-      expect(generateValuesForEditCustomViews(filter, params)).toEqual({
-        id: 1,
-        name: 'test',
-      });
+      expect(generateValuesForEditCustomViews(filter, params)).toEqual([
+        { id: 1, name: 'test' },
+      ]);
     });
 
     it('should return id and name if inboxType is not multi_select or search_select', () => {
@@ -233,10 +247,9 @@ describe('customViewsHelper', () => {
         allCustomAttributes: [],
         agents: [{ id: 1, name: 'test' }],
       };
-      expect(generateValuesForEditCustomViews(filter, params)).toEqual({
-        id: 1,
-        name: 'test',
-      });
+      expect(generateValuesForEditCustomViews(filter, params)).toEqual([
+        { id: 1, name: 'test' },
+      ]);
     });
 
     it('should return id and name if inboxType is undefined', () => {

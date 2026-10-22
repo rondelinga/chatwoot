@@ -2,13 +2,11 @@
 #
 # Table name: notification_settings
 #
-#  id                            :bigint           not null, primary key
-#  email_flags                   :integer          default(0), not null
-#  new_conversation_custom_sound_id :bigint
+#  id                               :bigint           not null, primary key
+#  email_flags                      :integer          default(0), not null
 #  new_conversation_sound           :string           default("bell"), not null
 #  new_conversation_sound_enabled   :boolean          default(TRUE), not null
 #  new_conversation_volume          :integer          default(80), not null
-#  new_message_custom_sound_id      :bigint
 #  new_message_sound                :string           default("pop"), not null
 #  new_message_sound_enabled        :boolean          default(TRUE), not null
 #  new_message_volume               :integer          default(60), not null
@@ -17,11 +15,20 @@
 #  created_at                       :datetime         not null
 #  updated_at                       :datetime         not null
 #  account_id                       :integer
+#  new_conversation_custom_sound_id :bigint
+#  new_message_custom_sound_id      :bigint
 #  user_id                          :integer
 #
 # Indexes
 #
-#  by_account_user  (account_id,user_id) UNIQUE
+#  by_account_user                                             (account_id,user_id) UNIQUE
+#  idx_on_new_conversation_custom_sound_id_9ebec7035e          (new_conversation_custom_sound_id)
+#  index_notification_settings_on_new_message_custom_sound_id  (new_message_custom_sound_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (new_conversation_custom_sound_id => notification_sounds.id) ON DELETE => nullify
+#  fk_rails_...  (new_message_custom_sound_id => notification_sounds.id) ON DELETE => nullify
 #
 
 class NotificationSetting < ApplicationRecord

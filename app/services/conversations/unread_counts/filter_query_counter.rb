@@ -75,8 +75,16 @@ class Conversations::UnreadCounts::FilterQueryCounter < Conversations::FilterSer
       next true if data_type.blank?
       next false if text_filter_operator?(query_hash) && TYPED_DATA_TYPES.include?(data_type)
 
-      valid_typed_values_for?(query_hash[:values], data_type, query_hash[:filter_operator])
+      valid_typed_values_for?(typed_values(query_hash), data_type, query_hash[:filter_operator])
     end
+  end
+
+  # `unassigned` is a valid assignee filter value even though assignee ids are numeric
+  def typed_values(query_hash)
+    values = Array.wrap(query_hash[:values])
+    return values unless query_hash[:attribute_key] == 'assignee_id'
+
+    values.reject { |value| value.to_s == UNASSIGNED_VALUE }
   end
 
   def validation_data_type(query_hash)

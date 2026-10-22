@@ -4,33 +4,33 @@
 #
 # Table name: inboxes
 #
-#  id                            :integer          not null, primary key
-#  allow_messages_after_resolved :boolean          default(TRUE)
-#  auto_assignment_config        :jsonb
-#  business_name                 :string
-#  channel_type                  :string
-#  csat_config                   :jsonb            not null
-#  csat_survey_enabled           :boolean          default(FALSE)
-#  email_address                 :string
-#  enable_auto_assignment        :boolean          default(TRUE)
-#  enable_email_collect          :boolean          default(TRUE)
-#  greeting_enabled              :boolean          default(FALSE)
-#  greeting_message              :string
-#  lock_to_single_conversation   :boolean          default(FALSE), not null
-#  name                          :string           not null
-#  out_of_office_message         :string
-#  public_name                   :string
-#  queue_notification_enabled    :boolean          default(TRUE), not null
-#  resolution_notification_enabled :boolean        default(TRUE), not null
-#  sender_name_type              :integer          default("friendly"), not null
-#  timezone                      :string           default("UTC")
-#  working_hours_enabled         :boolean          default(FALSE)
-#  created_at                    :datetime         not null
-#  updated_at                    :datetime         not null
-#  account_id                    :integer          not null
-#  channel_id                    :integer          not null
-#  portal_id                     :bigint
-#  priority_group_id             :bigint
+#  id                              :integer          not null, primary key
+#  allow_messages_after_resolved   :boolean          default(TRUE)
+#  auto_assignment_config          :jsonb
+#  business_name                   :string
+#  channel_type                    :string
+#  csat_config                     :jsonb            not null
+#  csat_survey_enabled             :boolean          default(FALSE)
+#  email_address                   :string
+#  enable_auto_assignment          :boolean          default(TRUE)
+#  enable_email_collect            :boolean          default(TRUE)
+#  greeting_enabled                :boolean          default(FALSE)
+#  greeting_message                :string
+#  lock_to_single_conversation     :boolean          default(FALSE), not null
+#  name                            :string           not null
+#  out_of_office_message           :string
+#  public_name                     :string
+#  queue_notification_enabled      :boolean          default(TRUE), not null
+#  resolution_notification_enabled :boolean          default(TRUE), not null
+#  sender_name_type                :integer          default("friendly"), not null
+#  timezone                        :string           default("UTC")
+#  working_hours_enabled           :boolean          default(FALSE)
+#  created_at                      :datetime         not null
+#  updated_at                      :datetime         not null
+#  account_id                      :integer          not null
+#  channel_id                      :integer          not null
+#  portal_id                       :bigint
+#  priority_group_id               :bigint
 #
 # Indexes
 #
@@ -45,7 +45,7 @@
 #  fk_rails_...  (priority_group_id => priority_groups.id)
 #
 
-class Inbox < ApplicationRecord
+class Inbox < ApplicationRecord # rubocop:todo Metrics/ClassLength
   include Reportable
   include Avatarable
   include OutOfOffisable
@@ -219,7 +219,7 @@ class Inbox < ApplicationRecord
   def display_name
     public_name.presence || name
   end
-  
+
   # Callers (Reauthorizable) only invoke this on a real transition, so the previous
   # value is always the inverse of the new boolean value.
   def dispatch_reauthorization_event(reauthorization_required)
