@@ -80,6 +80,8 @@ gem 'dotenv-rails', '>= 3.0.0'
 gem 'foreman'
 gem 'puma', '~> 7.2', '>= 7.2.1'
 gem 'vite_rails'
+# 3.11 requires a newer vite-plugin-ruby than package.json currently allows.
+gem 'vite_ruby', '~> 3.10.6'
 # metrics on heroku
 gem 'barnes'
 
@@ -200,11 +202,8 @@ gem 'reverse_markdown'
 
 gem 'iso-639'
 gem 'ruby-openai'
-gem 'ai-agents', '>= 0.12.0'
-
-# TODO: Move this gem as a dependency of ai-agents
-gem 'ruby_llm', '>= 1.14.1'
-gem 'ruby_llm-schema'
+gem 'ai-agents', '~> 0.13.0'
+gem 'ruby_llm', '~> 2.0.0'
 
 gem 'cld3', '~> 3.7'
 
