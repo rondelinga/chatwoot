@@ -130,7 +130,11 @@ RSpec.describe 'Least busy assignment and edge cases', type: :model do
       create(:team_member, team: team, user: agent_b, assignment_tier: :backup)
     end
 
-    [[0, 'round_robin'], [1, 'balanced'], [2, 'least_busy']].each do |order, name|
+    # balanced and capacity policies exist only in Enterprise
+    orders = [[0, 'round_robin'], [2, 'least_busy']]
+    orders.insert(1, [1, 'balanced']) if ChatwootApp.enterprise?
+
+    orders.each do |order, name|
       context "with #{name}" do
         let(:assignment_order) { order }
 
@@ -149,7 +153,7 @@ RSpec.describe 'Least busy assignment and edge cases', type: :model do
           expect(conversation.reload.assignee).to eq(agent_b)
         end
 
-        it 'falls back to backup when primary is at the capacity POLICY limit' do
+        it 'falls back to backup when primary is at the capacity POLICY limit', if: ChatwootApp.enterprise? do
           capacity_policy = create(:agent_capacity_policy, account: account)
           create(:inbox_capacity_limit, inbox: inbox, agent_capacity_policy: capacity_policy, conversation_limit: 1)
           agent_a.account_users.find_by(account: account).update!(agent_capacity_policy: capacity_policy)
@@ -258,7 +262,7 @@ RSpec.describe 'Least busy assignment and edge cases', type: :model do
         expect(queued.status).to eq('open')
       end
 
-      it 'respects the agent capacity policy of an Assignment V2 inbox' do
+      it 'respects the agent capacity policy of an Assignment V2 inbox', if: ChatwootApp.enterprise? do
         account_user = agent_a.account_users.find_by(account: account)
         capacity_policy = create(:agent_capacity_policy, account: account)
         create(:inbox_capacity_limit, inbox: inbox, agent_capacity_policy: capacity_policy, conversation_limit: 1)

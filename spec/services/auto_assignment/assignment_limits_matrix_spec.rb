@@ -33,7 +33,8 @@ RSpec.describe 'Auto assignment limits matrix', type: :model do
     agent.account_users.find_by(account: account).update!(active_chat_limit_enabled: true, active_chat_limit: value)
   end
 
-  # Capacity policies are an Assignment V2 feature; legacy and queue inboxes use the inbox limit
+  # Capacity policies are an Assignment V2 feature; legacy and queue inboxes use the inbox limit.
+  # Both limits exist only in Enterprise.
   def apply_policy_limit(agent, value)
     if %i[v1 queue].include?(path)
       inbox.update!(auto_assignment_config: { 'max_assignment_limit' => value })
@@ -66,7 +67,11 @@ RSpec.describe 'Auto assignment limits matrix', type: :model do
     conversation.reload
   end
 
-  %i[v1 v2_round_robin v2_balanced v2_least_busy queue].each do |assignment_path|
+  # balanced exists only in Enterprise
+  assignment_paths = %i[v1 v2_round_robin v2_least_busy queue]
+  assignment_paths.insert(2, :v2_balanced) if ChatwootApp.enterprise?
+
+  assignment_paths.each do |assignment_path|
     context "with path #{assignment_path}" do
       let(:path) { assignment_path }
 
@@ -89,7 +94,7 @@ RSpec.describe 'Auto assignment limits matrix', type: :model do
         expect(assign_new_conversation.assignee).to eq(agent_a)
       end
 
-      it 'C(ii) policy limit only: agent at policy limit is skipped' do
+      it 'C(ii) policy limit only: agent at policy limit is skipped', if: ChatwootApp.enterprise? do
         apply_policy_limit(agent_a, 1)
         give_chats(agent_a, 1)
         expect(assign_new_conversation.assignee).to be_nil
@@ -121,14 +126,14 @@ RSpec.describe 'Auto assignment limits matrix', type: :model do
         expect(assign_new_conversation.assignee).to be_nil
       end
 
-      it 'C(iv) personal higher than policy: personal replaces policy limit' do
+      it 'C(iv) personal higher than policy: personal replaces policy limit', if: ChatwootApp.enterprise? do
         apply_policy_limit(agent_a, 1)
         apply_personal_limit(agent_a, 3)
         give_chats(agent_a, 1)
         expect(assign_new_conversation.assignee).to eq(agent_a)
       end
 
-      it 'C(iv) personal lower than policy: capped at personal' do
+      it 'C(iv) personal lower than policy: capped at personal', if: ChatwootApp.enterprise? do
         apply_policy_limit(agent_a, 5)
         apply_personal_limit(agent_a, 1)
         give_chats(agent_a, 1)
