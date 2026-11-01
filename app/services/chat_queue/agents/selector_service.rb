@@ -1,56 +1,50 @@
 class ChatQueue::Agents::SelectorService
   pattr_initialize [:account!]
 
+  # Picks one agent with the inbox assignment policy. Queue limits still apply.
   def pick_best_agent_for(conversation)
-    primary_agent = pick_from_tier(conversation, :primary)
-    return primary_agent if primary_agent
+    members = eligible_members(conversation)
+    return if members.blank?
 
-    pick_from_tier(conversation, :backup)
-  end
-
-  def online_agents
-    online_agent_ids(team_id: nil).filter_map { |id| User.find_by(id: id) }
+    AutoAssignment::AgentSelector.new(inbox: conversation.inbox, conversation: conversation).select(members)
   end
 
   private
 
-  def pick_from_tier(conversation, tier)
-    cid = conversation.id
-    Rails.logger.info("[QUEUE][pick][conv=#{cid}] Selecting #{tier} agent, team=#{conversation.team_id.inspect}")
+  def eligible_members(conversation)
+    inbox = conversation.inbox
+    return [] if inbox.blank?
 
-    online_agents_for(conversation, tier: tier).each do |agent|
-      allowed = allowed_for_conversation?(conversation, agent)
-      available = available?(agent)
+    user_ids = candidate_user_ids(conversation, inbox)
+    return [] if user_ids.blank?
 
-      Rails.logger.info("[QUEUE][pick][conv=#{cid}] Agent #{agent.id} (#{tier}): allowed=#{allowed}, available=#{available}")
-
-      next unless allowed && available
-
-      Rails.logger.info("[QUEUE][pick][conv=#{cid}] Selected #{tier} agent #{agent.id}")
-      return agent
+    inbox.inbox_members.where(user_id: user_ids).includes(:user).select do |member|
+      permissions.allowed?(conversation, member.user) && availability.available?(member.user)
     end
-
-    Rails.logger.info("[QUEUE][pick][conv=#{cid}] No #{tier} agent found")
-    nil
   end
 
-  def online_agents_for(conversation, tier: nil)
-    online_agent_ids(team_id: conversation.team_id, tier: tier).filter_map { |id| User.find_by(id: id) }
+  # Online agents of the conversation's team who still have capacity under the inbox
+  # assignment limit or agent capacity policy (personal and account limits included).
+  def candidate_user_ids(conversation, inbox)
+    return [] if conversation.team_id.present? && !conversation.team&.allow_auto_assign?
+
+    user_ids = online_user_ids & inbox.member_ids_with_assignment_capacity
+    user_ids &= conversation.team.members.ids if conversation.team_id.present?
+    user_ids
   end
 
-  def online_agent_ids(team_id:, tier: nil)
-    ChatQueue::Agents::OnlineAgentsService.new(
-      account: account,
-      team_id: team_id,
-      assignment_tier: tier
-    ).list
+  def availability
+    @availability ||= ChatQueue::Agents::AvailabilityService.new(account: account)
   end
 
-  def allowed_for_conversation?(conversation, agent)
-    ChatQueue::Agents::PermissionsService.new(account: account).allowed?(conversation, agent)
+  def permissions
+    @permissions ||= ChatQueue::Agents::PermissionsService.new(account: account)
   end
 
-  def available?(agent)
-    ChatQueue::Agents::AvailabilityService.new(account: account).available?(agent)
+  def online_user_ids
+    (OnlineStatusTracker.get_available_users(account.id) || {})
+      .select { |_id, status| status == 'online' }
+      .keys
+      .map(&:to_i)
   end
 end

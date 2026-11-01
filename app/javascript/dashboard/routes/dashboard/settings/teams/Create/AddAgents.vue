@@ -14,8 +14,8 @@ export default {
   },
   validations: {
     selectedAgents: {
-      isEmpty() {
-        return this.primaryAgents.length + this.backupAgents.length > 0;
+      isEmpty(agents) {
+        return agents.length > 0;
       },
     },
   },
@@ -48,6 +48,9 @@ export default {
     currentTeam() {
       return this.$store.getters['teams/getTeam'](this.teamId);
     },
+    selectedAgents() {
+      return [...this.primaryAgents, ...this.backupAgents];
+    },
   },
 
   mounted() {
@@ -65,10 +68,14 @@ export default {
       const { teamId, primaryAgents, backupAgents } = this;
 
       try {
+        const tiersEnabled =
+          this.currentTeam.assignment_tiers_enabled !== false;
         await this.$store.dispatch('teamMembers/create', {
           teamId,
-          primaryUserIds: primaryAgents,
-          backupUserIds: backupAgents,
+          primaryUserIds: tiersEnabled
+            ? primaryAgents
+            : [...new Set([...primaryAgents, ...backupAgents])],
+          backupUserIds: tiersEnabled ? backupAgents : [],
         });
         router.replace({
           name: 'settings_teams_finish',
@@ -105,6 +112,7 @@ export default {
           :agent-list="agentList"
           :primary-agents="primaryAgents"
           :backup-agents="backupAgents"
+          :tiers-enabled="currentTeam.assignment_tiers_enabled !== false"
           :update-agents="updateAgents"
           :is-working="isCreating"
           :submit-button-text="$t('TEAMS_SETTINGS.ADD.BUTTON_TEXT')"

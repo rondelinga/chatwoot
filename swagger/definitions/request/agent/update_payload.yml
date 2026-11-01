@@ -16,3 +16,13 @@ properties:
     type: boolean
     description: Whether the agent is automatically marked offline when they are away.
     example: true
+  active_chat_limit:
+    type:
+      - integer
+      - 'null'
+    description: Maximum open chats for this agent. Used only when active_chat_limit_enabled is true.
+    example: 5
+  active_chat_limit_enabled:
+    type: boolean
+    description: When true, the personal chat limit replaces account, inbox, and capacity limits.
+    example: true

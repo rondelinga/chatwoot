@@ -1874,6 +1874,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.datetime "updated_at", precision: nil, null: false
     t.string "icon", default: ""
     t.string "icon_color", default: ""
+    t.boolean "assignment_tiers_enabled", default: true, null: false
     t.index ["account_id"], name: "index_teams_on_account_id"
     t.index ["name", "account_id"], name: "index_teams_on_name_and_account_id", unique: true
   end

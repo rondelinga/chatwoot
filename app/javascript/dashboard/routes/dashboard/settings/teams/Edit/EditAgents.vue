@@ -15,8 +15,8 @@ export default {
   },
   validations: {
     selectedAgents: {
-      isEmpty() {
-        return this.primaryAgents.length + this.backupAgents.length > 0;
+      isEmpty(agents) {
+        return agents.length > 0;
       },
     },
   },
@@ -55,6 +55,9 @@ export default {
       const { id } = this.currentTeam;
       return id && !this.uiFlags.isFetching;
     },
+    selectedAgents() {
+      return [...this.primaryAgents, ...this.backupAgents];
+    },
   },
 
   async mounted() {
@@ -64,12 +67,16 @@ export default {
       await this.$store.dispatch('teamMembers/get', {
         teamId,
       });
+      const tiersEnabled = this.currentTeam.assignment_tiers_enabled !== false;
       this.primaryAgents = this.teamMembers
-        .filter(member => member.assignment_tier === 'primary')
+        .filter(member => tiersEnabled && member.assignment_tier === 'primary')
         .map(member => member.id);
       this.backupAgents = this.teamMembers
-        .filter(member => member.assignment_tier === 'backup')
+        .filter(member => tiersEnabled && member.assignment_tier === 'backup')
         .map(member => member.id);
+      if (!tiersEnabled) {
+        this.primaryAgents = this.teamMembers.map(member => member.id);
+      }
     } catch {
       this.primaryAgents = [];
       this.backupAgents = [];
@@ -87,10 +94,14 @@ export default {
       const { teamId, primaryAgents, backupAgents } = this;
 
       try {
+        const tiersEnabled =
+          this.currentTeam.assignment_tiers_enabled !== false;
         await this.$store.dispatch('teamMembers/update', {
           teamId,
-          primaryUserIds: primaryAgents,
-          backupUserIds: backupAgents,
+          primaryUserIds: tiersEnabled
+            ? primaryAgents
+            : [...new Set([...primaryAgents, ...backupAgents])],
+          backupUserIds: tiersEnabled ? backupAgents : [],
         });
         useAlert(this.$t('TEAMS_SETTINGS.EDIT.API.AGENTS_SUCCESS_MESSAGE'));
         this.$store.dispatch('teams/get');
@@ -121,6 +132,7 @@ export default {
         :agent-list="agentList"
         :primary-agents="primaryAgents"
         :backup-agents="backupAgents"
+        :tiers-enabled="currentTeam.assignment_tiers_enabled !== false"
         :update-agents="updateAgents"
         :is-working="isCreating"
         :submit-button-text="$t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.BUTTON_TEXT')"

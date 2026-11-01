@@ -147,6 +147,9 @@ const assignmentMethodLabel = computed(() => {
   if (order === 'balanced') {
     return t('INBOX_MGMT.ASSIGNMENT.METHOD.BALANCED');
   }
+  if (order === 'least_busy') {
+    return t('INBOX_MGMT.ASSIGNMENT.METHOD.LEAST_BUSY');
+  }
   return order;
 });
 

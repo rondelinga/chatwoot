@@ -1425,7 +1425,8 @@
       },
       "METHOD": {
         "ROUND_ROBIN": "Round robin",
-        "BALANCED": "Balanced assignment"
+        "BALANCED": "Balanced assignment",
+        "LEAST_BUSY": "Least busy"
       },
       "UPGRADE_PROMPT": "Custom assignment policies are available on the Business plan",
       "SELF_HOSTED_PROMPT": "Custom assignment policies are available on the Premium plan",

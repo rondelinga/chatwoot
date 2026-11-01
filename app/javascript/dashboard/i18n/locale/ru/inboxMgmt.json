@@ -1316,7 +1316,8 @@
       },
       "METHOD": {
         "ROUND_ROBIN": "По кругу",
-        "BALANCED": "Сбалансированное назначение"
+        "BALANCED": "Сбалансированное назначение",
+        "LEAST_BUSY": "Least busy"
       },
       "UPGRADE_PROMPT": "Пользовательские политики назначения доступны в плане Business",
       "UPGRADE_TO_BUSINESS": "Перейти на Business",

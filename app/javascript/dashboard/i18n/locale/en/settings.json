@@ -1030,6 +1030,10 @@
             "DESCRIPTION": "Assign conversations based on available capacity.",
             "PREMIUM_MESSAGE": "Upgrade to access balanced assignment and agent capacity management.",
             "PREMIUM_BADGE": "Premium"
+          },
+          "LEAST_BUSY": {
+            "LABEL": "Least busy",
+            "DESCRIPTION": "Assign to the agent with the fewest open conversations. If several match, pick the one who closed a chat least recently."
           }
         },
         "ASSIGNMENT_PRIORITY": {

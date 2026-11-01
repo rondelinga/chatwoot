@@ -47,6 +47,7 @@ export default {
       description = '',
       name: title = '',
       allow_auto_assign: allowAutoAssign = false,
+      assignment_tiers_enabled: assignmentTiersEnabled = true,
       icon = '',
       icon_color: iconColor = '',
     } = formData;
@@ -55,6 +56,7 @@ export default {
       description,
       title,
       allowAutoAssign,
+      assignmentTiersEnabled,
       icon,
       iconColor,
     });
@@ -84,6 +86,7 @@ export default {
         description: this.state.description,
         name: this.state.title,
         allow_auto_assign: this.state.allowAutoAssign,
+        assignment_tiers_enabled: this.state.assignmentTiersEnabled,
         icon: this.state.icon,
         icon_color: this.state.iconColor,
       });
@@ -163,6 +166,16 @@ export default {
         <input v-model="state.allowAutoAssign" type="checkbox" :value="true" />
         <label for="conversation_creation">
           {{ $t('TEAMS_SETTINGS.FORM.AUTO_ASSIGN.LABEL') }}
+        </label>
+      </div>
+      <div class="w-full flex items-center gap-2">
+        <input
+          v-model="state.assignmentTiersEnabled"
+          type="checkbox"
+          :value="true"
+        />
+        <label for="assignment_tiers">
+          {{ $t('TEAMS_SETTINGS.FORM.ASSIGNMENT_TIERS.LABEL') }}
         </label>
       </div>
       <div class="flex flex-row justify-end gap-2 py-2 px-0 w-full">
