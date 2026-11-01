@@ -39,3 +39,11 @@ properties:
       - integer
       - 'null'
     description: The custom role id of the agent
+  active_chat_limit:
+    type:
+      - integer
+      - 'null'
+    description: Maximum open chats for this agent when the personal limit is enabled.
+  active_chat_limit_enabled:
+    type: boolean
+    description: When true, the personal chat limit replaces account, inbox, and capacity limits.

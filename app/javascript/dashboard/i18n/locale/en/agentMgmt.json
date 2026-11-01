@@ -82,6 +82,12 @@
           "PLACEHOLDER": "Please select an availability status",
           "ERROR": "Availability is required"
         },
+        "CHAT_LIMIT": {
+          "ENABLED": "Limit active chats",
+          "VALUE": "Maximum active chats",
+          "HELP": "When enabled, this limit replaces the account, inbox, and capacity limits for this agent.",
+          "ERROR": "Enter a whole number that is 0 or greater"
+        },
         "SUBMIT": "Edit Agent"
       },
       "BUTTON_TEXT": "Edit",
