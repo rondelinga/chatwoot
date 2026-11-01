@@ -36,6 +36,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  tiersEnabled: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const { t } = useI18n();
@@ -131,12 +135,15 @@ const toggleAllBackup = event => {
   });
 };
 
-const headers = computed(() => [
-  t('TEAMS_SETTINGS.AGENTS.PRIMARY'),
-  t('TEAMS_SETTINGS.AGENTS.BACKUP'),
-  t('TEAMS_SETTINGS.AGENTS.AGENT'),
-  t('TEAMS_SETTINGS.AGENTS.EMAIL'),
-]);
+const headers = computed(() => {
+  const columns = [t('TEAMS_SETTINGS.AGENTS.PRIMARY')];
+  if (props.tiersEnabled) columns.push(t('TEAMS_SETTINGS.AGENTS.BACKUP'));
+  columns.push(
+    t('TEAMS_SETTINGS.AGENTS.AGENT'),
+    t('TEAMS_SETTINGS.AGENTS.EMAIL')
+  );
+  return columns;
+});
 </script>
 
 <template>
@@ -169,10 +176,12 @@ const headers = computed(() => [
           :title="t('TEAMS_SETTINGS.AGENTS.SELECT_ALL_PRIMARY')"
           @change="toggleAllPrimary"
         />
-        <span>{{ t('TEAMS_SETTINGS.AGENTS.PRIMARY') }}</span>
+        <span v-if="tiersEnabled">{{
+          t('TEAMS_SETTINGS.AGENTS.PRIMARY')
+        }}</span>
       </div>
     </template>
-    <template #header-1>
+    <template v-if="tiersEnabled" #header-1>
       <div class="flex items-center gap-2">
         <Checkbox
           :model-value="areAllVisibleBackup"
@@ -197,7 +206,7 @@ const headers = computed(() => [
             </div>
           </BaseTableCell>
 
-          <BaseTableCell class="w-5">
+          <BaseTableCell v-if="tiersEnabled" class="w-5">
             <div class="flex items-center">
               <Checkbox
                 :model-value="isBackupSelected(agent.id)"
@@ -244,13 +253,15 @@ const headers = computed(() => [
           total: agentList.length,
         })
       }}
-      ·
-      {{
-        $t('TEAMS_SETTINGS.AGENTS.TIER_COUNT', {
-          primary: primaryAgents.length,
-          backup: backupAgents.length,
-        })
-      }}
+      <template v-if="tiersEnabled">
+        ·
+        {{
+          $t('TEAMS_SETTINGS.AGENTS.TIER_COUNT', {
+            primary: primaryAgents.length,
+            backup: backupAgents.length,
+          })
+        }}
+      </template>
     </p>
     <NextButton
       type="submit"

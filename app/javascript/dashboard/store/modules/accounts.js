@@ -52,7 +52,7 @@ export const getters = {
   isFeatureEnabledonAccount: $state => (id, featureName) => {
     const { features = {} } = findRecordById($state, id);
     if (
-      featureName === 'custom_roles' &&
+      ['custom_roles', 'advanced_assignment'].includes(featureName) &&
       window.chatwootConfig?.isEnterprise === 'true'
     ) {
       return true;

@@ -96,54 +96,15 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     Rails.logger.info "[QUEUE][JOB] Picked conversation_queue_id=#{conv.id} conv_id=#{conv.conversation_id} position=#{conv.position}"
   end
 
-  def try_assign(queue_service, conv, _account)
+  def try_assign(queue_service, conv, account)
     conversation = Conversation.find_by(id: conv.conversation_id)
     return false unless conversation
 
-    return true if try_agents_for_tier(queue_service, conv, conversation, :primary)
+    agent = ChatQueue::Agents::SelectorService.new(account: account).pick_best_agent_for(conversation)
+    return false unless agent
 
-    try_agents_for_tier(queue_service, conv, conversation, :backup)
-  end
-
-  def try_agents_for_tier(queue_service, conv, conversation, tier)
-    agent_ids = online_agent_ids_for(conversation, tier)
-    Rails.logger.info "[QUEUE][JOB] Online #{tier} agents sorted: #{agent_ids.inspect}"
-    return false if agent_ids.empty?
-
-    agents = User.where(id: agent_ids).index_by(&:id)
-    Rails.logger.info "[QUEUE][JOB] Loaded #{tier} agents: #{agents.keys.inspect}"
-    assign_to_first_available_agent(queue_service, conv, tier, agent_ids, agents)
-  end
-
-  def online_agent_ids_for(conversation, tier)
-    ChatQueue::Agents::OnlineAgentsService.new(
-      account: conversation.account,
-      team_id: conversation.team_id,
-      assignment_tier: tier
-    ).list
-  end
-
-  def assign_to_first_available_agent(queue_service, conv, tier, agent_ids, agents)
-    agent_ids.each do |agent_id|
-      return true if assign_to_agent(queue_service, conv, tier, agents[agent_id], agent_id)
-    end
-    false
-  end
-
-  def assign_to_agent(queue_service, conv, tier, agent, agent_id)
-    unless agent
-      Rails.logger.info "[QUEUE][JOB] Agent #{agent_id} is missing, skipping"
-      return false
-    end
-
-    Rails.logger.info "[QUEUE][JOB] Trying to assign conv_id=#{conv.conversation_id} to #{tier} agent_id=#{agent.id}"
-    if queue_service.assign_specific_from_queue!(agent, conv.conversation_id)
-      Rails.logger.info "[QUEUE][JOB] SUCCESS assigned conv_id=#{conv.conversation_id} to agent_id=#{agent.id}"
-      return true
-    end
-
-    Rails.logger.info "[QUEUE][JOB] FAIL assign to agent_id=#{agent.id}, trying next"
-    false
+    Rails.logger.info "[QUEUE][JOB] Assigning conv_id=#{conv.conversation_id} to agent_id=#{agent.id}"
+    queue_service.assign_specific_from_queue!(agent, conv.conversation_id).present?
   end
 
   def schedule_or_stop(queue_service, account_id)

@@ -335,6 +335,9 @@
     "INBOX_VIEW": "Просмотр входящих сообщений",
     "CONVERSATIONS": "Диалоги",
     "INBOX": "Мои Входящие",
+    "SUPERVISION": "Супервизия",
+    "SUPERVISION_SUPERVISE": "Наблюдение",
+    "SUPERVISION_INBOX": "Входящие",
     "ALL_CONVERSATIONS": "Диалоги",
     "MENTIONED_CONVERSATIONS": "Упоминания",
     "PARTICIPATING_CONVERSATIONS": "Участвующие",
@@ -972,6 +975,10 @@
             "DESCRIPTION": "Назначить диалоги на основе доступной пропускной способности.",
             "PREMIUM_MESSAGE": "Upgrade to access balanced assignment and agent capacity management.",
             "PREMIUM_BADGE": "Premium"
+          },
+          "LEAST_BUSY": {
+            "LABEL": "Least busy",
+            "DESCRIPTION": "Назначить оператору с наименьшим числом открытых диалогов. Если таких несколько, выбирается тот, кто дольше всех не закрывал чат."
           }
         },
         "ASSIGNMENT_PRIORITY": {

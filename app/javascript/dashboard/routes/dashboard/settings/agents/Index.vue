@@ -316,6 +316,8 @@ usePageCommands(() => [
         :email="currentAgent.email"
         :availability="currentAgent.availability_status"
         :custom-role-id="currentAgent.custom_role_id"
+        :active-chat-limit="currentAgent.active_chat_limit"
+        :active-chat-limit-enabled="currentAgent.active_chat_limit_enabled"
         @close="hideEditPopup"
       />
     </woot-modal>

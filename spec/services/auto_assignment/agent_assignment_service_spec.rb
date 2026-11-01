@@ -38,18 +38,18 @@ RSpec.describe AutoAssignment::AgentAssignmentService do
   end
 
   describe '#find_assignee' do
-    it 'returns the least busy online agent among the allowed agent ids' do
+    it 'returns the next online agent from the round robin queue' do
       assignee = described_class.new(conversation: conversation,
                                      allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).find_assignee
       expect(assignee).to eq(inbox_members[3].user)
     end
 
-    it 'skips an online agent that already has more active conversations than another online agent' do
+    it 'keeps round robin order when an online agent already has an active conversation' do
       create(:conversation, inbox: inbox, account: account, assignee_id: inbox_members[3].user_id)
 
       assignee = described_class.new(conversation: conversation,
                                      allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).find_assignee
-      expect(assignee).to eq(inbox_members[4].user)
+      expect(assignee).to eq(inbox_members[3].user)
     end
 
     it 'skips an online agent who does not take conversations' do

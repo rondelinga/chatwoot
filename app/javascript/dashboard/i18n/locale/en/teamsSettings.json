@@ -133,6 +133,9 @@
       "AUTO_ASSIGN": {
         "LABEL": "Allow auto assign for this team."
       },
+      "ASSIGNMENT_TIERS": {
+        "LABEL": "Assign primary agents before backup agents."
+      },
       "SUBMIT_CREATE": "Create team"
     }
   }
