@@ -67,8 +67,7 @@ describe('handoff event → conversation store → audible alert', () => {
       playAlertOnlyWhenHidden: true,
       alertIfUnreadConversationExist: false,
     };
-    play = vi.fn().mockResolvedValue();
-    alerts.audioConfig.audio = { play };
+    play = vi.spyOn(alerts.audioService, 'playNewMessage').mockResolvedValue();
     vi.spyOn(WindowVisibilityHelper, 'isWindowVisible').mockReturnValue(false);
     handoff = {
       id: 12,
@@ -142,7 +141,7 @@ describe('handoff event → conversation store → audible alert', () => {
       expect(play).not.toHaveBeenCalled();
       vi.advanceTimersByTime(HANDOFF_ALERT_WINDOW_MS);
       expect(play).toHaveBeenCalledOnce();
-      expect(showBadgeOnFavicon).toHaveBeenCalledOnce();
+      expect(showBadgeOnFavicon).toHaveBeenCalledTimes(2);
     }
   );
 

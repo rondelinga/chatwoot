@@ -12,7 +12,7 @@ class Messages::SoftDeleteService
       message.update!(
         content: nil,
         content_type: :text,
-        content_attributes: { deleted: true },
+        content_attributes: { 'deleted' => true }.merge(message.content_attributes.slice('forwarded_message_id')),
         deleted_at: Time.current,
         deleted_by: deleted_by,
         original_content: original_content,

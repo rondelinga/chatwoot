@@ -789,7 +789,13 @@ describe('#getters', () => {
         state,
         {},
         {},
-        mockRootGetters
+        {
+          ...mockRootGetters,
+          getCurrentUser: {
+            ...mockRootGetters.getCurrentUser,
+            accounts: [{ id: 1, role: 'administrator', permissions: [] }],
+          },
+        }
       );
 
       expect(result.map(conversation => conversation.id)).toEqual([3, 2, 1]);

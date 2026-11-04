@@ -194,8 +194,10 @@ RSpec.describe Message do
     end
 
     it 'records the first reply to the contact after a forwarded email' do
+      create(:inbox_member, inbox: conversation.inbox, user: agent)
+      create(:conversation_participant, conversation: conversation, user: agent, created_at: 1.minute.ago)
       create(:message, message_type: :outgoing, conversation: conversation, content_attributes: { forwarded_message_id: 1 })
-      reply = create(:message, message_type: :outgoing, conversation: conversation)
+      reply = create(:message, message_type: :outgoing, conversation: conversation, sender: agent)
 
       expect(conversation.first_reply_created_at).to eq reply.created_at
     end

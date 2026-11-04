@@ -43,7 +43,7 @@
 
 # rubocop:enable Layout/LineLength
 
-class Contact < ApplicationRecord # rubocop:todo Metrics/ClassLength
+class Contact < ApplicationRecord
   include Avatarable
   include AvailabilityStatusable
   include Labelable

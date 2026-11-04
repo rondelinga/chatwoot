@@ -288,6 +288,7 @@ RSpec.describe '/api/v1/widget/messages', type: :request do
       it 'adds a private note to the conversation' do
         message = create(:message, content_type: 'input_email', account: account, inbox: web_widget.inbox, conversation: conversation)
         identified_contact = create(:contact, account: account, identifier: 'customer-1', email: 'customer@test.com')
+        create(:contact_inbox, contact: identified_contact, inbox: web_widget.inbox)
         put api_v1_widget_message_url(message.id),
             params: { website_token: web_widget.website_token, contact: { email: 'customer@test.com' } },
             headers: { 'X-Auth-Token' => token },

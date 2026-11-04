@@ -115,7 +115,7 @@ class ContactInboxWithContactBuilder
     phone_numbers = [contact_attributes[:phone_number], *Array(contact_attributes[:phone_number_candidates])].compact_blank.uniq
 
     phone_numbers.each do |phone_number|
-      contact = account.contacts.in_inbox(inbox.id).find_by(phone_number: phone_number)
+      contact = account.contacts.find_by(phone_number: phone_number)
       return contact if contact
     end
 

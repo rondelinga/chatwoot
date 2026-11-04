@@ -374,6 +374,7 @@ RSpec.describe ReassignOfflineAgentChatsJob do
           account_users = instance_double(ActiveRecord::Associations::CollectionProxy)
           allow(offline_agent).to receive(:account_users).and_return(account_users)
           allow(account_users).to receive(:find_by).with(account_id: account.id).and_return(account_user)
+          allow(account_users).to receive(:find) { |&block| [account_user].find(&block) }
         end
 
         it 'treats agent as offline' do

@@ -43,7 +43,7 @@ RSpec.describe Llm::FeatureRouter do
       expect(resolved).to eq(
         feature: 'conversation_completion',
         provider: 'openai',
-        model: 'gpt-4.1',
+        model: 'gpt-6-luna',
         source: :default
       )
     end
@@ -76,7 +76,7 @@ RSpec.describe Llm::FeatureRouter do
     end
 
     it 'uses the installation model when the account cannot store a conversation completion override' do
-      allow(ChatwootApp).to receive(:self_hosted_enterprise?).and_return(true)
+      allow(ChatwootApp).to receive(:self_hosted_paid?).and_return(true)
       InstallationConfig.find_or_initialize_by(name: 'CAPTAIN_OPEN_AI_MODEL').update!(value: 'gpt-5.1')
       expect { account.update!(captain_models: { 'conversation_completion' => 'gpt-5.2' }) }
         .to raise_error(ActiveRecord::RecordInvalid)

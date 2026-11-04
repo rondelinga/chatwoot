@@ -193,7 +193,7 @@ RSpec.describe Captain::BaseTaskService do
     end
 
     it 'prefers account overrides over supplied feature fallback models' do
-      account.update!(captain_models: { 'help_center_article_generation' => 'gpt-5.1' })
+      account.update!(captain_models: { 'editor' => 'gpt-5.1' })
 
       expect(mock_context).to receive(:chat).with(model: 'gpt-5.1', protocol: :responses).and_return(mock_chat)
 

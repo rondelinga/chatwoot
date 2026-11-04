@@ -23,24 +23,36 @@ class Conversations::PendingResolutionJob < ApplicationJob
     return unless conversation.inbox.resolution_notification_enabled?
 
     message_text = account.auto_resolve_pending_message.presence
-    return if message_text.blank? || !conversation.inbox.resolution_notification_enabled?
+    return if message_text.blank?
 
     if conversation.can_reply?
-      conversation.messages.create!(
-        message_type: :template,
-        content: message_text,
-        account_id: account.id,
-        inbox_id: conversation.inbox_id
-      )
+      create_pending_template_message(conversation, account, message_text)
     else
-      content = I18n.t('conversations.activity.auto_resolve.not_sent_due_to_messaging_window')
-      activity_params = {
+      notify_pending_resolve_outside_window(conversation)
+    end
+  end
+
+  def create_pending_template_message(conversation, account, message_text)
+    conversation.messages.create!(
+      message_type: :template,
+      content: message_text,
+      account_id: account.id,
+      inbox_id: conversation.inbox_id
+    )
+  end
+
+  def notify_pending_resolve_outside_window(conversation)
+    content = I18n.t('conversations.activity.auto_resolve.not_sent_due_to_messaging_window')
+    return if content.blank?
+
+    ::Conversations::ActivityMessageJob.perform_later(
+      conversation,
+      {
         account_id: conversation.account_id,
         inbox_id: conversation.inbox_id,
         message_type: :activity,
         content: content
       }
-      ::Conversations::ActivityMessageJob.perform_later(conversation, activity_params) if content
-    end
+    )
   end
 end
