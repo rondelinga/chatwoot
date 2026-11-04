@@ -41,7 +41,7 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
     'type': 'object',
     'properties':
       {
-        'auto_resolve_after': { 'type': %w[integer null], 'minimum': 10, 'maximum': 1_439_856 },
+        'auto_resolve_after': { 'type': %w[integer null], 'maximum': 1_439_856 },
         'auto_resolve_message': { 'type': %w[string null] },
         'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
         'auto_resolve_pending_after': { 'type': %w[integer null], 'minimum': 10, 'maximum': 1_439_856 },
@@ -56,26 +56,12 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
         },
         'captain_models': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[string null] },
-            'assistant': { 'type': %w[string null] },
-            'copilot': { 'type': %w[string null] },
-            'label_suggestion': { 'type': %w[string null] },
-            'audio_transcription': { 'type': %w[string null] },
-            'help_center_search': { 'type': %w[string null] }
-          },
+          'properties': Llm::Models.feature_keys.index_with { { 'type': %w[string null] } },
           'additionalProperties': false
         },
         'captain_features': {
           'type': %w[object null],
-          'properties': {
-            'editor': { 'type': %w[boolean null] },
-            'assistant': { 'type': %w[boolean null] },
-            'copilot': { 'type': %w[boolean null] },
-            'label_suggestion': { 'type': %w[boolean null] },
-            'audio_transcription': { 'type': %w[boolean null] },
-            'help_center_search': { 'type': %w[boolean null] }
-          },
+          'properties': AccountSettingsSchema::CAPTAIN_FEATURE_PROPERTIES,
           'additionalProperties': false
         },
         'auto_resolve_message_agent': { 'type': %w[string null] },

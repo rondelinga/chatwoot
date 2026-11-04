@@ -25,7 +25,7 @@ describe('dashboard bot handoff alerts', () => {
       id: 12,
       meta: { assignee_type: 'User', assignee: { id: 7 } },
     };
-    vi.spyOn(helper, 'playAudioAlert').mockResolvedValue();
+    vi.spyOn(helper.audioService, 'playNewMessage').mockResolvedValue();
     vi.spyOn(helper.store, 'hasConversationPermission').mockReturnValue(true);
     vi.spyOn(helper.store, 'isMessageFromCurrentConversation').mockReturnValue(
       false
@@ -43,7 +43,7 @@ describe('dashboard bot handoff alerts', () => {
   it('plays sound, badges the tab, and starts recurring alerts without a new message', () => {
     helper.onConversationBotHandoff(conversation);
 
-    expect(helper.playAudioAlert).toHaveBeenCalledOnce();
+    expect(helper.audioService.playNewMessage).toHaveBeenCalledOnce();
     expect(showBadgeOnFavicon).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(1);
   });
@@ -64,7 +64,9 @@ describe('dashboard bot handoff alerts', () => {
 
       helper.onConversationBotHandoff(conversation);
 
-      expect(helper.playAudioAlert).toHaveBeenCalledTimes(shouldAlert ? 1 : 0);
+      expect(helper.audioService.playNewMessage).toHaveBeenCalledTimes(
+        shouldAlert ? 1 : 0
+      );
       expect(showBadgeOnFavicon).toHaveBeenCalledTimes(shouldAlert ? 1 : 0);
       expect(vi.getTimerCount()).toBe(shouldAlert ? 1 : 0);
     }
@@ -90,7 +92,7 @@ describe('dashboard bot handoff alerts', () => {
       helper.onNewMessage(note);
     }
 
-    expect(helper.playAudioAlert).toHaveBeenCalledOnce();
+    expect(helper.audioService.playNewMessage).toHaveBeenCalledOnce();
     expect(showBadgeOnFavicon).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(1);
   });
@@ -101,10 +103,10 @@ describe('dashboard bot handoff alerts', () => {
 
     helper.onConversationBotHandoff(conversation);
 
-    expect(helper.playAudioAlert).not.toHaveBeenCalled();
+    expect(helper.audioService.playNewMessage).not.toHaveBeenCalled();
     helper.notificationConfig.audioAlertType = ['unassigned'];
     helper.onConversationBotHandoff(conversation);
-    expect(helper.playAudioAlert).toHaveBeenCalledOnce();
+    expect(helper.audioService.playNewMessage).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -123,7 +125,7 @@ describe('dashboard bot handoff alerts', () => {
       content_attributes: {},
     });
 
-    expect(helper.playAudioAlert).toHaveBeenCalledOnce();
+    expect(helper.audioService.playNewMessage).toHaveBeenCalledOnce();
     expect(showBadgeOnFavicon).toHaveBeenCalledOnce();
   });
 
@@ -137,7 +139,7 @@ describe('dashboard bot handoff alerts', () => {
       private: true,
       sender: { id: 99, type: 'captain_assistant' },
     });
-    expect(helper.playAudioAlert).not.toHaveBeenCalled();
+    expect(helper.audioService.playNewMessage).not.toHaveBeenCalled();
     expect(showBadgeOnFavicon).not.toHaveBeenCalled();
   });
 
@@ -145,7 +147,7 @@ describe('dashboard bot handoff alerts', () => {
     helper.store.hasConversationPermission.mockReturnValue(false);
     helper.onConversationBotHandoff(conversation);
 
-    expect(helper.playAudioAlert).not.toHaveBeenCalled();
+    expect(helper.audioService.playNewMessage).not.toHaveBeenCalled();
     expect(showBadgeOnFavicon).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -163,7 +165,9 @@ describe('dashboard bot handoff alerts', () => {
 
       helper.onConversationBotHandoff(conversation);
 
-      expect(helper.playAudioAlert).toHaveBeenCalledTimes(shouldAlert ? 1 : 0);
+      expect(helper.audioService.playNewMessage).toHaveBeenCalledTimes(
+        shouldAlert ? 1 : 0
+      );
       expect(showBadgeOnFavicon).toHaveBeenCalledTimes(shouldAlert ? 1 : 0);
       expect(vi.getTimerCount()).toBe(shouldAlert ? 1 : 0);
     }

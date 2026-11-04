@@ -177,11 +177,11 @@ class Conversation < ApplicationRecord
   before_save :set_status_changed_at
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
+  after_create :mark_contact_as_lead
   before_update :close_previous_agent_on_reassign
   before_update :close_agents_on_resolve
   before_update :set_proxied_at
   after_update :leave_queue_if_assignee_present
-  after_create :mark_contact_as_lead
 
   after_update :remove_from_queue_if_status_changed
   after_update :create_participant_for_new_agent

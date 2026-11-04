@@ -200,7 +200,7 @@ class ActionCableListener < BaseListener # rubocop:todo Metrics/ClassLength
   def broadcast_to_inbox_members(event, event_name, **metadata)
     conversation, account = extract_conversation_and_account(event)
 
-    broadcast(account, user_tokens(account, conversation.inbox.members), event_name, conversation.push_event_data.merge(metadata))
+    broadcast(account, user_tokens(account, conversation.inbox.members.reload), event_name, conversation.push_event_data.merge(metadata))
   end
 
   def account_token(account)

@@ -1,4 +1,4 @@
-class Messages::MessageBuilder # rubocop:todo Metrics/ClassLength
+class Messages::MessageBuilder
   include ::FileTypeHelper
   include ::EmailHelper
   include ::DataHelper

@@ -13,14 +13,19 @@ module AutoAssignmentHandler
   # assignee commit as one change-set; a follow-up save would reset saved_changes and
   # hide the status change from the after_commit callbacks (no conversation.opened).
   def run_legacy_auto_assignment
-    return if skip_due_to_queue_status_change?
-    return if account.queue_enabled?
-    return unless status_changed? && open?
+    return unless legacy_auto_assignment_status_change?
     return if inbox.auto_assignment_v2_enabled?
     return if will_save_change_to_assignee_id? && assignee_id.present?
     return unless should_run_auto_assignment?
 
     AutoAssignment::AgentAssignmentService.new(conversation: self, allowed_agent_ids: legacy_allowed_agent_ids).assign_under_lock
+  end
+
+  def legacy_auto_assignment_status_change?
+    return false if skip_due_to_queue_status_change?
+    return false if account.queue_enabled?
+
+    status_changed? && open?
   end
 
   # rubocop:todo Metrics/PerceivedComplexity

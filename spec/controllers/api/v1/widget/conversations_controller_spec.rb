@@ -113,6 +113,7 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
 
     it 'adds a private note when the email matches an identified contact' do
       identified_contact = create(:contact, account: account, identifier: 'customer-1', email: 'contact-email@chatwoot.com')
+      create(:contact_inbox, contact: identified_contact, inbox: web_widget.inbox)
 
       post '/api/v1/widget/conversations',
            headers: { 'X-Auth-Token' => token },
@@ -128,7 +129,8 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
 
     it 'still sends the greeting when it adds the private note' do
       web_widget.inbox.update!(greeting_enabled: true, greeting_message: 'Hello from the team')
-      create(:contact, account: account, identifier: 'customer-1', email: 'contact-email@chatwoot.com')
+      identified_contact = create(:contact, account: account, identifier: 'customer-1', email: 'contact-email@chatwoot.com')
+      create(:contact_inbox, contact: identified_contact, inbox: web_widget.inbox)
 
       post '/api/v1/widget/conversations',
            headers: { 'X-Auth-Token' => token },

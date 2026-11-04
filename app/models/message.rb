@@ -249,6 +249,7 @@ class Message < ApplicationRecord
 
   def valid_first_reply?
     return false unless human_response? && !private?
+    return false if forwarded?
 
     participant = assigned_participant
     return false unless participant
@@ -354,6 +355,7 @@ class Message < ApplicationRecord
                 .where(sender_type: 'User', sender_id: sender_id)
                 .where.not(private: true)
                 .where('created_at >= ?', participant.created_at)
+                .not_forwarded
                 .where("(additional_attributes->'campaign_id') is null")
                 .count <= 1
   end
