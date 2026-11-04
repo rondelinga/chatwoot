@@ -15,6 +15,7 @@ import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.v
 import { DURATION_UNITS } from 'dashboard/components-next/input/constants';
 
 const { t } = useI18n();
+const minDuration = window.chatwootConfig?.autoResolveMinMinutes || 10;
 const duration = ref(0);
 const unit = ref(DURATION_UNITS.MINUTES);
 const message = ref('');
@@ -138,9 +139,11 @@ const updateAccountSettings = async (settings, { isPending = false } = {}) => {
 };
 
 const handleSubmit = async () => {
-  if (duration.value < 10) {
-    useAlert(t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.ERROR'));
-    return;
+  if (duration.value < minDuration) {
+    useAlert(
+      t('GENERAL_SETTINGS.FORM.AUTO_RESOLVE.DURATION.ERROR', { minDuration })
+    );
+    return Promise.resolve();
   }
 
   const settings = {
@@ -160,7 +163,7 @@ const handleSubmit = async () => {
     settings.auto_resolve_message_client = null;
   }
 
-  await updateAccountSettings(settings);
+  return updateAccountSettings(settings);
 };
 
 const handleDisable = async () => {

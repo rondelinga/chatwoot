@@ -1,6 +1,12 @@
 module Enterprise::Conversation
   attr_accessor :captain_activity_reason, :captain_activity_reason_type
 
+  def can_reply?
+    return false if contact_inbox.anonymous_caller?
+
+    super
+  end
+
   def list_of_keys
     super + %w[sla_policy_id]
   end
@@ -25,6 +31,11 @@ module Enterprise::Conversation
 
   private
 
+  def clear_invalid_ai_assignee
+    super
+    self.ai_assignee = nil if status_changed? && open? && ai_assignee_type == 'Captain::Assistant'
+  end
+
   def determine_conversation_status
     super
     return unless pending?
@@ -37,10 +48,6 @@ module Enterprise::Conversation
       self.status = :open
       return
     end
-
-    # Keep Captain ownership writes off until typed-assignee readers are deployed to every web and worker process.
-    # Remove this guard in the follow-up rollout after all legacy AgentBot readers have been drained.
-    return unless GlobalConfigService.load('ENABLE_CAPTAIN_CONVERSATION_ASSIGNMENT', false)
 
     self.ai_assignee = assistant if assignee_id.blank?
   end

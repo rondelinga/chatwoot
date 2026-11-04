@@ -24,8 +24,11 @@ defineProps({
     </div>
     <div class="flex justify-between w-full gap-5">
       <div class="flex flex-col gap-2">
-        <div>
-          <span class="text-xl font-medium text-n-slate-12">
+        <div class="flex flex-col gap-3 items-start">
+          <span
+            class="text-heading-1 text-n-slate-12 min-h-10 flex items-center gap-2"
+          >
+            <slot name="icon" />
             {{ headerTitle }}
           </span>
           <p v-if="headerDescription" class="text-n-slate-12 mt-2">

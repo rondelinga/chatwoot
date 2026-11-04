@@ -103,6 +103,8 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
   validates_with JsonSchemaValidator,
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
+  validates :auto_resolve_after, numericality: { greater_than_or_equal_to: ->(_account) { Limits.auto_resolve_min_minutes } },
+                                 allow_nil: true, if: :auto_resolve_after_changed?
   validate :validate_reporting_timezone
   validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
@@ -115,13 +117,14 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
                  :auto_resolve_message_agent, :auto_resolve_message_client, :auto_resolve_split_reasons,
                  :auto_resolve_pending_after, :auto_resolve_pending_message
 
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
+  store_accessor :settings, :audio_transcriptions, :auto_resolve_label, :auto_translate, :translation_provider
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :busy_to_offline_timeout
   store_accessor :settings, :agent_history_days
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
-  store_accessor :settings, :captain_auto_resolve_mode, :captain_false_promise_harness_enabled
+  store_accessor :settings, :captain_auto_resolve_mode
+  store_accessor :settings, :enforce_mfa
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -137,6 +140,7 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
   has_many :canned_responses, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
+  has_many :companies, dependent: :destroy_async
   has_many :conversations, dependent: :destroy_async
   has_many :conversation_queues, dependent: :destroy_async
   has_many :queue_statistics, dependent: :destroy_async
@@ -150,6 +154,7 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
   has_many :facebook_pages, dependent: :destroy_async, class_name: '::Channel::FacebookPage'
   has_many :instagram_channels, dependent: :destroy_async, class_name: '::Channel::Instagram'
   has_many :tiktok_channels, dependent: :destroy_async, class_name: '::Channel::Tiktok'
+  has_one :shopify_custom_app, dependent: :destroy, class_name: 'Shopify::CustomApp'
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
   has_many :inboxes, dependent: :destroy_async
   has_many :labels, dependent: :destroy_async
@@ -230,6 +235,10 @@ class Account < ApplicationRecord # rubocop:todo Metrics/ClassLength
 
   def api_and_webhooks_enabled?
     true
+  end
+
+  def enforce_mfa?
+    Chatwoot.mfa_enabled? && enforce_mfa == true
   end
 
   def locale_english_name
@@ -323,5 +332,6 @@ end
 
 Account.prepend_mod_with('Account')
 Account.prepend_mod_with('Account::PlanUsageAndLimits')
+Account.include_mod_with('AccountBillingIdentity')
 Account.include_mod_with('Concerns::Account')
 Account.include_mod_with('Audit::Account')

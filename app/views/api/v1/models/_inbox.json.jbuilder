@@ -35,6 +35,7 @@ end
 ## TODO : Clean up and move the attributes into channel sub section
 
 json.tweets_enabled resource.channel.try(:tweets_enabled) if resource.twitter?
+json.provider_name resource.channel.try(:provider_name) if resource.facebook? || resource.instagram? || resource.tiktok?
 
 ## WebWidget Attributes
 json.allowed_domains resource.channel.try(:allowed_domains)
@@ -164,6 +165,24 @@ end
 if resource.twilio? && resource.channel.respond_to?(:voice_enabled?)
   json.voice_enabled resource.channel.voice_enabled?
   json.inbound_calls_enabled resource.channel.inbound_calls_enabled?
+  json.recording_enabled resource.channel.try(:recording_enabled?)
+  json.transcription_enabled resource.channel.try(:transcription_enabled?)
+  if ChatwootApp.enterprise?
+    out_of_hours = Voice::CallAnnouncement.new(resource, :out_of_hours)
+    json.business_hours_calls_enabled out_of_hours.enabled?
+    json.out_of_hours_call_message out_of_hours.message
+    json.out_of_hours_call_audio_url out_of_hours.audio.attached? ? url_for(out_of_hours.audio) : nil
+    greeting = Voice::CallAnnouncement.new(resource, :greeting)
+    json.call_greeting_enabled greeting.enabled?
+    json.call_greeting_message greeting.message
+    json.call_greeting_audio_url greeting.audio.attached? ? url_for(greeting.audio) : nil
+    unanswered = Voice::CallAnnouncement.new(resource, :unanswered)
+    json.unanswered_calls_enabled unanswered.enabled?
+    json.unanswered_call_message unanswered.message
+    json.unanswered_call_audio_url unanswered.audio.attached? ? url_for(unanswered.audio) : nil
+    json.unanswered_call_timeout_seconds resource.channel.unanswered_call_timeout_seconds
+  end
+  json.account_auth_token_configured resource.channel.try(:account_auth_token_configured?) == true
   json.voice_configured resource.channel.try(:twiml_app_sid).present?
   json.has_api_key_secret resource.channel.try(:api_key_secret).present?
   if resource.channel.try(:twiml_app_sid).present?
@@ -176,4 +195,6 @@ end
 if resource.channel_type == 'Channel::Whatsapp' && resource.channel.respond_to?(:voice_enabled?)
   json.voice_enabled resource.channel.voice_enabled?
   json.inbound_calls_enabled resource.channel.inbound_calls_enabled?
+  json.recording_enabled resource.channel.try(:recording_enabled?)
+  json.transcription_enabled resource.channel.try(:transcription_enabled?)
 end

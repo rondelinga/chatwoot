@@ -37,6 +37,8 @@
       "contains_all": "Is all of",
       "any_of": "Is any of",
       "only_system_labels": "Enabled",
+      "detects": "Detects",
+      "does_not_detect": "Does not detect",
       "equalTo": "Equal to",
       "notEqualTo": "Not equal to",
       "contains": "Contains",

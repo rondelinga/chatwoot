@@ -25,7 +25,7 @@ import { useI18n } from 'vue-i18n';
  * @property {boolean} hasInput - Whether operator requires an input value
  */
 
-const FILTER_OPS = {
+export const FILTER_OPS = {
   EQUAL_TO: 'equal_to',
   NOT_EQUAL_TO: 'not_equal_to',
   IS_PRESENT: 'is_present',
@@ -37,6 +37,8 @@ const FILTER_OPS = {
   DAYS_BEFORE: 'days_before',
   STARTS_WITH: 'starts_with',
   CONTAINS_ALL: 'contains_all',
+  DETECTS: 'detects',
+  DOES_NOT_DETECT: 'does_not_detect',
 };
 
 const NO_INPUT_OPTS = [FILTER_OPS.IS_PRESENT, FILTER_OPS.IS_NOT_PRESENT];
@@ -60,6 +62,8 @@ const filterOperatorIcon = {
   [FILTER_OPS.DAYS_BEFORE]: 'i-ph-calendar-minus-bold',
   [FILTER_OPS.STARTS_WITH]: 'i-ph-caret-line-right-bold',
   [FILTER_OPS.CONTAINS_ALL]: 'i-ph-list-checks-bold',
+  [FILTER_OPS.DETECTS]: 'i-ph-sparkle-bold',
+  [FILTER_OPS.DOES_NOT_DETECT]: 'i-ph-prohibit-bold',
 };
 
 /**

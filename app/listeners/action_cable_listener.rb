@@ -69,11 +69,12 @@ class ActionCableListener < BaseListener # rubocop:todo Metrics/ClassLength
     broadcast(account, tokens, CONVERSATION_CREATED, conversation.push_event_data)
   end
 
-  def conversation_read(event)
-    conversation, account = extract_conversation_and_account(event)
-    tokens = conversation_listener_tokens(account, conversation)
+  def conversation_bot_handoff(event)
+    broadcast_to_inbox_members(event, CONVERSATION_BOT_HANDOFF)
+  end
 
-    broadcast(account, tokens, CONVERSATION_READ, conversation.push_event_data)
+  def conversation_read(event)
+    broadcast_to_inbox_members(event, CONVERSATION_READ)
   end
 
   def conversation_status_changed(event)
@@ -138,7 +139,8 @@ class ActionCableListener < BaseListener # rubocop:todo Metrics/ClassLength
     tokens << conversation.assignee.pubsub_token if conversation.assignee&.pubsub_token
     tokens += previous_assignee_tokens(event)
 
-    broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data)
+    automatic_assignment = [Inbox, AssignmentPolicy, AutomationRule].include?(event.data[:performed_by].class) || event.data[:user].present?
+    broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data.merge(automatic_assignment: automatic_assignment))
   end
 
   def team_changed(event)
@@ -194,6 +196,12 @@ class ActionCableListener < BaseListener # rubocop:todo Metrics/ClassLength
   end
 
   private
+
+  def broadcast_to_inbox_members(event, event_name, **metadata)
+    conversation, account = extract_conversation_and_account(event)
+
+    broadcast(account, user_tokens(account, conversation.inbox.members), event_name, conversation.push_event_data.merge(metadata))
+  end
 
   def account_token(account)
     "account_#{account.id}"

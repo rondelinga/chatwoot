@@ -8,15 +8,15 @@ class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::
     @copilot_threads = Current.account.copilot_threads
                               .where(user_id: Current.user.id)
                               .includes(:user, :assistant)
-                              .order(created_at: :desc)
+                              .order(created_at: :desc, id: :desc)
                               .page(permitted_params[:page] || 1)
-                              .per(5)
+                              .per(20)
   end
 
   def create
     ActiveRecord::Base.transaction do
       @copilot_thread = Current.account.copilot_threads.create!(
-        title: copilot_thread_params[:message],
+        title: copilot_thread_params[:message].truncate(ApplicationRecord::MAX_STRING_COLUMN_LENGTH, omission: ''),
         user: Current.user,
         assistant: assistant
       )
@@ -38,7 +38,7 @@ class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::
     else
       copilot_message.copilot_thread.copilot_messages.create!(
         message_type: :assistant,
-        message: { content: I18n.t('captain.copilot_limit') }
+        message: { content: I18n.t('captain.copilot_limit'), status: 'failed' }
       )
     end
   end

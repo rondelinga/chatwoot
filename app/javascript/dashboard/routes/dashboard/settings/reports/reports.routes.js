@@ -1,5 +1,6 @@
-import { frontendURL } from '../../../../helper/URLHelper';
+import { INSTALLATION_TYPES } from 'dashboard/constants/installationTypes';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { frontendURL } from '../../../../helper/URLHelper';
 
 import ReportsWrapper from './components/ReportsWrapper.vue';
 import Index from './Index.vue';
@@ -7,13 +8,13 @@ import Index from './Index.vue';
 import AgentActivityIndex from './AgentActivityIndex.vue';
 import AgentReportsIndex from './AgentReportsIndex.vue';
 import InboxReportsIndex from './InboxReportsIndex.vue';
-import TeamReportsIndex from './TeamReportsIndex.vue';
 import LabelReportsIndex from './LabelReportsIndex.vue';
+import TeamReportsIndex from './TeamReportsIndex.vue';
 
 import AgentReportsShow from './AgentReportsShow.vue';
 import InboxReportsShow from './InboxReportsShow.vue';
-import TeamReportsShow from './TeamReportsShow.vue';
 import LabelReportsShow from './LabelReportsShow.vue';
+import TeamReportsShow from './TeamReportsShow.vue';
 
 import AllMetricsReports from './AllMetricsReports.vue';
 import AgentReports from './AgentReports.vue';
@@ -21,9 +22,11 @@ import InboxReports from './InboxReports.vue';
 import LabelReports from './LabelReports.vue';
 import TeamReports from './TeamReports.vue';
 
-import CsatResponses from './CsatResponses.vue';
 import BotReports from './BotReports.vue';
+import CsatResponses from './CsatResponses.vue';
 import LiveReports from './LiveReports.vue';
+import MonitorShow from './monitors/MonitorShow.vue';
+import MonitorsIndex from './monitors/MonitorsIndex.vue';
 import SLAReports from './SLAReports.vue';
 import QueuedCustomersReports from './QueuedCustomersReports.vue';
 
@@ -36,6 +39,17 @@ const agentReportMeta = (...pagePermissions) => ({
   featureFlag: FEATURE_FLAGS.REPORTS,
   permissions: ['administrator', 'agent', 'report_manage', ...pagePermissions],
 });
+
+const meta = {
+  featureFlag: FEATURE_FLAGS.REPORTS,
+  permissions: ['administrator', 'report_manage'],
+};
+
+const monitorsMeta = {
+  ...meta,
+  featureFlag: FEATURE_FLAGS.CONVERSATION_MONITORS,
+  installationTypes: [INSTALLATION_TYPES.ENTERPRISE, INSTALLATION_TYPES.CLOUD],
+};
 
 const oldReportRoutes = [
   {
@@ -137,9 +151,21 @@ const revisedReportRoutes = [
 export default {
   routes: [
     {
+      path: frontendURL('accounts/:accountId/reports/monitors'),
+      name: 'monitor_reports_index',
+      meta: monitorsMeta,
+      component: MonitorsIndex,
+    },
+    {
       path: frontendURL('accounts/:accountId/reports'),
       component: ReportsWrapper,
       children: [
+        {
+          path: 'monitors/:monitorId',
+          name: 'monitor_reports_show',
+          meta: monitorsMeta,
+          component: MonitorShow,
+        },
         {
           path: '',
           redirect: to => {

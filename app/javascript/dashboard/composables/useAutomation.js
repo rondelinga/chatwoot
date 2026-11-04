@@ -86,7 +86,11 @@ export function useAutomation(startValue = null) {
    */
   const appendNewCondition = () => {
     const defaultCondition = formatDefaultConditions(
-      getDefaultConditions(eventName.value),
+      getDefaultConditions(
+        eventName.value === 'monitor_matched'
+          ? 'conversation_created'
+          : eventName.value
+      ),
       eventName.value
     );
     automation.value.conditions = [
@@ -108,7 +112,10 @@ export function useAutomation(startValue = null) {
    * @param {number} index - The index of the filter to remove.
    */
   const removeFilter = index => {
-    if (automation.value.conditions.length <= 1) {
+    if (
+      automation.value.conditions.length <= 1 &&
+      eventName.value !== 'monitor_matched'
+    ) {
       useAlert(t('AUTOMATION.CONDITION.DELETE_MESSAGE'));
     } else {
       automation.value.conditions = automation.value.conditions.filter(
@@ -204,6 +211,8 @@ export function useAutomation(startValue = null) {
       'conversation_created',
       'conversation_updated',
       'conversation_opened',
+      'conversation_resolved',
+      'monitor_matched',
     ].forEach(eventToUpdate => {
       const standardConditions = automationTypes[
         eventToUpdate

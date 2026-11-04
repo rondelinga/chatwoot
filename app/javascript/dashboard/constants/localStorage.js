@@ -4,10 +4,11 @@ export const LOCAL_STORAGE_KEYS = {
   WIDGET_BUILDER: 'widgetBubble_',
   DRAFT_MESSAGES: 'draftMessages',
   COLOR_SCHEME: 'color_scheme',
-  DISMISSED_LABEL_SUGGESTIONS: 'labelSuggestionsDismissed',
   MESSAGE_REPLY_TO: 'messageReplyTo',
   RECENT_SEARCHES: 'recentSearches',
   SIDEBAR_MINIMIZED_SECTIONS: 'sidebarMinimizedSections',
   SUPERVISION_SIDEBAR_EXPANDED: 'supervisionSidebarExpanded',
   CAPTAIN_OVERVIEW_V2: 'captain_overview_v2',
+  CAPTAIN_ASSISTANT_TOOLS_BANNER_DISMISSED:
+    'captain_assistant_tools_banner_dismissed',
 };

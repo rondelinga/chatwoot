@@ -1,6 +1,7 @@
 <script>
 import { computed } from 'vue';
 import { mapGetters } from 'vuex';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAlert } from 'dashboard/composables';
 import {
   DuplicateContactException,
@@ -14,8 +15,9 @@ import {
   hasPermissions,
 } from 'dashboard/helper/permissionsHelper';
 import ContactInfoRow from './ContactInfoRow.vue';
+import ViewAllConversations from './ViewAllConversations.vue';
 import Avatar from 'next/avatar/Avatar.vue';
-import SocialIcons from './SocialIcons.vue';
+import SocialProfileLinks from 'dashboard/components-next/social-profiles/SocialProfileLinks.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ContactDeleteModal from 'dashboard/modules/contact/ContactDeleteModal.vue';
@@ -24,20 +26,23 @@ import OutboundMessageButton from 'dashboard/components-next/Contacts/OutboundMe
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
+import Flag from 'dashboard/components-next/flag/Flag.vue';
 
 export default {
   components: {
     NextButton,
     ContactInfoRow,
+    ViewAllConversations,
     EditContact,
     Avatar,
     ComposeConversation,
     OutboundMessageButton,
-    SocialIcons,
+    SocialProfileLinks,
     ContactMergeModal,
     ContactDeleteModal,
     VoiceCallButton,
     InlineInput,
+    Flag,
   },
   props: {
     contact: {
@@ -111,25 +116,39 @@ export default {
     ...mapGetters({
       uiFlags: 'contacts/getUIFlags',
       currentChat: 'getSelectedChat',
+      isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
     }),
+    hasCompaniesFeature() {
+      return this.isFeatureEnabledOnAccount(
+        Number(this.$route.params.accountId),
+        FEATURE_FLAGS.COMPANIES
+      );
+    },
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
+    },
+    companyLink() {
+      return this.hasCompaniesFeature && this.contact.company_id
+        ? `/app/accounts/${this.$route.params.accountId}/companies/${this.contact.company_id}`
+        : '';
     },
     additionalAttributes() {
       return this.contact.additional_attributes || {};
     },
     location() {
-      const {
-        country = '',
-        city = '',
-        country_code: countryCode,
-      } = this.additionalAttributes;
+      const { country = '', city = '' } = this.additionalAttributes;
       const cityAndCountry = [city, country].filter(item => !!item).join(', ');
 
       if (!cityAndCountry) {
         return '';
       }
-      return this.findCountryFlag(countryCode, cityAndCountry);
+      return this.countryCode ? cityAndCountry : `${cityAndCountry} 🌎`;
+    },
+    countryCode() {
+      const { country_code: countryCode } = this.additionalAttributes;
+      const isValid =
+        typeof countryCode === 'string' && /^[a-z]{2}$/i.test(countryCode);
+      return isValid ? countryCode : '';
     },
     socialProfiles() {
       const {
@@ -171,9 +190,16 @@ export default {
       });
       return `${this.$t('CONTACT_PANEL.BLOCKED_UNTIL')} ${date}`;
     },
-    // Delete Modal
-    confirmDeleteMessage() {
-      return ` ${this.contact.name}?`;
+    whatsappUsername() {
+      const username =
+        this.socialProfiles.whatsapp ||
+        this.additionalAttributes.social_whatsapp_user_name ||
+        '';
+
+      return username.toString().replace(/^@+/, '');
+    },
+    formattedWhatsappUsername() {
+      return this.whatsappUsername ? `@${this.whatsappUsername}` : '';
     },
   },
   watch: {
@@ -187,18 +213,6 @@ export default {
   methods: {
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
-    },
-    findCountryFlag(countryCode, cityAndCountry) {
-      try {
-        if (!countryCode) {
-          return `${cityAndCountry} 🌎`;
-        }
-
-        const code = countryCode?.toLowerCase();
-        return `${cityAndCountry} <span class="fi fi-${code} size-3.5"></span>`;
-      } catch (error) {
-        return '';
-      }
     },
     startEditingName() {
       this.editName = this.contact.name || '';
@@ -357,6 +371,14 @@ export default {
             @update="value => onFieldUpdate('phone_number', value)"
           />
           <ContactInfoRow
+            v-if="formattedWhatsappUsername"
+            :value="formattedWhatsappUsername"
+            icon="brand-whatsapp"
+            emoji="💬"
+            :title="$t('CONTACT_PANEL.WHATSAPP_USERNAME')"
+            show-copy
+          />
+          <ContactInfoRow
             v-if="contact.identifier"
             :value="contact.identifier"
             icon="contact-identify"
@@ -364,11 +386,12 @@ export default {
             :title="$t('CONTACT_PANEL.IDENTIFIER')"
           />
           <ContactInfoRow
+            :href="companyLink"
             :value="additionalAttributes.company_name"
             icon="building-bank"
             emoji="🏢"
             :title="$t('CONTACT_PANEL.COMPANY')"
-            :editable="canEditContact"
+            :editable="canEditContact && !hasCompaniesFeature"
             @update="
               value =>
                 updateContactField({
@@ -385,7 +408,13 @@ export default {
             icon="map"
             emoji="🌍"
             :title="$t('CONTACT_PANEL.LOCATION')"
-          />
+          >
+            <Flag
+              v-if="location && countryCode"
+              :country="countryCode"
+              class="size-3.5"
+            />
+          </ContactInfoRow>
           <ContactInfoRow
             :key="`auth-${contact.id}`"
             :value="authorizationStatus"
@@ -402,7 +431,7 @@ export default {
             :title="$t('CONTACT_PANEL.BLOCKED_UNTIL')"
             class="text-red-500"
           />
-          <SocialIcons :social-profiles="socialProfiles" />
+          <SocialProfileLinks :profiles="socialProfiles" class="my-2" />
         </div>
       </div>
       <div class="flex items-center w-full mt-0.5 gap-2">
@@ -424,11 +453,12 @@ export default {
           slate
           faded
         />
+        <ViewAllConversations />
         <VoiceCallButton
           :phone="contact.phone_number"
           :contact-id="contact.id"
           :conversation-id="currentChat?.id"
-          icon="i-lucide-phone"
+          icon="i-ph-phone"
           sm
           faded
           slate

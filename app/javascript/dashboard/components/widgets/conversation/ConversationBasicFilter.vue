@@ -18,6 +18,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showStatusFilter: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['changeFilter']);
@@ -173,7 +177,10 @@ const handleSortChange = value => {
         'ltr:right-0 rtl:left-0': menuAlignEnd,
       }"
     >
-      <div class="flex items-center justify-between last:mt-4 gap-2">
+      <div
+        v-if="showStatusFilter"
+        class="flex items-center justify-between gap-2"
+      >
         <span class="text-sm truncate text-n-slate-12">
           {{ $t('CHAT_LIST.CHAT_SORT.STATUS') }}
         </span>
@@ -185,7 +192,10 @@ const handleSortChange = value => {
           @update:model-value="handleStatusChange"
         />
       </div>
-      <div class="flex items-center justify-between last:mt-4 gap-2">
+      <div
+        class="flex items-center justify-between gap-2"
+        :class="{ 'mt-4': showStatusFilter }"
+      >
         <span class="text-sm truncate text-n-slate-12">
           {{ $t('CHAT_LIST.CHAT_SORT.ORDER_BY') }}
         </span>

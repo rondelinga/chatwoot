@@ -86,5 +86,12 @@ RSpec.describe AutoAssignment::AgentAssignmentService do
 
       expect(assignee).to eq(inbox_members[4].user)
     end
+
+    it 'skips an online agent who does not take conversations' do
+      inbox_members[3].user.account_users.find_by(account: account).update!(accepts_conversations: false)
+
+      expect(described_class.new(conversation: conversation,
+                                 allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).find_assignee).to eq(inbox_members[4].user)
+    end
   end
 end

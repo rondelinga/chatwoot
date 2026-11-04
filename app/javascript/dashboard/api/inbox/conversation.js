@@ -40,9 +40,13 @@ class ConversationApi extends ApiClient {
     });
   }
 
-  filter(payload) {
+  filter(payload, options = {}) {
     return axios.post(`${this.url}/filter`, payload.queryData, {
-      params: { page: payload.page },
+      signal: options.signal,
+      params: {
+        page: payload.page,
+        sort_by: payload.sortBy,
+      },
     });
   }
 
@@ -119,6 +123,16 @@ class ConversationApi extends ApiClient {
 
   sendEmailTranscript({ conversationId, email }) {
     return axios.post(`${this.url}/${conversationId}/transcript`, { email });
+  }
+
+  getContactInfoRequestAvailability(conversationId, { signal } = {}) {
+    return axios.get(`${this.url}/${conversationId}/contact_info_request`, {
+      signal,
+    });
+  }
+
+  requestContactInfo(conversationId) {
+    return axios.post(`${this.url}/${conversationId}/contact_info_request`);
   }
 
   updateCustomAttributes({ conversationId, customAttributes }) {

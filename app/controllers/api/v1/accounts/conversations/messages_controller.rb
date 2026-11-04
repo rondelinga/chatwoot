@@ -40,16 +40,13 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   def translate
     return head :ok if already_translated_content_available?
 
-    translated_content = Integrations::GoogleTranslate::ProcessorService.new(
-      message: message,
-      target_language: permitted_params[:target_language]
-    ).perform
+    translated_content = translate_message
 
     if translated_content.present?
       translations = {}
       translations[permitted_params[:target_language]] = translated_content
       translations = message.translations.merge!(translations) if message.translations.present?
-      message.update!(translations: translations)
+      message.update!(translations: translations, translation_provider: translation_provider)
     end
 
     render json: { content: translated_content }
@@ -65,6 +62,15 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
     render json: { error: 'Cannot send messages to a proxied conversation' },
            status: :unprocessable_entity
+  end
+
+  def translation_provider
+    'google_translate'
+  end
+
+  def translate_message
+    hook = Current.account.hooks.find_by(app_id: 'google_translate')
+    Integrations::GoogleTranslate::ProcessorService.new(hook: hook).translate_message(message, permitted_params[:target_language]) if hook
   end
 
   def message
@@ -105,3 +111,5 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render json: { error: 'Message status update is only allowed for API inboxes' }, status: :forbidden unless @conversation.inbox.api?
   end
 end
+
+Api::V1::Accounts::Conversations::MessagesController.prepend_mod_with('Api::V1::Accounts::Conversations::MessagesController')
