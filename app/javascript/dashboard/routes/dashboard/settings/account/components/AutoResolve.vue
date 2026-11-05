@@ -162,7 +162,7 @@ const handleSubmit = async () => {
     settings.auto_resolve_message_client = null;
   }
 
-  await updateAccountSettings(settings);
+  return updateAccountSettings(settings);
 };
 
 const handleDisable = async () => {
