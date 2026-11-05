@@ -179,12 +179,12 @@ export default {
       return Boolean(this.currentChat?.meta?.hmac_verified);
     },
     authorizationStatus() {
-      const label = this.isAuthorized
+      return this.isAuthorized
         ? this.$t('CONTACT_PANEL.AUTHORIZATION.AUTHORIZED')
         : this.$t('CONTACT_PANEL.AUTHORIZATION.NOT_AUTHORIZED');
-      const color = this.isAuthorized ? 'text-n-teal-11' : 'text-n-ruby-11';
-
-      return `<span class="${color}">${label}</span>`;
+    },
+    authorizationStatusClass() {
+      return this.isAuthorized ? 'text-n-teal-11' : 'text-n-ruby-11';
     },
     blockedUntilText() {
       if (!this.contact.blocked_until) {
@@ -420,6 +420,7 @@ export default {
           <ContactInfoRow
             :key="`auth-${contact.id}`"
             :value="authorizationStatus"
+            :value-class="authorizationStatusClass"
             :icon="isAuthorized ? 'lock-closed' : 'lock-shield'"
             :emoji="isAuthorized ? '🔒' : '🔓'"
             :title="$t('CONTACT_PANEL.AUTHORIZATION.LABEL')"

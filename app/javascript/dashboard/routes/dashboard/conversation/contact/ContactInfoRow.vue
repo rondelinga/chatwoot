@@ -40,6 +40,10 @@ export default {
       type: String,
       default: '',
     },
+    valueClass: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['update'],
   data() {
@@ -112,6 +116,7 @@ export default {
       <span
         v-if="value"
         class="overflow-hidden text-sm whitespace-nowrap text-ellipsis"
+        :class="valueClass"
         :title="value"
       >
         {{ value }}
@@ -150,6 +155,7 @@ export default {
       <span
         v-if="value"
         class="overflow-hidden text-sm whitespace-nowrap text-ellipsis"
+        :class="valueClass"
         :title="value"
       >
         {{ value }}
