@@ -916,7 +916,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.datetime "first_matched_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.datetime "first_matched_at"
     t.index ["account_id"], name: "index_conversation_monitor_evaluations_on_account_id"
     t.index ["conversation_id"], name: "index_conversation_monitor_evaluations_on_conversation_id"
     t.index ["monitor_id", "conversation_id"], name: "index_monitor_evaluations_unique", unique: true
@@ -957,8 +956,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.datetime "live_activity_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "live_activity_revision", default: 0, null: false
-    t.datetime "live_activity_at"
     t.index ["account_id"], name: "index_conversation_monitor_work_items_on_account_id"
     t.index ["conversation_id"], name: "index_conversation_monitor_work_items_on_conversation_id", unique: true
     t.index ["due_at"], name: "index_monitor_work_due", where: "(due_at IS NOT NULL)"
@@ -2019,7 +2016,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
   add_foreign_key "user_sessions", "users"
   add_foreign_key "user_pinned_labels", "labels"
   add_foreign_key "user_pinned_labels", "users"
-  add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).
