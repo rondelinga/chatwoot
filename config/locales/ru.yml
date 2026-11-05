@@ -410,6 +410,10 @@ ru:
       instagram_shared_story_content: 'Общая история'
       instagram_shared_post_content: 'Общая запись'
       deleted: Это сообщение было удалено
+      deleted_audit_note:
+        header: '🔒 [УДАЛЕНО] Исходное сообщение от %{agent_name}'
+        body_label: 'Текст сообщения:'
+        unknown_sender: 'оператор'
       whatsapp:
         list_button_label: 'Выберите элемент'
         call_permission_request_body: 'Мы хотели бы позвонить Вам по поводу Вашего разговора.'
