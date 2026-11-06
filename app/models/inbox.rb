@@ -117,25 +117,6 @@ class Inbox < ApplicationRecord
     update_account_cache
   end
 
-  # Updates teams linked to the inbox and syncs collaborators from team members.
-  # @param team_ids [Array<Integer>] Array of team IDs to link
-  # @return [void]
-  def update_teams(team_ids)
-    normalized_team_ids = Array(team_ids).map(&:to_i).uniq
-    valid_team_ids = account.teams.where(id: normalized_team_ids).pluck(:id)
-    current_team_ids = inbox_teams.pluck(:team_id)
-
-    to_add = valid_team_ids - current_team_ids
-    to_remove = current_team_ids - valid_team_ids
-
-    ActiveRecord::Base.transaction do
-      to_add.each { |team_id| inbox_teams.create!(team_id: team_id) }
-      inbox_teams.where(team_id: to_remove).delete_all
-    end
-
-    Inboxes::MembersSyncService.new(inbox: self).perform
-  end
-
   def assignable_agents
     (account.users.where(id: members.select(:user_id)) + account.administrators).uniq
   end
