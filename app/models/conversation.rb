@@ -70,6 +70,9 @@ class Conversation < ApplicationRecord
   include SortHandler
   include PushDataHelper
   include ConversationMuteHelpers
+  include ConversationChatRouting
+  include ConversationParticipantSessions
+  include ConversationQueueStatus
 
   UNREAD_INCOMING_MESSAGES_LIMIT = 10
   CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS = %w[conversation_language].freeze
@@ -83,7 +86,6 @@ class Conversation < ApplicationRecord
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
-  before_validation :apply_chat_routing, on: :create
   before_validation :validate_additional_attributes
   before_validation :clear_invalid_ai_assignee
   validates :additional_attributes, jsonb_attributes_length: true
@@ -175,20 +177,14 @@ class Conversation < ApplicationRecord
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
   after_create :mark_contact_as_lead
-  after_create :create_chat_routing_activity_messages
-  before_update :close_previous_agent_on_reassign
-  before_update :close_agents_on_resolve
   after_update :leave_queue_if_assignee_present
-
   after_update :remove_from_queue_if_status_changed
-  after_update :create_participant_for_new_agent
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :process_queue_on_assignment_change
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   before_destroy :set_unread_count_deletion_data
   after_destroy_commit :notify_conversation_deletion
-  after_update_commit :process_queue_on_assignment_change
-
   delegate :auto_resolve_after, to: :account
 
   def can_reply?
@@ -337,77 +333,7 @@ class Conversation < ApplicationRecord
     inbox.active_bot?
   end
 
-  def track_agent_chat_duration(participant)
-    return if participant.created_at.nil? || participant.left_at.nil?
-
-    duration = participant.left_at - participant.created_at
-    return if duration <= 0
-
-    reporting_events.create!(
-      account_id: account_id,
-      user_id: participant.user_id,
-      name: :agent_chat_duration,
-      value: duration.to_i
-    )
-  end
-
-  def operator_replied_after?(operator_id:, from_time:, to_time:)
-    messages.where(sender_type: 'User', sender_id: operator_id, message_type: :outgoing)
-            .exists?(['created_at > ? AND created_at < ?', from_time, to_time])
-  end
-
   private
-
-  def leave_queue_if_assignee_present
-    return unless account.queue_enabled?
-    return unless saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id?
-    return if assignee_id.blank? && assignee_agent_bot_id.blank?
-
-    ChatQueue::QueueService.new(account: account).remove_from_queue(self, reason: :other)
-  end
-
-  def close_previous_agent_on_reassign
-    return unless will_save_change_to_assignee_id?
-
-    prev_id, new_id = assignee_id_change
-    return if prev_id.nil? || prev_id == new_id
-
-    participant = ConversationParticipant
-                  .find_by(conversation_id: id, user_id: prev_id, left_at: nil)
-
-    return unless participant
-
-    participant.update!(left_at: Time.current)
-    track_agent_chat_duration(participant)
-  end
-
-  def create_participant_for_new_agent
-    return unless saved_change_to_assignee_id?
-    return if assignee_id.nil?
-
-    participant = ConversationParticipant.find_or_initialize_by(conversation_id: id, user_id: assignee_id)
-
-    now = Time.current
-
-    if participant.persisted?
-      participant.update!(left_at: nil, created_at: now)
-    else
-      participant.created_at = now
-      participant.save!
-    end
-  end
-
-  def close_agents_on_resolve
-    return unless will_save_change_to_status?
-    return unless status == 'resolved'
-
-    ConversationParticipant
-      .where(conversation_id: id, left_at: nil)
-      .find_each do |participant|
-        participant.update!(left_at: Time.current)
-        track_agent_chat_duration(participant)
-      end
-  end
 
   def execute_after_update_commit_callbacks
     handle_resolved_status_change
@@ -415,34 +341,6 @@ class Conversation < ApplicationRecord
     create_activity
     invalidate_filtered_unread_count_conversation
     notify_conversation_updation
-  end
-
-  def process_queue_on_assignment_change
-    return unless account.queue_enabled?
-    return unless queue_assignment_change?
-
-    open! if assignee_present? && queued?
-    ChatQueue::ProcessQueueJob.perform_later(account.id) if should_process_queue_after_assignment_change?
-  end
-
-  def queue_assignment_change?
-    saved_change_to_assignee_id? || saved_change_to_assignee_agent_bot_id? || saved_change_to_status?
-  end
-
-  def should_process_queue_after_assignment_change?
-    resolved? || assignee_id.blank? || saved_change_to_assignee_id?
-  end
-
-  def enforce_queue_status_invariants
-    return unless account&.queue_enabled?
-
-    return unless assignee_present?
-
-    self.status = :open if queued?
-  end
-
-  def assignee_present?
-    assignee_id.present? || assignee_agent_bot_id.present?
   end
 
   def handle_resolved_status_change
@@ -477,14 +375,6 @@ class Conversation < ApplicationRecord
 
   def clear_invalid_ai_assignee
     self.ai_assignee = nil if assignee_id.present?
-  end
-
-  def apply_chat_routing
-    @chat_routing_result = ChatRouting::AssignService.new(conversation: self).apply
-  end
-
-  def create_chat_routing_activity_messages
-    ChatRouting::AssignService.new(conversation: self).create_activity_messages(@chat_routing_result)
   end
 
   def reset_agent_bot_when_assignee_present
@@ -617,24 +507,6 @@ class Conversation < ApplicationRecord
     return unless additional_attributes['referer']
 
     self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
-  end
-
-  def remove_from_queue_if_status_changed
-    return unless saved_change_to_status?
-    return unless account.queue_enabled?
-
-    old_status, new_status = saved_change_to_status
-
-    reason = if new_status == 'resolved'
-               :resolved
-             elsif old_status == 'queued' && new_status != 'queued'
-               :other
-             else
-               return
-             end
-
-    ChatQueue::QueueService.new(account: account)
-                           .remove_from_queue(self, reason: reason)
   end
 
   # creating db triggers

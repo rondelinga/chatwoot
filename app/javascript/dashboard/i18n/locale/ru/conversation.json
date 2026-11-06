@@ -97,6 +97,9 @@
     },
     "SUCCESS_DELETE_MESSAGE": "Сообщение успешно удалено",
     "FAIL_DELETE_MESSSAGE": "Не удалось удалить сообщение! Попробуйте еще раз",
+    "DELETED_AUDIT_NOTE": {
+      "BADGE": "Удалено"
+    },
     "NO_RESPONSE": "Нет ответа",
     "REQUEST_CONTACT_INFO": {
       "ACTION": "Ask the customer to share their WhatsApp phone number",

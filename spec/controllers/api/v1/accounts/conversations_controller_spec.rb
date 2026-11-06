@@ -51,11 +51,12 @@ RSpec.describe 'Conversations API', type: :request do
       end
 
       it 'lists a conversation whose assignee no longer exists as unassigned' do
+        administrator = create(:user, account: account, role: :administrator)
         assigned = create(:conversation, account: account, inbox: conversation.inbox, assignee: agent)
         conversation.update_column(:assignee_id, User.maximum(:id) + 1000) # rubocop:disable Rails/SkipsModelValidations
 
         get "/api/v1/accounts/#{account.id}/conversations",
-            headers: agent.create_new_auth_token,
+            headers: administrator.create_new_auth_token,
             params: { assignee_type: 'all' },
             as: :json
 
