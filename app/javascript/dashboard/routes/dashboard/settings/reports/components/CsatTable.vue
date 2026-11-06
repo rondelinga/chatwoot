@@ -14,11 +14,7 @@ import CsatExpandedRow from './CsatExpandedRow.vue';
 import CsatEmptyState from './CsatEmptyState.vue';
 import CsatTableLoader from './CsatTableLoader.vue';
 
-import {
-  CSAT_RATINGS,
-  CSAT_DISPLAY_TYPES,
-  CSAT_LIKE_DISLIKE_RATINGS,
-} from 'shared/constants/messages';
+import CsatRatingBadge from './CsatRatingBadge.vue';
 
 import {
   useVueTable,
@@ -81,19 +77,6 @@ const tableData = computed(() => {
     _original: response,
   }));
 });
-
-const getRatingData = rating => {
-  return CSAT_RATINGS.find(r => r.value === rating) || {};
-};
-
-const getRatingText = row => {
-  const ratingOptions =
-    row.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE
-      ? CSAT_LIKE_DISLIKE_RATINGS
-      : CSAT_RATINGS;
-  const rating = ratingOptions.find(r => r.value === row.rating) || {};
-  return t(rating.translationKey);
-};
 
 const columnHelper = createColumnHelper();
 
@@ -278,16 +261,10 @@ const getSortIcon = header => {
                 </span>
               </td>
               <td class="py-4 px-5">
-                <div
-                  class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg"
-                  :style="{
-                    backgroundColor: `${getRatingData(row.original.rating).color}20`,
-                  }"
-                >
-                  <span class="text-sm font-medium text-n-slate-12 truncate">
-                    {{ getRatingText(row.original) }}
-                  </span>
-                </div>
+                <CsatRatingBadge
+                  :rating="row.original.rating"
+                  :display-type="row.original.displayType"
+                />
               </td>
               <td class="py-4 px-5">
                 <span
