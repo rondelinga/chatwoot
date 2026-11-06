@@ -6,140 +6,62 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
   end
 
   def create
-    @canned_response = find_or_init_canned_response
-    @canned_response.assign_attributes(canned_response_base_params.merge(created_by_id: current_user.id))
+    result = save_canned_response
+    return render_canned_response_error(result.error) if result.error
 
-    if @canned_response.private_response? && no_scopes_provided?
-      render json: { error: 'Private canned response must be assigned to a user, team, or inbox' },
-             status: :unprocessable_entity
-      return
-    end
-
-    is_new = @canned_response.new_record?
-    @canned_response.save!
-    @canned_response.canned_response_scopes.destroy_all unless is_new
-    build_scopes(@canned_response)
-    render json: @canned_response.as_json(include: :canned_response_scopes)
+    render json: result.canned_response.as_json(include: :canned_response_scopes)
   end
 
   def update
-    @canned_response.update!(canned_response_base_params)
-    @canned_response.canned_response_scopes.destroy_all
+    result = save_canned_response(@canned_response)
+    return render_canned_response_error(result.error) if result.error
 
-    if @canned_response.private_response? && no_scopes_provided?
-      render json: { error: 'Private canned response must be assigned to a user, team, or inbox' },
-             status: :unprocessable_entity
-      return
-    end
-
-    build_scopes(@canned_response)
-    render json: @canned_response.as_json(include: :canned_response_scopes)
+    render json: result.canned_response.as_json(include: :canned_response_scopes)
   end
 
   def destroy
-    if @canned_response.private_response?
-      remove_user_from_scopes_or_destroy
-    else
-      @canned_response.destroy!
-    end
+    CannedResponses::DestroyService.new(canned_response: @canned_response, user: current_user).perform
     head :ok
   end
 
   private
 
-  def remove_user_from_scopes_or_destroy
-    scope = @canned_response.canned_response_scopes.find do |s|
-      s.user_ids.include?(current_user.id)
-    end
-
-    if scope
-      updated_user_ids = scope.user_ids - [current_user.id]
-
-      if updated_user_ids.empty?
-        scope.destroy!
-      else
-        scope.update!(user_ids: updated_user_ids)
-      end
-    end
-
-    @canned_response.destroy! if @canned_response.reload.canned_response_scopes.empty?
-  end
-
-  def find_or_init_canned_response
-    visibility = canned_response_base_params[:visibility]
-    short_code = canned_response_base_params[:short_code]
-
-    if visibility == 'private_response'
-      Current.account.canned_responses.find_or_initialize_by(
-        short_code: short_code,
-        visibility: :private_response,
-        created_by_id: current_user.id
-      )
-    else
-      Current.account.canned_responses.find_or_initialize_by(
-        short_code: short_code,
-        visibility: :public_response
-      )
-    end
-  end
-
   def fetch_canned_response
     @canned_response = Current.account.canned_responses.find(params[:id])
   end
 
-  def canned_response_base_params
+  def canned_response_params
     params.require(:canned_response).permit(:short_code, :content, :visibility)
   end
 
-  def build_scopes(canned_response)
-    return unless canned_response.private_response?
-
-    user_ids  = current_user.administrator? ? Array(params[:user_ids]).map(&:to_i) : [current_user.id]
-    team_ids  = current_user.administrator? ? Array(params[:team_ids]).map(&:to_i) : []
-    inbox_ids = Array(params[:inbox_ids]).map(&:to_i)
-
-    canned_response.canned_response_scopes.create!(
-      user_ids: user_ids,
-      team_ids: team_ids,
-      inbox_ids: inbox_ids
-    )
-  end
-
-  def no_scopes_provided?
-    return false unless current_user.administrator?
-
-    Array(params[:user_ids]).empty? &&
-      Array(params[:team_ids]).empty? &&
-      Array(params[:inbox_ids]).empty?
+  def scope_ids
+    {
+      user_ids: params[:user_ids],
+      team_ids: params[:team_ids],
+      inbox_ids: params[:inbox_ids]
+    }
   end
 
   def canned_responses
-    apply_search(base_scope)
+    Current.account.canned_responses.listed_for(
+      current_user,
+      include_all: params[:all],
+      inbox_id: params[:inbox_id],
+      search: params[:search]
+    )
   end
 
-  def base_scope
-    params[:all] ? all_responses_scope : filtered_scope
+  def save_canned_response(canned_response = nil)
+    CannedResponses::SaveService.new(
+      account: Current.account,
+      user: current_user,
+      canned_response: canned_response,
+      attributes: canned_response_params,
+      scope_ids: scope_ids
+    ).perform
   end
 
-  def all_responses_scope
-    return Current.account.canned_responses if current_user.administrator?
-
-    Current.account.canned_responses
-           .where(created_by_id: current_user.id)
-           .or(Current.account.canned_responses.accessible_to(current_user))
-  end
-
-  def filtered_scope
-    Current.account.canned_responses
-           .accessible_to(current_user, inbox_id: params[:inbox_id])
-  end
-
-  def apply_search(scope)
-    scope = scope.includes(:canned_response_scopes)
-    return scope unless params[:search]
-
-    search = params[:search].delete("\0")
-    scope.where('short_code ILIKE :search OR content ILIKE :search', search: "%#{search}%")
-         .order_by_search(search)
+  def render_canned_response_error(error)
+    render json: { error: error }, status: :unprocessable_entity
   end
 end
