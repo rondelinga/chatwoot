@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
@@ -26,9 +26,10 @@ const emit = defineEmits(['close', 'submit']);
 
 const store = useStore();
 
-const name = ref('');
-const attributeKey = ref('');
-const attributeValue = ref('');
+const applyingInitialValues = ref(false);
+const name = ref(props.initialRoutingType?.name ?? '');
+const attributeKey = ref(props.initialRoutingType?.attribute_key ?? '');
+const attributeValue = ref(props.initialRoutingType?.attribute_value ?? '');
 
 const rules = {
   name: { required },
@@ -43,16 +44,21 @@ const contactAttributes = computed(() =>
 );
 
 const applyInitialValues = routingType => {
+  applyingInitialValues.value = true;
+
   if (!routingType) {
     name.value = '';
     attributeKey.value = '';
     attributeValue.value = '';
-    return;
+  } else {
+    name.value = routingType.name ?? '';
+    attributeKey.value = routingType.attribute_key ?? '';
+    attributeValue.value = routingType.attribute_value ?? '';
   }
 
-  name.value = routingType.name ?? '';
-  attributeKey.value = routingType.attribute_key ?? '';
-  attributeValue.value = routingType.attribute_value ?? '';
+  nextTick(() => {
+    applyingInitialValues.value = false;
+  });
 };
 
 onMounted(() => {
@@ -118,6 +124,7 @@ const onSubmit = () => {
         v-model="attributeValue"
         :attribute-key="attributeKey"
         :contact-attributes="contactAttributes"
+        :suspend-value-reset="applyingInitialValues"
         @blur="v$.attributeValue.$touch"
       />
     </label>

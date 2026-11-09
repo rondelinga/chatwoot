@@ -12,6 +12,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  suspendValueReset: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['blur']);
@@ -63,10 +67,15 @@ const resetValueForAttribute = () => {
 watch(
   () => props.attributeKey,
   (newKey, oldKey) => {
-    if (newKey === oldKey) return;
+    if (props.suspendValueReset || newKey === oldKey) return;
 
     if (!newKey) {
       modelValue.value = '';
+      return;
+    }
+
+    if (!oldKey) {
+      if (!modelValue.value) resetValueForAttribute();
       return;
     }
 
