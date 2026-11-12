@@ -23,15 +23,16 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
 
     return if queue_empty?(queue_service, account)
 
-    assign_up_to_capacity(queue_service, account)
+    assigned = assign_up_to_capacity(queue_service, account)
 
-    schedule_or_stop(queue_service, account_id)
+    schedule_or_stop(queue_service, account_id, assigned)
   end
 
+  # Returns how many conversations were assigned in this pass
   def assign_up_to_capacity(queue_service, account)
     capacity_service = ChatQueue::Agents::CapacityService.new(account: account)
     available_slots = capacity_service.available_slots
-    return if log_no_capacity(capacity_service, available_slots)
+    return 0 if log_no_capacity(capacity_service, available_slots)
 
     max_assignments = assignment_limit(available_slots, queue_service)
     log_assignment_plan(max_assignments, available_slots, queue_service)
@@ -72,6 +73,7 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
         skipped_lanes << fetch_service.lane_key(entry)
       end
     end
+    assigned
   end
 
   def log_start(account_id)
@@ -108,8 +110,12 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     queue_service.assign_specific_from_queue!(agent, conv.conversation_id).present?
   end
 
-  def schedule_or_stop(queue_service, account_id)
-    if queue_service.queue_size.positive?
+  # A pass that assigned nothing stops here: the queue is picked up again by the events that can
+  # free a slot (agent comes online, chat resolved or unassigned, new chat, limit change)
+  def schedule_or_stop(queue_service, account_id, assigned)
+    if assigned.zero?
+      Rails.logger.info '[QUEUE][JOB] Nothing assigned, waiting for an agent or a free slot'
+    elsif queue_service.queue_size.positive?
       Rails.logger.info '[QUEUE][JOB] Queue still has items, scheduling next run'
       ChatQueue::ProcessQueueJob.perform_later(account_id)
     else
