@@ -37,6 +37,15 @@ class ConversationQueue < ApplicationRecord
   scope :for_account, ->(account_id) { where(account_id: account_id) }
   scope :for_inbox, ->(inbox_id) { where(inbox_id: inbox_id) }
 
+  def self.lane_waiting(account_id, team_id:, inbox_id:)
+    scope = for_account(account_id).waiting.joins(:conversation)
+    if team_id.present?
+      scope.where(conversations: { team_id: team_id })
+    else
+      scope.where(conversations: { team_id: nil, inbox_id: inbox_id })
+    end
+  end
+
   validates :conversation_id, uniqueness: true
   validates :position, presence: true
   validates :inbox_id, presence: true
@@ -82,10 +91,13 @@ class ConversationQueue < ApplicationRecord
   end
 
   def next_position
-    max_position = ConversationQueue
-                   .for_account(account_id)
-                   .waiting
-                   .maximum(:position) || 0
+    return 1 unless account_id && conversation
+
+    max_position = ConversationQueue.lane_waiting(
+      account_id,
+      team_id: conversation.team_id,
+      inbox_id: conversation.inbox_id
+    ).maximum(:position) || 0
     max_position + 1
   end
 end
