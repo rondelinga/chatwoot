@@ -56,13 +56,21 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
   end
 
   def assign_next_conversations(queue_service, account, max_assignments)
-    max_assignments.times do |attempt|
-      conv = fetch_conversation_or_stop(account)
-      break unless conv
+    fetch_service = ChatQueue::Queue::FetchService.new(account: account)
+    skipped_lanes = []
+    assigned = 0
 
-      log_conversation(conv)
-      Rails.logger.info "[QUEUE][JOB] Assignment attempt #{attempt + 1}/#{max_assignments}"
-      break unless try_assign(queue_service, conv, account)
+    while assigned < max_assignments
+      entry = fetch_service.oldest_assignable_head(skipped_lanes)
+      break unless entry
+
+      log_conversation(entry)
+      Rails.logger.info "[QUEUE][JOB] Assignment #{assigned + 1}/#{max_assignments} lane=#{fetch_service.lane_key(entry).inspect}"
+      if try_assign(queue_service, entry, account)
+        assigned += 1
+      else
+        skipped_lanes << fetch_service.lane_key(entry)
+      end
     end
   end
 
@@ -83,13 +91,6 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     size = queue_service.queue_size
     Rails.logger.info "[QUEUE][JOB] Current queue_size=#{size} for account=#{account.id}"
     size.zero?
-  end
-
-  def fetch_conversation_or_stop(account)
-    entry = ChatQueue::Queue::FetchService.new(account: account).fetch_queue_entry
-    return nil unless entry
-
-    entry
   end
 
   def log_conversation(conv)
