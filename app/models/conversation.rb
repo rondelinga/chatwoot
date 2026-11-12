@@ -2,37 +2,39 @@
 #
 # Table name: conversations
 #
-#  id                     :integer          not null, primary key
-#  additional_attributes  :jsonb
-#  agent_last_seen_at     :datetime
-#  ai_assignee_type       :string
-#  assignee_last_seen_at  :datetime
-#  cached_label_list      :text
-#  contact_last_seen_at   :datetime
-#  custom_attributes      :jsonb
-#  first_reply_created_at :datetime
-#  identifier             :string
-#  last_activity_at       :datetime         not null
-#  priority               :integer
-#  resolved_at            :datetime
-#  resolved_by_contact    :boolean          default(FALSE)
-#  snoozed_until          :datetime
-#  status                 :integer          default("open"), not null
-#  status_changed_at      :datetime
-#  uuid                   :uuid             not null
-#  waiting_since          :datetime
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :integer          not null
-#  assignee_agent_bot_id  :bigint
-#  assignee_id            :integer
-#  campaign_id            :bigint
-#  contact_id             :bigint
-#  contact_inbox_id       :bigint
-#  display_id             :integer          not null
-#  inbox_id               :integer          not null
-#  sla_policy_id          :bigint
-#  team_id                :bigint
+#  id                      :integer          not null, primary key
+#  additional_attributes   :jsonb
+#  agent_last_seen_at      :datetime
+#  ai_assignee_type        :string
+#  assignee_last_seen_at   :datetime
+#  automation_label_titles :string           default([]), not null, is an Array
+#  cached_label_list       :text
+#  contact_last_seen_at    :datetime
+#  custom_attributes       :jsonb
+#  first_reply_created_at  :datetime
+#  identifier              :string
+#  last_activity_at        :datetime         not null
+#  priority                :integer
+#  proxied_at              :datetime
+#  resolved_at             :datetime
+#  resolved_by_contact     :boolean          default(FALSE)
+#  snoozed_until           :datetime
+#  status                  :integer          default("open"), not null
+#  status_changed_at       :datetime
+#  uuid                    :uuid             not null
+#  waiting_since           :datetime
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :integer          not null
+#  assignee_agent_bot_id   :bigint
+#  assignee_id             :integer
+#  campaign_id             :bigint
+#  contact_id              :bigint
+#  contact_inbox_id        :bigint
+#  display_id              :integer          not null
+#  inbox_id                :integer          not null
+#  sla_policy_id           :bigint
+#  team_id                 :bigint
 #
 # Indexes
 #
@@ -50,6 +52,7 @@
 #  index_conversations_on_identifier_and_account_id     (identifier,account_id)
 #  index_conversations_on_inbox_id                      (inbox_id)
 #  index_conversations_on_priority                      (priority)
+#  index_conversations_on_proxied_at                    (proxied_at)
 #  index_conversations_on_resolved_at                   (resolved_at)
 #  index_conversations_on_status_and_account_id         (status,account_id)
 #  index_conversations_on_status_and_priority           (status,priority)
