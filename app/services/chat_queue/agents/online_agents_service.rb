@@ -45,31 +45,40 @@ class ChatQueue::Agents::OnlineAgentsService
   end
 
   def build_agent_stats(agent_ids)
-    agent_ids.map { |id| agent_stat_record(id) }
+    return [] if agent_ids.blank?
+
+    active_counts = active_counts_for(agent_ids)
+    last_closed_times = last_closed_times_for(agent_ids)
+    agent_ids.map { |id| agent_stat_record(id, active_counts, last_closed_times) }
   end
 
-  def agent_stat_record(id)
-    active_count = capacity_service.active_conversations_for(id).count
-
-    last_closed = Conversation
-                  .where(account_id: account.id, assignee_id: id, status: :resolved)
-                  .order(updated_at: :desc)
-                  .pick(:updated_at) || Time.zone.at(0)
-
+  def agent_stat_record(id, active_counts, last_closed_times)
+    active_count = active_counts.fetch(id, 0)
+    last_closed = last_closed_times.fetch(id, Time.zone.at(0))
     Rails.logger.info("[QUEUE][online] Agent #{id}: active=#{active_count}, last_closed=#{last_closed}")
 
-    {
-      id: id,
-      active: active_count,
-      last_closed: last_closed
-    }
+    { id: id, active: active_count, last_closed: last_closed }
+  end
+
+  def active_counts_for(agent_ids)
+    conversation_scope(agent_ids, ChatQueue::Agents::CapacityService::ACTIVE_STATUSES)
+      .group(:assignee_id)
+      .count
+      .transform_keys(&:to_i)
+  end
+
+  def last_closed_times_for(agent_ids)
+    conversation_scope(agent_ids, :resolved)
+      .group(:assignee_id)
+      .maximum(:updated_at)
+      .transform_keys(&:to_i)
+  end
+
+  def conversation_scope(agent_ids, status)
+    Conversation.where(account_id: account.id, assignee_id: agent_ids, status: status)
   end
 
   def sort_agents(stats)
     stats.sort_by { |a| [a[:active], a[:last_closed]] }.pluck(:id)
-  end
-
-  def capacity_service
-    @capacity_service ||= ChatQueue::Agents::CapacityService.new(account: account)
   end
 end

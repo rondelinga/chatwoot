@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -24,6 +26,8 @@
 #
 # Indexes
 #
+#  index_copilot_runs_awaiting_approval        (status) WHERE ((status)::text = 'awaiting_approval'::text)
+#  index_copilot_runs_claimable                (status) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying])::text[]))
 #  index_copilot_runs_on_account_id            (account_id)
 #  index_copilot_runs_on_copilot_message_id    (copilot_message_id) UNIQUE
 #  index_copilot_runs_on_copilot_thread_id     (copilot_thread_id)
@@ -31,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # Answers one message from the agent. A turn parks while a review started by one of its tool calls runs, and it carries
 # the cost of everything it started.
 class CopilotRun::Turn < CopilotRun

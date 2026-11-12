@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -24,6 +26,8 @@
 #
 # Indexes
 #
+#  index_copilot_runs_awaiting_approval        (status) WHERE ((status)::text = 'awaiting_approval'::text)
+#  index_copilot_runs_claimable                (status) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying])::text[]))
 #  index_copilot_runs_on_account_id            (account_id)
 #  index_copilot_runs_on_copilot_message_id    (copilot_message_id) UNIQUE
 #  index_copilot_runs_on_copilot_thread_id     (copilot_thread_id)
@@ -31,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # The records get_data selected, saved so later tool calls can page through, narrow or review them. A collection is
 # saved finished, and no job runs it.
 class CopilotRun::Collection < CopilotRun

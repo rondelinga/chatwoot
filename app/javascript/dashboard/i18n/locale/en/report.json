@@ -846,6 +846,8 @@
       "HEADER": "Conversations by agents",
       "LOADING_MESSAGE": "Loading agent metrics...",
       "NO_AGENTS": "There are no conversations by agents",
+      "SEARCH_PLACEHOLDER": "Search agents by name or email",
+      "NO_SEARCH_RESULTS": "No agents match your search",
       "TABLE_HEADER": {
         "AGENT": "Agent",
         "OPEN": "Open",

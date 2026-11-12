@@ -70,6 +70,7 @@ ru:
     notifications:
       queue_message: 'Все операторы сейчас заняты. Мы подключим вас к свободному оператору, как только он освободится.'
       assigned_message: 'Оператор подключился к диалогу.'
+      agent_went_offline: 'Чат был снят с оператора %{agent_name}, так как он перешёл в офлайн'
   errors:
     notification_subscription:
       voip_attributes_required: A VoIP push subscription needs a device_id and a push_token
@@ -410,6 +411,10 @@ ru:
       instagram_shared_story_content: 'Общая история'
       instagram_shared_post_content: 'Общая запись'
       deleted: Это сообщение было удалено
+      deleted_audit_note:
+        header: '🔒 [УДАЛЕНО] Исходное сообщение от %{agent_name}'
+        body_label: 'Текст сообщения:'
+        unknown_sender: 'оператор'
       whatsapp:
         list_button_label: 'Выберите элемент'
         call_permission_request_body: 'Мы хотели бы позвонить Вам по поводу Вашего разговора.'

@@ -93,6 +93,7 @@ en:
     notifications:
       queue_message: 'All agents are currently busy. We will connect you to a free agent as soon as one is available.'
       assigned_message: 'An agent has joined the conversation.'
+      agent_went_offline: 'The conversation was unassigned from %{agent_name} because they went offline'
   errors:
     bandwidth:
       token_request_failed: "Unable to reach Bandwidth authentication. Please try again later."

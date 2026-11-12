@@ -23,15 +23,16 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
 
     return if queue_empty?(queue_service, account)
 
-    assign_up_to_capacity(queue_service, account)
+    assigned = assign_up_to_capacity(queue_service, account)
 
-    schedule_or_stop(queue_service, account_id)
+    schedule_or_stop(queue_service, account_id, assigned)
   end
 
+  # Returns how many conversations were assigned in this pass
   def assign_up_to_capacity(queue_service, account)
     capacity_service = ChatQueue::Agents::CapacityService.new(account: account)
     available_slots = capacity_service.available_slots
-    return if log_no_capacity(capacity_service, available_slots)
+    return 0 if log_no_capacity(capacity_service, available_slots)
 
     max_assignments = assignment_limit(available_slots, queue_service)
     log_assignment_plan(max_assignments, available_slots, queue_service)
@@ -56,14 +57,23 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
   end
 
   def assign_next_conversations(queue_service, account, max_assignments)
-    max_assignments.times do |attempt|
-      conv = fetch_conversation_or_stop(account)
-      break unless conv
+    fetch_service = ChatQueue::Queue::FetchService.new(account: account)
+    skipped_lanes = []
+    assigned = 0
 
-      log_conversation(conv)
-      Rails.logger.info "[QUEUE][JOB] Assignment attempt #{attempt + 1}/#{max_assignments}"
-      break unless try_assign(queue_service, conv, account)
+    while assigned < max_assignments
+      entry = fetch_service.oldest_assignable_head(skipped_lanes)
+      break unless entry
+
+      log_conversation(entry)
+      Rails.logger.info "[QUEUE][JOB] Assignment #{assigned + 1}/#{max_assignments} lane=#{fetch_service.lane_key(entry).inspect}"
+      if try_assign(queue_service, entry, account)
+        assigned += 1
+      else
+        skipped_lanes << fetch_service.lane_key(entry)
+      end
     end
+    assigned
   end
 
   def log_start(account_id)
@@ -85,13 +95,6 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     size.zero?
   end
 
-  def fetch_conversation_or_stop(account)
-    entry = ChatQueue::Queue::FetchService.new(account: account).fetch_queue_entry
-    return nil unless entry
-
-    entry
-  end
-
   def log_conversation(conv)
     Rails.logger.info "[QUEUE][JOB] Picked conversation_queue_id=#{conv.id} conv_id=#{conv.conversation_id} position=#{conv.position}"
   end
@@ -107,8 +110,12 @@ class ChatQueue::ProcessQueueJob < MutexApplicationJob
     queue_service.assign_specific_from_queue!(agent, conv.conversation_id).present?
   end
 
-  def schedule_or_stop(queue_service, account_id)
-    if queue_service.queue_size.positive?
+  # A pass that assigned nothing stops here: the queue is picked up again by the events that can
+  # free a slot (agent comes online, chat resolved or unassigned, new chat, limit change)
+  def schedule_or_stop(queue_service, account_id, assigned)
+    if assigned.zero?
+      Rails.logger.info '[QUEUE][JOB] Nothing assigned, waiting for an agent or a free slot'
+    elsif queue_service.queue_size.positive?
       Rails.logger.info '[QUEUE][JOB] Queue still has items, scheduling next run'
       ChatQueue::ProcessQueueJob.perform_later(account_id)
     else

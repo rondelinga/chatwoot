@@ -231,16 +231,6 @@ class Contact < ApplicationRecord
     self.custom_attributes = {} if custom_attributes.blank?
   end
 
-  def email_unique_per_inbox
-    return if email.blank?
-
-    conflict = contact_inboxes.any? do |contact_inbox|
-      email_conflict_in_inbox?(email: email, inbox_id: contact_inbox.inbox_id, except_contact_id: id)
-    end
-
-    errors.add(:email, I18n.t('errors.contacts.email.already_exists_in_inbox')) if conflict
-  end
-
   def sync_contact_attributes
     ::Contacts::SyncAttributes.new(self).perform
   end

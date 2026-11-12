@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_12_152610) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -54,10 +54,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.boolean "auto_offline", default: false, null: false
     t.bigint "custom_role_id"
     t.bigint "agent_capacity_policy_id"
-    t.boolean "accepts_conversations", default: true, null: false
-    t.boolean "accepts_calls", default: true, null: false
     t.integer "active_chat_limit"
     t.boolean "active_chat_limit_enabled", default: false, null: false
+    t.boolean "accepts_conversations", default: true, null: false
+    t.boolean "accepts_calls", default: true, null: false
     t.index ["account_id", "user_id"], name: "uniq_user_id_per_account_id", unique: true
     t.index ["account_id"], name: "index_account_users_on_account_id"
     t.index ["agent_capacity_policy_id"], name: "index_account_users_on_agent_capacity_policy_id"
@@ -506,6 +506,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.jsonb "headers", default: {}, null: false
     t.jsonb "source_metadata"
     t.jsonb "settings", default: {}, null: false
+    t.index ["account_id", "slug"], name: "index_captain_custom_tools_on_account_id_and_slug", unique: true
     t.index ["account_id"], name: "index_captain_custom_tools_on_account_id"
     t.index ["assistant_id", "slug"], name: "index_captain_custom_tools_on_assistant_id_and_slug", unique: true
   end
@@ -913,7 +914,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.string "error_code"
     t.datetime "matched_at"
     t.datetime "evaluated_at"
-    t.datetime "first_matched_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "first_matched_at"
@@ -953,8 +953,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.string "error_code"
     t.datetime "requested_at"
     t.datetime "activity_at"
-    t.bigint "live_activity_revision", default: 0, null: false
-    t.datetime "live_activity_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "live_activity_revision", default: 0, null: false
@@ -1078,6 +1076,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.boolean "resolved_by_contact", default: false
     t.datetime "status_changed_at"
     t.string "ai_assignee_type"
+    t.datetime "proxied_at"
+    t.string "automation_label_titles", default: [], null: false, array: true
+    t.index ["account_id", "assignee_id", "status", "updated_at"], name: "index_conversations_on_account_assignee_status_updated_at"
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
@@ -1092,6 +1093,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
     t.index ["identifier", "account_id"], name: "index_conversations_on_identifier_and_account_id"
     t.index ["inbox_id"], name: "index_conversations_on_inbox_id"
     t.index ["priority"], name: "index_conversations_on_priority"
+    t.index ["proxied_at"], name: "index_conversations_on_proxied_at"
     t.index ["resolved_at"], name: "index_conversations_on_resolved_at"
     t.index ["status", "account_id"], name: "index_conversations_on_status_and_account_id"
     t.index ["status", "priority"], name: "index_conversations_on_status_and_priority"
@@ -2016,7 +2018,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_03_142055) do
   add_foreign_key "queue_statistics", "accounts"
   add_foreign_key "routing_types", "accounts"
   add_foreign_key "shopify_custom_apps", "accounts"
-  add_foreign_key "user_sessions", "users"
   add_foreign_key "user_pinned_labels", "labels"
   add_foreign_key "user_pinned_labels", "users"
   add_foreign_key "user_sessions", "users"

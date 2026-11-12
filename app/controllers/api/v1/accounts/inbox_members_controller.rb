@@ -12,7 +12,7 @@ class Api::V1::Accounts::InboxMembersController < Api::V1::Accounts::BaseControl
 
     previous_member_ids = member_user_ids
     ActiveRecord::Base.transaction do
-      @inbox.update_teams(params[:team_ids]) if params[:team_ids].present?
+      InboxTeam.replace_for(@inbox, params[:team_ids]) if params[:team_ids].present?
     end
     fetch_updated_agents
     broadcast_agents_updated(previous_member_ids)
@@ -24,7 +24,7 @@ class Api::V1::Accounts::InboxMembersController < Api::V1::Accounts::BaseControl
 
     previous_member_ids = member_user_ids
     ActiveRecord::Base.transaction do
-      @inbox.update_teams(params[:team_ids]) if params[:team_ids].present?
+      InboxTeam.replace_for(@inbox, params[:team_ids]) if params[:team_ids].present?
     end
     fetch_updated_agents
     broadcast_agents_updated(previous_member_ids)

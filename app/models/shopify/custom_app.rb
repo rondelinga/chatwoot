@@ -1,4 +1,29 @@
 # Account-specific credentials are encrypted and never returned through account APIs.
+# == Schema Information
+#
+# Table name: shopify_custom_apps
+#
+#  id                      :bigint           not null, primary key
+#  client_secret           :text             not null
+#  enabled                 :boolean          default(TRUE), not null
+#  install_url             :text             not null
+#  installation_generation :integer          default(0), not null
+#  shop_domain             :string           not null
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :bigint           not null
+#  client_id               :string           not null
+#
+# Indexes
+#
+#  index_shopify_custom_apps_on_account_id   (account_id) UNIQUE
+#  index_shopify_custom_apps_on_client_id    (client_id) UNIQUE
+#  index_shopify_custom_apps_on_shop_domain  (shop_domain) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
+#
 class Shopify::CustomApp < ApplicationRecord
   self.table_name = 'shopify_custom_apps'
 

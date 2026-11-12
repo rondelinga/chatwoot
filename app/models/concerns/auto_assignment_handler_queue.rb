@@ -39,14 +39,11 @@ module AutoAssignmentHandlerQueue
   end
 
   def queue_empty_for?(conversation)
-    ChatQueue::Queue::FetchService.new(account: account)
-
-    scope = ConversationQueue.for_account(account.id).waiting.joins(:conversation)
-    if conversation.team_id.present?
-      scope.where(conversations: { team_id: conversation.team_id }).none?
-    else
-      scope.where(conversations: { inbox_id: conversation.inbox_id }).none?
-    end
+    ConversationQueue.lane_waiting(
+      account.id,
+      team_id: conversation.team_id,
+      inbox_id: conversation.inbox_id
+    ).none?
   end
 
   def handle_direct_or_queued_assignment(queue_service)

@@ -2,24 +2,25 @@
 #
 # Table name: campaign_recipients
 #
-#  id               :bigint           not null, primary key
-#  delivered_at     :datetime
-#  error_code       :string
-#  error_message    :text
-#  error_title      :string
-#  failed_at        :datetime
-#  message_content  :text
-#  read_at          :datetime
-#  sent_at          :datetime
-#  status           :integer          default("queued"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  account_id       :bigint           not null
-#  campaign_id      :bigint           not null
-#  contact_id       :bigint           not null
-#  contact_inbox_id :bigint
-#  inbox_id         :bigint           not null
-#  source_id        :string
+#  id                :bigint           not null, primary key
+#  delivered_at      :datetime
+#  error_code        :string
+#  error_message     :text
+#  error_title       :string
+#  failed_at         :datetime
+#  message_content   :text
+#  read_at           :datetime
+#  send_attempted_at :datetime
+#  sent_at           :datetime
+#  status            :integer          default("queued"), not null
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  account_id        :bigint           not null
+#  campaign_id       :bigint           not null
+#  contact_id        :bigint           not null
+#  contact_inbox_id  :bigint
+#  inbox_id          :bigint           not null
+#  source_id         :string
 #
 # Indexes
 #

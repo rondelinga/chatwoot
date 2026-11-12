@@ -20,14 +20,15 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
 
   private
 
+  # Only open chats: snoozed and pending ones stay with the agent until they are reopened
   def conversations_for(agent, account_id)
-    scope = Conversation.where(assignee_id: agent.id)
-                        .where.not(status: :resolved)
-    account_id.present? ? scope.where(account_id: account_id) : scope
+    Conversation.where(account_id: account_id, assignee_id: agent.id, status: :open)
   end
 
+  # With the queue on, every chat goes through the queue even when nobody is online,
+  # so it is assigned once an agent comes back instead of staying unassigned
   def reassign_or_unassign(conversations, account)
-    if online_agent_ids_for(account.id).empty?
+    if !account.queue_enabled? && online_agent_ids_for(account.id).empty?
       unassign_all(conversations, account)
     else
       conversations.find_each do |conversation|
@@ -44,22 +45,21 @@ class ReassignOfflineAgentChatsJob < ApplicationJob
   # rubocop:enable Rails/SkipsModelValidations
 
   def create_system_message(conversation)
-    system_user = AccountUser.where(account_id: conversation.account_id, role: :system).first
-    agent = User.find_by(id: conversation.assignee_id)
-    name = agent&.name || 'неизвестного оператора'
+    content = I18n.with_locale(conversation.account.locale) do
+      I18n.t('queue.notifications.agent_went_offline', agent_name: conversation.assignee&.name)
+    end
 
     conversation.messages.create!(
       message_type: :activity,
-      content: "Чат был снят с оператора #{name}, так как он перешёл в офлайн",
+      content: content,
       account: conversation.account,
-      inbox: conversation.inbox,
-      sender: system_user
+      inbox: conversation.inbox
     )
   end
 
   def reassign_conversation(conversation)
     allowed = online_agents_for(conversation)
-    return unassign(conversation, 'No online agents') if allowed.empty?
+    return unassign(conversation, 'No online agents') if allowed.empty? && !conversation.account.queue_enabled?
 
     create_system_message(conversation)
     previous_assignee_id = conversation.assignee_id

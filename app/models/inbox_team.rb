@@ -36,6 +36,23 @@ class InboxTeam < ApplicationRecord
   validate :team_belongs_to_same_account
   validate :single_default_per_inbox, if: :is_default?
 
+  def self.replace_for(inbox, team_ids)
+    normalized_team_ids = Array(team_ids).map(&:to_i).uniq
+    valid_team_ids = inbox.account.teams.where(id: normalized_team_ids).pluck(:id)
+    current_team_ids = inbox.inbox_teams.pluck(:team_id)
+
+    to_add = valid_team_ids - current_team_ids
+    to_remove = current_team_ids - valid_team_ids
+
+    ActiveRecord::Base.transaction do
+      to_add.each { |team_id| inbox.inbox_teams.create!(team_id: team_id) }
+      # delete_all skips the member-sync callback, so members are synced once below.
+      inbox.inbox_teams.where(team_id: to_remove).delete_all
+    end
+
+    Inboxes::MembersSyncService.new(inbox: inbox).perform
+  end
+
   after_commit :sync_inbox_members, on: [:create, :update, :destroy]
 
   private

@@ -1,5 +1,4 @@
 <script>
-/* eslint no-console: 0 */
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 
@@ -29,17 +28,26 @@ export default {
   data() {
     return {
       selectedTeamIds: [],
+      teamConfigs: {},
+      defaultTeamId: null,
       isCreating: false,
     };
   },
   computed: {
     ...mapGetters({
       teamList: 'teams/getTeams',
+      routingTypes: 'routingTypes/getRoutingTypes',
+      agentBots: 'agentBots/getBots',
     }),
     selectedTeamNames() {
       return this.selectedTeamIds.map(
         id => this.teamList.find(team => team.id === id)?.name ?? ''
       );
+    },
+    selectedTeams() {
+      return this.selectedTeamIds
+        .map(id => this.teamList.find(team => team.id === id))
+        .filter(Boolean);
     },
     teamMenuItems() {
       return this.teamList
@@ -52,26 +60,49 @@ export default {
     },
   },
   async mounted() {
-    await this.$store.dispatch('teams/get');
+    await Promise.all([
+      this.$store.dispatch('teams/get'),
+      this.$store.dispatch('routingTypes/get'),
+      this.$store.dispatch('agentBots/get'),
+    ]);
   },
   methods: {
-    handleTeamAdd({ value }) {
-      if (!this.selectedTeamIds.includes(value)) {
-        this.selectedTeamIds.push(value);
+    ensureTeamConfig(teamId) {
+      if (!this.teamConfigs[teamId]) {
+        this.teamConfigs[teamId] = { routing_type_id: '', agent_bot_id: '' };
       }
     },
+    handleTeamAdd({ value }) {
+      if (this.selectedTeamIds.includes(value)) return;
+
+      this.selectedTeamIds.push(value);
+      this.ensureTeamConfig(value);
+      if (!this.defaultTeamId) this.defaultTeamId = value;
+    },
     handleTeamRemove(index) {
-      this.selectedTeamIds.splice(index, 1);
+      const [removedId] = this.selectedTeamIds.splice(index, 1);
+      delete this.teamConfigs[removedId];
+      if (this.defaultTeamId === removedId) this.defaultTeamId = null;
     },
     async addTeams() {
+      this.v$.$touch();
+      if (this.v$.selectedTeamIds.$invalid) return;
+      if (!this.defaultTeamId) {
+        useAlert(this.$t('INBOX_MGMT.TEAMS.ROUTING.DEFAULT_TEAM_REQUIRED'));
+        return;
+      }
+
       this.isCreating = true;
       const inboxId = this.$route.params.inbox_id;
+      const teamConfigs = this.selectedTeamIds.map(teamId => ({
+        team_id: teamId,
+        is_default: teamId === this.defaultTeamId,
+        routing_type_id: this.teamConfigs[teamId]?.routing_type_id || null,
+        agent_bot_id: this.teamConfigs[teamId]?.agent_bot_id || null,
+      }));
 
       try {
-        await InboxTeamsAPI.update({
-          inboxId,
-          teamList: this.selectedTeamIds,
-        });
+        await InboxTeamsAPI.update({ inboxId, teamConfigs });
         router.replace({
           name: 'settings_inbox_finish',
           params: {
@@ -111,6 +142,7 @@ export default {
                 :menu-items="teamMenuItems"
                 show-dropdown
                 skip-label-dedup
+                :auto-open-dropdown="false"
                 @add="handleTeamAdd"
                 @remove="handleTeamRemove"
               />
@@ -120,6 +152,104 @@ export default {
             </span>
           </label>
         </div>
+
+        <div v-if="selectedTeams.length" class="w-full mb-4">
+          <table class="w-full border-collapse table-fixed">
+            <colgroup>
+              <col class="w-[26%]" />
+              <col class="w-[30%]" />
+              <col class="w-[30%]" />
+              <col class="w-[14%]" />
+            </colgroup>
+            <thead>
+              <tr class="border-b border-n-weak">
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.TEAM') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.ROUTING_TYPE') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-left text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.BOT') }}
+                </th>
+                <th
+                  class="px-3 pb-3 text-center text-xs font-medium text-n-slate-11"
+                >
+                  {{ $t('INBOX_MGMT.TEAMS.ROUTING.DEFAULT') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="team in selectedTeams" :key="team.id">
+                <td class="px-3 pt-4 text-sm text-n-slate-12 truncate">
+                  {{ team.name }}
+                </td>
+                <td class="px-3 pt-4">
+                  <div
+                    v-if="teamConfigs[team.id]"
+                    class="rounded-lg outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong"
+                  >
+                    <select
+                      v-model="teamConfigs[team.id].routing_type_id"
+                      class="reset-base !mb-0 !border-0 !outline-none !bg-transparent !shadow-none !py-2.5 !px-3 !h-auto !leading-normal text-sm text-n-slate-12"
+                    >
+                      <option value="">
+                        {{ $t('INBOX_MGMT.TEAMS.ROUTING.NO_ROUTING_TYPE') }}
+                      </option>
+                      <option
+                        v-for="routingType in routingTypes"
+                        :key="routingType.id"
+                        :value="routingType.id"
+                      >
+                        {{ routingType.name }}
+                      </option>
+                    </select>
+                  </div>
+                </td>
+                <td class="px-3 pt-4">
+                  <div
+                    v-if="teamConfigs[team.id]"
+                    class="rounded-lg outline outline-1 -outline-offset-1 outline-n-weak hover:outline-n-strong"
+                  >
+                    <select
+                      v-model="teamConfigs[team.id].agent_bot_id"
+                      class="reset-base !mb-0 !border-0 !outline-none !bg-transparent !shadow-none !py-2.5 !px-3 !h-auto !leading-normal text-sm text-n-slate-12"
+                    >
+                      <option value="">
+                        {{ $t('INBOX_MGMT.TEAMS.ROUTING.NO_BOT') }}
+                      </option>
+                      <option
+                        v-for="bot in agentBots"
+                        :key="bot.id"
+                        :value="bot.id"
+                      >
+                        {{ bot.name }}
+                      </option>
+                    </select>
+                  </div>
+                </td>
+                <td class="px-3 pt-4">
+                  <div class="flex justify-center">
+                    <input
+                      v-model="defaultTeamId"
+                      type="radio"
+                      name="defaultTeam"
+                      :value="team.id"
+                      class="w-4 h-4 cursor-pointer accent-n-teal-9"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div class="w-full">
           <NextButton
             type="submit"

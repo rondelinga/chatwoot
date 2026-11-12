@@ -210,7 +210,10 @@ export default {
             after: messageId,
           })
           .then(() => {
-            emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE, { messageId });
+            emitter.emit(
+              BUS_EVENTS.SCROLL_TO_MESSAGE,
+              messageId ? { messageId } : { force: true }
+            );
           });
       } else {
         this.$store.dispatch('clearSelectedState');

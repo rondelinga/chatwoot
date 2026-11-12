@@ -20,6 +20,17 @@ describe('ContactInfoRow', () => {
     expect(wrapper.text()).toContain(markup);
   });
 
+  it('applies a value class without treating the value as markup', () => {
+    const wrapper = mountComponent({
+      value: 'Не авторизован',
+      valueClass: 'text-n-ruby-11',
+    });
+
+    const value = wrapper.find('span[title="Не авторизован"]');
+    expect(value.classes()).toContain('text-n-ruby-11');
+    expect(value.text()).toBe('Не авторизован');
+  });
+
   it('renders slot content next to the value', () => {
     const wrapper = mountComponent(
       { value: 'Northtown, Northland' },
