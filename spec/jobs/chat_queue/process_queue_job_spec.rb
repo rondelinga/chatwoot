@@ -21,7 +21,8 @@ RSpec.describe ChatQueue::ProcessQueueJob, type: :job do
   end
 
   def enqueue(team, queued_at:)
-    conversation = create(:conversation, account: account, inbox: inbox, team: team, assignee: agent_b)
+    # Team is set with the queued status: creating it with a team would let the queue enqueue it on its own
+    conversation = create(:conversation, account: account, inbox: inbox, assignee: agent_b)
     conversation.update_columns( # rubocop:disable Rails/SkipsModelValidations
       assignee_id: nil,
       status: Conversation.statuses[:queued],
