@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -33,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # One proposed change and the records it targets. It waits on an approval card and writes nothing until the agent
 # approves it. ActionJob then applies it in batches.
 class CopilotRun::Action < CopilotRun
