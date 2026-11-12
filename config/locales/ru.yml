@@ -70,6 +70,7 @@ ru:
     notifications:
       queue_message: 'Все операторы сейчас заняты. Мы подключим вас к свободному оператору, как только он освободится.'
       assigned_message: 'Оператор подключился к диалогу.'
+      agent_went_offline: 'Чат был снят с оператора %{agent_name}, так как он перешёл в офлайн'
   errors:
     notification_subscription:
       voip_attributes_required: A VoIP push subscription needs a device_id and a push_token

@@ -82,10 +82,10 @@ class ConversationQueue < ApplicationRecord
     self.position = next_position
   end
 
+  # A conversation that comes back to the queue waits behind everyone already waiting in its lane
   def reset_position_on_requeue
     return if new_record?
     return unless status_changed? && waiting?
-    return if position.present? && position.positive?
 
     self.position = next_position
   end
