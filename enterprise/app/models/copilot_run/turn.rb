@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -33,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # Answers one message from the agent. A turn parks while a review started by one of its tool calls runs, and it carries
 # the cost of everything it started.
 class CopilotRun::Turn < CopilotRun

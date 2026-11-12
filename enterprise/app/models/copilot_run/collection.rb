@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -33,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # The records get_data selected, saved so later tool calls can page through, narrow or review them. A collection is
 # saved finished, and no job runs it.
 class CopilotRun::Collection < CopilotRun
