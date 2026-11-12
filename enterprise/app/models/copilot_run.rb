@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -33,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # What every Copilot run shares: the lease a job holds while it works, the credit check and the cost. Each kind of run is
 # a subclass stored in this table, and the type column names it: CopilotRun::Turn, CopilotRun::Collection,
 # CopilotRun::Review or CopilotRun::Action.

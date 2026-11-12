@@ -1,3 +1,5 @@
+# rubocop:disable Layout/LineLength
+
 # == Schema Information
 #
 # Table name: copilot_runs
@@ -33,6 +35,9 @@
 #  index_copilot_runs_on_source_run_id         (source_run_id)
 #  index_copilot_runs_on_user_id               (user_id)
 #
+
+# rubocop:enable Layout/LineLength
+
 # Reads the conversations of a collection in batches and saves a finding for each. A turn reviews at most
 # CONVERSATIONS_PER_TURN of them, and the agent asks to continue for the rest.
 class CopilotRun::Review < CopilotRun
