@@ -10,6 +10,8 @@ gem 'sprockets-rails', '~> 3.5'
 
 # Reduces boot times through caching; required in config/boot.rb
 gem 'bootsnap', require: false
+# Transitive via bootsnap. Floor stays on the JRuby unpacker fix (CVE-2026-126366).
+gem 'msgpack', '>= 1.8.7'
 
 ##-- rails application helper gems --##
 gem 'acts-as-taggable-on'
@@ -81,7 +83,7 @@ gem 'faraday_middleware-aws-sigv4'
 ##--- gems for server & infra configuration ---##
 gem 'dotenv-rails', '>= 3.0.0'
 gem 'foreman'
-gem 'puma', '~> 7.2', '>= 7.2.1'
+gem 'puma', '~> 7.2', '>= 7.2.2'
 gem 'vite_rails'
 # metrics on heroku
 gem 'barnes'
@@ -190,7 +192,7 @@ gem 'omniauth-oauth2'
 gem 'audited', '~> 5.8'
 
 # need for google auth
-gem 'omniauth', '>= 2.1.2'
+gem 'omniauth', '>= 2.2.0'
 gem 'omniauth-saml'
 gem 'omniauth-google-oauth2', '>= 1.1.3'
 gem 'omniauth-rails_csrf_protection', '~> 1.0', '>= 1.0.2'
