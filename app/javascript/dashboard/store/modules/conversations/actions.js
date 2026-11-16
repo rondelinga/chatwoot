@@ -345,7 +345,7 @@ const actions = {
         // Ignore error
       }
     } else {
-      dispatch('reloadConversationMessages', { conversationId: data.id });
+      await dispatch('reloadConversationMessages', { conversationId: data.id });
     }
   },
 

@@ -1041,7 +1041,7 @@ describe('#addMentions', () => {
 
     it('reloads messages instead of fetching previous messages if dataFetched is already set', async () => {
       const localCommit = vi.fn();
-      const localDispatch = vi.fn();
+      const localDispatch = vi.fn().mockResolvedValue();
       const data = { id: 42, messages: [{ id: 100 }], dataFetched: true };
 
       await actions.setActiveChat(

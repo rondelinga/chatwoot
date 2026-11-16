@@ -9,6 +9,7 @@ import {
   getCurrentInstance,
 } from 'vue';
 import {
+  unrefElement,
   useElementSize,
   useEventListener,
   useResizeObserver,
@@ -41,12 +42,7 @@ import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 // utils
 import { emitter } from 'shared/helpers/mitt';
 import { getTypingUsersText } from '../../../helper/commons';
-import {
-  captureTimelineAnchor,
-  getTimelineEntries,
-  getUnreadScrollTop,
-} from './helpers/campaignScrollAnchor';
-import { calculateScrollTop } from './helpers/scrollTopCalculationHelper';
+import { captureTimelineAnchor } from './helpers/campaignScrollAnchor';
 import {
   filterDuplicateSourceMessages,
   getReadMessages,
@@ -150,15 +146,30 @@ export default {
     // slide under the composer. A growing one is clamped by the browser.
     const { proxy } = getCurrentInstance();
     let listHeight = 0;
+    const pinPanelToBottom = target => {
+      proxy.isProgrammaticScroll = true;
+      target.scrollTop = target.scrollHeight;
+    };
     useResizeObserver(conversationPanelRef, ([{ target }]) => {
       const shrink = listHeight - target.clientHeight;
       listHeight = target.clientHeight;
       const { scrollTop, scrollHeight, clientHeight } = target;
       const wasAtEnd = scrollHeight - scrollTop - clientHeight <= shrink + 1;
       if (shrink <= 0 || !wasAtEnd) return;
-      proxy.isProgrammaticScroll = true;
-      target.scrollTop = scrollHeight - clientHeight;
+      pinPanelToBottom(target);
     });
+    useEventListener(
+      conversationPanelRef,
+      'load',
+      event => {
+        if (event.target?.tagName !== 'IMG') return;
+        if (!proxy.shouldAutoScroll) return;
+        const panel = unrefElement(conversationPanelRef);
+        if (!panel) return;
+        pinPanelToBottom(panel);
+      },
+      { capture: true }
+    );
     // ReplyBox attaches pasted files from anywhere on the page, folded or not.
     useEventListener(document, 'paste', e => {
       if (e.clipboardData?.files.length) revealReplyBox();
@@ -473,27 +484,16 @@ export default {
       this.conversationPanel.removeEventListener('scroll', this.handleScroll);
     },
     scrollToBottom() {
+      if (!this.conversationPanel) return;
+
       this.isProgrammaticScroll = true;
       this.shouldAutoScroll = true;
-
-      // if there are unread messages, scroll to the first unread message
-      if (this.unreadMessageCount > 0) {
-        const scrollTop = getUnreadScrollTop(
-          this.conversationPanel,
-          this.unReadMessages[0]?.id
-        );
-        if (scrollTop !== undefined) {
-          this.conversationPanel.scrollTop = scrollTop;
-          return;
-        }
-      }
-
-      // otherwise scroll to the last message in the timeline
-      this.conversationPanel.scrollTop = calculateScrollTop(
-        this.conversationPanel.scrollHeight,
-        this.$el.scrollHeight,
-        getTimelineEntries(this.conversationPanel).slice(-1)
-      );
+      this.conversationPanel.scrollTop = this.conversationPanel.scrollHeight;
+      this.$nextTick(() => {
+        if (!this.shouldAutoScroll || !this.conversationPanel) return;
+        this.isProgrammaticScroll = true;
+        this.conversationPanel.scrollTop = this.conversationPanel.scrollHeight;
+      });
     },
     setScrollParams() {
       this.heightBeforeLoad = this.conversationPanel.scrollHeight;
