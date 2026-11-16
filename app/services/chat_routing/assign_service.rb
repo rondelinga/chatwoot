@@ -46,8 +46,11 @@ class ChatRouting::AssignService
     conversation.team_id = result.team_id if result.team_id.present?
     return if result.bot_id.blank?
 
+    bot = AgentBot.find_by(id: result.bot_id)
+    return if bot.blank?
+
     conversation.assignee_id = nil
-    conversation.assignee_agent_bot_id = result.bot_id
+    conversation.ai_assignee = bot
   end
 
   def create_team_activity_message(result)

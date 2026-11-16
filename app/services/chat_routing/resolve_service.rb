@@ -13,7 +13,7 @@ class ChatRouting::ResolveService
     matched_by_default = matched_team.blank?
     routing_name = matched_by_default ? nil : routing_type&.name
 
-    Result.new(inbox_team.team_id, inbox_team.agent_bot_id, routing_name, matched_by_default)
+    Result.new(inbox_team.team_id, resolve_bot_id(inbox_team), routing_name, matched_by_default)
   end
 
   private
@@ -26,6 +26,16 @@ class ChatRouting::ResolveService
 
   def default_inbox_team
     InboxTeam.find_by(inbox_id: inbox_id, is_default: true)
+  end
+
+  def resolve_bot_id(inbox_team)
+    return inbox_team.agent_bot_id if inbox_team.agent_bot_id.present?
+
+    inbox_configuration_bot_id
+  end
+
+  def inbox_configuration_bot_id
+    AgentBotInbox.active.where(inbox_id: inbox_id).pick(:agent_bot_id)
   end
 
   def find_routing_type
