@@ -321,10 +321,13 @@ RSpec.describe Message do
     let(:conversation) { create(:conversation) }
     let(:message) { build(:message, message_type: :incoming, conversation: conversation) }
 
-    it 'reopens resolved conversation when the message is from a contact' do
-      conversation.update!(status: :resolved, ai_assignee: create(:agent_bot, account: conversation.account))
+    it 'keeps a resolved bot conversation pending when the message is from a contact' do
+      agent_bot = create(:agent_bot, account: conversation.account)
+      conversation.update!(status: :resolved, ai_assignee: agent_bot)
       message.save!
-      expect(conversation.reload).to have_attributes(status: 'open', ai_assignee_type: nil, assignee_agent_bot_id: nil)
+      expect(conversation.reload).to have_attributes(
+        status: 'pending', ai_assignee_type: 'AgentBot', assignee_agent_bot_id: agent_bot.id
+      )
     end
 
     it 'reopens snoozed conversation when the message is from a contact' do
