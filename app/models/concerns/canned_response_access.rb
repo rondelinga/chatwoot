@@ -39,7 +39,7 @@ module CannedResponseAccess
   }
 
   included do
-    enum visibility: { public_response: 0, private_response: 1 }
+    enum :visibility, { public_response: 0, private_response: 1 }
 
     belongs_to :created_by, class_name: 'User', optional: true
     has_many :canned_response_scopes, dependent: :destroy
