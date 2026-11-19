@@ -23,11 +23,15 @@ export default {
       type: Number,
       default: null,
     },
+    initialFeedback: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['sendFeedback'],
   data() {
     return {
-      feedback: '',
+      feedback: this.initialFeedback,
     };
   },
   computed: {

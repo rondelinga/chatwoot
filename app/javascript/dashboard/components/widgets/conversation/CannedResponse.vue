@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { picoSearch } from '@chatwoot/pico-search';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -8,6 +8,7 @@ import {
   stripUnsupportedFormatting,
 } from 'dashboard/helper/editorHelper';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+import { escapeHtml } from 'shared/helpers/HTMLSanitizer';
 import CaretAnchoredPicker from 'dashboard/components-next/preview-picker/CaretAnchoredPicker.vue';
 
 const props = defineProps({
@@ -40,6 +41,7 @@ const { t } = useI18n();
 const { getPlainText, formatMessage, highlightContent } = useMessageFormatter();
 
 const cannedResponses = useMapGetter('getCannedResponses');
+const currentChat = useMapGetter('getSelectedChat');
 const uiFlags = useMapGetter('getUIFlags');
 // The trigger can already be followed by text, from a draft or a caret moved back onto it
 const searchQuery = ref(props.searchKey);
@@ -51,7 +53,7 @@ const searchTerm = computed(() => searchQuery.value.trim());
 const highlightMatches = text =>
   searchTerm.value
     ? highlightContent(text, searchTerm.value, HIGHLIGHT_CLASS)
-    : text;
+    : escapeHtml(text);
 
 const buildSnippet = text => {
   const term = searchTerm.value;
@@ -107,7 +109,13 @@ const items = computed(() =>
 
 const onSelect = item => emit('replace', item.content);
 
-onMounted(() => store.dispatch('getCannedResponse'));
+watch(
+  () => currentChat.value?.inbox_id,
+  inboxId => {
+    store.dispatch('getCannedResponse', { inboxId });
+  },
+  { immediate: true }
+);
 </script>
 
 <template>

@@ -3,8 +3,12 @@
 # Everywhere else we use conversation builder in partials folder
 
 json.meta do
-  json.sender do
-    json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
+  if conversation.contact
+    json.sender do
+      json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
+    end
+  else
+    json.sender({})
   end
   json.channel conversation.inbox.try(:channel_type)
   if conversation.assigned_entity.is_a?(AgentBot)
@@ -12,7 +16,7 @@ json.meta do
       json.partial! 'api/v1/models/agent_bot_slim', formats: [:json], resource: conversation.assigned_entity
     end
     json.assignee_type 'AgentBot'
-  elsif conversation.assignee_type == 'User'
+  elsif conversation.assigned_entity.is_a?(User)
     json.assignee do
       json.partial! 'api/v1/models/agent', formats: [:json], resource: conversation.assigned_entity
     end
@@ -28,18 +32,27 @@ json.meta do
 end
 
 json.id conversation.display_id
-# The dashboard seeds the message thread from this array and then paginates BACKWARD
-# by id (before: messages[0].id). Keep the seed as the chronologically latest message,
-# but add an id tiebreaker: without it, same-second siblings (e.g. the input_csat survey
-# created alongside activity messages during an auto-resolve burst) could resolve to a
-# lower-id activity, and backward pagination would then never load the higher-id survey.
-last_message = conversation.messages.where(account_id: conversation.account_id)
-                           .includes([{ attachments: [{ file_attachment: [:blob] }] }])
-                           .reorder(created_at: :desc, id: :desc).first
-if last_message.blank?
-  json.messages []
+if params[:include_messages] == 'true'
+  messages = conversation.messages.where(account_id: conversation.account_id)
+                         .includes(attachments: { file_attachment: :blob }, sender: { avatar_attachment: [:blob] })
+                         .reorder(created_at: :asc, id: :asc)
+  json.messages do
+    json.array! messages do |message|
+      json.partial!('api/v1/models/message', formats: [:json], message: message)
+    end
+  end
 else
-  json.messages [last_message.try(:push_event_data)]
+  last_message = conversation.messages.where(account_id: conversation.account_id)
+                             .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+                             .reorder(created_at: :desc, id: :desc).first
+  json.messages(last_message.blank? ? [] : [last_message.push_event_data])
+end
+
+json.csat_response do
+  if conversation.csat_survey_response.present?
+    json.rating conversation.csat_survey_response.rating
+    json.status conversation.csat_response_status
+  end
 end
 
 json.account_id conversation.account_id
@@ -48,6 +61,7 @@ json.additional_attributes conversation.additional_attributes
 json.agent_last_seen_at conversation.agent_last_seen_at.to_i
 json.assignee_last_seen_at conversation.assignee_last_seen_at.to_i
 json.can_reply conversation.can_reply?
+json.anonymous_caller conversation.contact_inbox.anonymous_caller?
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
 json.inbox_id conversation.inbox_id
@@ -55,12 +69,15 @@ json.labels conversation.cached_label_list_array
 json.muted conversation.muted?
 json.snoozed_until conversation.snoozed_until
 json.status conversation.status
+json.resolved_by_contact conversation.resolved_by_contact
 json.created_at conversation.created_at.to_i
 json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
 json.unread_count conversation.unread_incoming_messages.count
-json.last_non_activity_message conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first.try(:push_event_data)
+json.last_non_activity_message conversation.messages.where(account_id: conversation.account_id)
+                                           .non_activity_messages.where(private: false).first
+                                           .try(:push_event_data)
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i

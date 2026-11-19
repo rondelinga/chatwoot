@@ -2,21 +2,25 @@
 #
 # Table name: accounts
 #
-#  id                    :integer          not null, primary key
-#  auto_resolve_duration :integer
-#  custom_attributes     :jsonb
-#  domain                :string(100)
-#  feature_flags         :bigint           default(0), not null
-#  feature_flags_ext_1   :bigint           default(0), not null
-#  internal_attributes   :jsonb            not null
-#  limits                :jsonb
-#  locale                :integer          default("en")
-#  name                  :string           not null
-#  settings              :jsonb
-#  status                :integer          default("active")
-#  support_email         :string(100)
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
+#  id                        :integer          not null, primary key
+#  active_chat_limit_enabled :boolean          default(FALSE), not null
+#  active_chat_limit_value   :integer          default(7)
+#  auto_resolve_duration     :integer
+#  custom_attributes         :jsonb
+#  domain                    :string(100)
+#  feature_flags             :bigint           default(0), not null
+#  feature_flags_ext_1       :bigint           default(0), not null
+#  internal_attributes       :jsonb            not null
+#  limits                    :jsonb
+#  locale                    :integer          default("en")
+#  name                      :string           not null
+#  queue_enabled             :boolean          default(FALSE), not null
+#  queue_message             :text
+#  settings                  :jsonb
+#  status                    :integer          default("active")
+#  support_email             :string(100)
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
 #
 # Indexes
 #
@@ -32,6 +36,10 @@ class Account < ApplicationRecord
   include CaptainFeaturable
   include AccountEmailRateLimitable
   include AccountSettingsSchema
+  include AccountSettingsAccessors
+  include AccountAssociations
+  include AccountChannelAssociations
+  include AccountWorkspaceAssociations
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
@@ -42,6 +50,7 @@ class Account < ApplicationRecord
   attr_accessor :suspension_category, :suspension_reason
 
   validates :name, presence: true
+  validates :active_chat_limit_value, numericality: { greater_than_or_equal_to: 0, allow_nil: true }
   # `domain` is the inbound email domain used to construct reply addresses
   # (see `inbound_email_domain`). Do not repurpose it for a website or any
   # non-mail-related domain.
@@ -49,76 +58,25 @@ class Account < ApplicationRecord
   validates_with JsonSchemaValidator,
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
+  validates :auto_resolve_after, numericality: { greater_than_or_equal_to: ->(_account) { Limits.auto_resolve_min_minutes } },
+                                 allow_nil: true, if: :auto_resolve_after_changed?
   validate :validate_reporting_timezone
   validate :validate_support_email_format, if: :will_save_change_to_support_email?
 
-  store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
+  before_validation :validate_limit_keys
+  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
+  after_destroy :remove_account_sequences
+  after_commit :process_queue_when_limit_changed, if: :active_chat_limit_settings_changed?
 
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
-  store_accessor :settings, :captain_models, :captain_features
-  store_accessor :settings, :reporting_timezone
-  store_accessor :settings, :keep_pending_on_bot_failure
-  store_accessor :settings, :captain_auto_resolve_mode
-  store_accessor :settings, :enforce_mfa
   include AccountCaptainAutoResolve
-
-  has_many :account_users, dependent: :destroy_async
-  has_many :agent_bot_inboxes, dependent: :destroy_async
-  has_many :agent_bots, dependent: :destroy_async
-  has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
-  has_many :articles, dependent: :destroy_async, class_name: '::Article'
-  has_many :assignment_policies, dependent: :destroy_async
-  has_many :automation_rules, dependent: :destroy_async
-  has_many :automation_rule_pending_executions, dependent: :delete_all
-  has_many :macros, dependent: :destroy_async
-  has_many :campaigns, dependent: :destroy_async
-  has_many :canned_responses, dependent: :destroy_async
-  has_many :categories, dependent: :destroy_async, class_name: '::Category'
-  has_many :contacts, dependent: :destroy_async
-  has_many :companies, dependent: :destroy_async
-  has_many :conversations, dependent: :destroy_async
-  has_many :csat_survey_responses, dependent: :destroy_async
-  has_many :custom_attribute_definitions, dependent: :destroy_async
-  has_many :custom_filters, dependent: :destroy_async
-  has_many :dashboard_apps, dependent: :destroy_async
-  has_many :data_imports, dependent: :destroy_async
-  has_many :email_channels, dependent: :destroy_async, class_name: '::Channel::Email'
-  has_many :facebook_pages, dependent: :destroy_async, class_name: '::Channel::FacebookPage'
-  has_many :instagram_channels, dependent: :destroy_async, class_name: '::Channel::Instagram'
-  has_many :tiktok_channels, dependent: :destroy_async, class_name: '::Channel::Tiktok'
-  has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
-  has_many :inboxes, dependent: :destroy_async
-  has_many :labels, dependent: :destroy_async
-  has_many :line_channels, dependent: :destroy_async, class_name: '::Channel::Line'
-  has_many :mentions, dependent: :destroy_async
-  has_many :messages, dependent: :destroy_async
-  has_many :notes, dependent: :destroy_async
-  has_many :notification_settings, dependent: :destroy_async
-  has_many :notifications, dependent: :destroy_async
-  has_many :portals, dependent: :destroy_async, class_name: '::Portal'
-  has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
-  has_many :teams, dependent: :destroy_async
-  has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
-  has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
-  has_many :twitter_profiles, dependent: :destroy_async, class_name: '::Channel::TwitterProfile'
-  has_many :users, through: :account_users
-  has_many :web_widgets, dependent: :destroy_async, class_name: '::Channel::WebWidget'
-  has_many :webhooks, dependent: :destroy_async
-  has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
-  has_many :working_hours, dependent: :destroy_async
-
-  has_one_attached :contacts_export
-
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
   enum :status, { active: 0, suspended: 1 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :with_auto_resolve_pending, -> { where("(settings ->> 'auto_resolve_pending_after')::int IS NOT NULL") }
 
-  before_validation :validate_limit_keys
   after_create_commit :notify_creation
   after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
-  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
-  after_destroy :remove_account_sequences
 
   def agents
     users.where(account_users: { role: :agent })
@@ -149,15 +107,6 @@ class Account < ApplicationRecord
     internal_attributes['suspensions'] || []
   end
 
-  def inbound_email_domain
-    domain.presence || GlobalConfig.get('MAILER_INBOUND_EMAIL_DOMAIN')['MAILER_INBOUND_EMAIL_DOMAIN'] || ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN',
-                                                                                                                   false)
-  end
-
-  def support_email
-    super.presence || ENV.fetch('MAILER_SENDER_EMAIL') { GlobalConfig.get('MAILER_SUPPORT_EMAIL')['MAILER_SUPPORT_EMAIL'] }
-  end
-
   def usage_limits
     {
       agents: ChatwootApp.max_limit.to_i,
@@ -169,16 +118,26 @@ class Account < ApplicationRecord
     true
   end
 
-  def enforce_mfa?
-    Chatwoot.mfa_enabled? && enforce_mfa == true
-  end
-
   def locale_english_name
     # the locale can also be something like pt_BR, en_US, fr_FR, etc.
     # the format is `<locale_code>_<country_code>`
     # we need to extract the language code from the locale
     account_locale = locale&.split('_')&.first
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
+  end
+
+  def active_chat_limit
+    active_chat_limit_value
+  end
+
+  def active_chat_limit_settings_changed?
+    saved_change_to_active_chat_limit_enabled? || saved_change_to_active_chat_limit_value?
+  end
+
+  def process_queue_when_limit_changed
+    return unless queue_enabled?
+
+    ChatQueue::ProcessQueueJob.perform_later(id)
   end
 
   def onboarding_step
@@ -218,22 +177,6 @@ class Account < ApplicationRecord
 
   def validate_limit_keys
     # method overridden in enterprise module
-  end
-
-  def validate_reporting_timezone
-    return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
-
-    errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
-  end
-
-  def validate_support_email_format
-    value = attributes['support_email']
-    return if value.blank?
-
-    parsed = Mail::Address.new(value).address
-    errors.add(:support_email, I18n.t('errors.account.support_email.invalid')) if parsed.blank?
-  rescue Mail::Field::ParseError, Mail::Field::IncompleteParseError
-    errors.add(:support_email, I18n.t('errors.account.support_email.invalid'))
   end
 
   def remove_account_sequences

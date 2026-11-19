@@ -15,6 +15,7 @@ RSpec.describe Conversations::EventDataPresenter do
           assignee: conversation.assigned_entity&.push_event_data,
           assignee_type: conversation.assignee_type,
           team: conversation.team&.push_event_data,
+          team_id: conversation.team_id,
           hmac_verified: conversation.contact_inbox.hmac_verified
         },
         id: conversation.display_id,
@@ -42,6 +43,17 @@ RSpec.describe Conversations::EventDataPresenter do
     it 'returns push event payload' do
       # the exceptions are the values that would be added in enterprise edition.
       expect(presenter.push_data.except(:applied_sla, :sla_events)).to include(expected_data)
+    end
+  end
+
+  describe '#widget_data' do
+    it 'returns only the conversation id and state' do
+      expect(presenter.widget_data).to eq(
+        id: conversation.display_id,
+        inbox_id: conversation.inbox_id,
+        contact_last_seen_at: conversation.contact_last_seen_at.to_i,
+        status: conversation.status
+      )
     end
   end
 

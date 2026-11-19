@@ -44,7 +44,26 @@ class ContactMergeAction
   end
 
   def merge_contact_inboxes
-    ContactInbox.where(contact_id: @mergee_contact.id).update(contact_id: @base_contact.id)
+    @mergee_contact.contact_inboxes.find_each { |contact_inbox| migrate_contact_inbox(contact_inbox) }
+  end
+
+  def migrate_contact_inbox(contact_inbox)
+    contact_inbox.contact_id = @base_contact.id
+    return if contact_inbox.save
+
+    target_contact_inbox = @base_contact.contact_inboxes.find_by(inbox_id: contact_inbox.inbox_id)
+    if target_contact_inbox
+      rehome_conversations_on_conflict(contact_inbox, target_contact_inbox)
+      contact_inbox.destroy!
+    else
+      # Per-inbox email validation can fail while mergee still exists; the mergee is removed below.
+      contact_inbox.update_columns(contact_id: @base_contact.id, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  def rehome_conversations_on_conflict(contact_inbox, target_contact_inbox)
+    Conversation.where(contact_inbox_id: contact_inbox.id)
+                .update_all(contact_id: @base_contact.id, contact_inbox_id: target_contact_inbox.id) # rubocop:disable Rails/SkipsModelValidations
   end
 
   def merge_calls
@@ -61,8 +80,7 @@ class ContactMergeAction
     merged_attributes['contact_type'] = higher_contact_type
 
     @mergee_contact.reload.destroy!
-    Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact,
-                                                                           tokens: [@base_contact.contact_inboxes.filter_map(&:pubsub_token)])
+    Rails.configuration.dispatcher.dispatch(CONTACT_MERGED, Time.zone.now, contact: @base_contact)
     @base_contact.update!(merged_attributes)
   end
 

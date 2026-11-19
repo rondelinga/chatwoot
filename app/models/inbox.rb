@@ -4,39 +4,45 @@
 #
 # Table name: inboxes
 #
-#  id                            :integer          not null, primary key
-#  allow_messages_after_resolved :boolean          default(TRUE)
-#  auto_assignment_config        :jsonb
-#  business_name                 :string
-#  channel_type                  :string
-#  csat_config                   :jsonb            not null
-#  csat_survey_enabled           :boolean          default(FALSE)
-#  email_address                 :string
-#  enable_auto_assignment        :boolean          default(TRUE)
-#  enable_email_collect          :boolean          default(TRUE)
-#  greeting_enabled              :boolean          default(FALSE)
-#  greeting_message              :string
-#  lock_to_single_conversation   :boolean          default(FALSE), not null
-#  name                          :string           not null
-#  out_of_office_message         :string
-#  sender_name_type              :integer          default("friendly"), not null
-#  timezone                      :string           default("UTC")
-#  working_hours_enabled         :boolean          default(FALSE)
-#  created_at                    :datetime         not null
-#  updated_at                    :datetime         not null
-#  account_id                    :integer          not null
-#  channel_id                    :integer          not null
-#  portal_id                     :bigint
+#  id                              :integer          not null, primary key
+#  allow_messages_after_resolved   :boolean          default(TRUE)
+#  auto_assignment_config          :jsonb
+#  business_name                   :string
+#  channel_type                    :string
+#  csat_config                     :jsonb            not null
+#  csat_survey_enabled             :boolean          default(FALSE)
+#  email_address                   :string
+#  enable_auto_assignment          :boolean          default(TRUE)
+#  enable_email_collect            :boolean          default(TRUE)
+#  greeting_enabled                :boolean          default(FALSE)
+#  greeting_message                :string
+#  lock_to_single_conversation     :boolean          default(FALSE), not null
+#  name                            :string           not null
+#  out_of_office_message           :string
+#  public_name                     :string
+#  queue_notification_enabled      :boolean          default(TRUE), not null
+#  resolution_notification_enabled :boolean          default(TRUE), not null
+#  sender_name_type                :integer          default("friendly"), not null
+#  timezone                        :string           default("UTC")
+#  working_hours_enabled           :boolean          default(FALSE)
+#  created_at                      :datetime         not null
+#  updated_at                      :datetime         not null
+#  account_id                      :integer          not null
+#  channel_id                      :integer          not null
+#  portal_id                       :bigint
+#  priority_group_id               :bigint
 #
 # Indexes
 #
 #  index_inboxes_on_account_id                   (account_id)
 #  index_inboxes_on_channel_id_and_channel_type  (channel_id,channel_type)
 #  index_inboxes_on_portal_id                    (portal_id)
+#  index_inboxes_on_priority_group_id            (priority_group_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (portal_id => portals.id)
+#  fk_rails_...  (priority_group_id => priority_groups.id)
 #
 
 class Inbox < ApplicationRecord
@@ -47,6 +53,8 @@ class Inbox < ApplicationRecord
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
   include InboxBotStatus
+  include InboxChannelTypes
+  include InboxNameSanitizer
 
   # Not allowing characters:
   validates :name, presence: true
@@ -54,6 +62,7 @@ class Inbox < ApplicationRecord
   validates :timezone, inclusion: { in: TZInfo::Timezone.all_identifiers }
   validates :out_of_office_message, length: { maximum: Limits::OUT_OF_OFFICE_MESSAGE_MAX_LENGTH }
   validates :greeting_message, length: { maximum: Limits::GREETING_MESSAGE_MAX_LENGTH }
+  validates :public_name, length: { maximum: 255 }, allow_blank: true
   validate :ensure_valid_max_assignment_limit
 
   belongs_to :account
@@ -64,9 +73,12 @@ class Inbox < ApplicationRecord
   has_many :campaigns, dependent: :destroy_async
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :contacts, through: :contact_inboxes
+  has_many :conversation_queues, dependent: :destroy
 
   has_many :inbox_members, dependent: :destroy_async
   has_many :members, through: :inbox_members, source: :user
+  has_many :inbox_teams, dependent: :destroy
+  has_many :teams, through: :inbox_teams
   has_many :conversations, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async
   has_many :email_templates, dependent: :destroy_async
@@ -78,7 +90,7 @@ class Inbox < ApplicationRecord
   has_many :webhooks, dependent: :destroy_async
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
 
-  enum sender_name_type: { friendly: 0, professional: 1 }
+  enum :sender_name_type, { friendly: 0, professional: 1 }
 
   before_destroy :capture_filtered_unread_count_user_ids, prepend: true
   after_destroy :delete_round_robin_agents
@@ -93,82 +105,16 @@ class Inbox < ApplicationRecord
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
   # @return [void]
   def add_members(user_ids)
-    inbox_members.create!(user_ids.map { |user_id| { user_id: user_id } })
-    update_account_cache
+    created_members = inbox_members.create!(user_ids.map { |user_id| { user_id: user_id } })
+    update_account_cache if created_members.any?
   end
 
   # Removes multiple members from the inbox
   # @param user_ids [Array<Integer>] Array of user IDs to remove
   # @return [void]
   def remove_members(user_ids)
-    inbox_members.where(user_id: user_ids).destroy_all
-    update_account_cache
-  end
-
-  # Sanitizes inbox name for balanced email provider compatibility
-  # ALLOWS: /'._- and Unicode letters/numbers/emojis
-  # REMOVES: Forbidden chars (\<>@"()) + spam-trigger symbols (!#$%&*+=?^`{|}~)
-  def sanitized_name
-    return default_name_for_blank_name if name.blank?
-
-    sanitized = apply_sanitization_rules(name)
-    sanitized.blank? && email? ? display_name_from_email : sanitized
-  end
-
-  def sanitized_business_name
-    sanitize_raw_name(business_name) || sanitized_name
-  end
-
-  def sms?
-    channel_type == 'Channel::Sms'
-  end
-
-  def facebook?
-    channel_type == 'Channel::FacebookPage'
-  end
-
-  def instagram?
-    (facebook? || instagram_direct?) && channel.instagram_id.present?
-  end
-
-  def instagram_direct?
-    channel_type == 'Channel::Instagram'
-  end
-
-  def tiktok?
-    channel_type == 'Channel::Tiktok'
-  end
-
-  def web_widget?
-    channel_type == 'Channel::WebWidget'
-  end
-
-  def api?
-    channel_type == 'Channel::Api'
-  end
-
-  def email?
-    channel_type == 'Channel::Email'
-  end
-
-  def twilio?
-    channel_type == 'Channel::TwilioSms'
-  end
-
-  def twitter?
-    channel_type == 'Channel::TwitterProfile'
-  end
-
-  def telegram?
-    channel_type == 'Channel::Telegram'
-  end
-
-  def whatsapp?
-    channel_type == 'Channel::Whatsapp'
-  end
-
-  def twilio_whatsapp?
-    channel_type == 'Channel::TwilioSms' && channel.medium == 'whatsapp'
+    removed_members = inbox_members.where(user_id: user_ids).destroy_all
+    update_account_cache if removed_members.any?
   end
 
   def assignable_agents
@@ -184,19 +130,6 @@ class Inbox < ApplicationRecord
       id: id,
       name: name
     }
-  end
-
-  def callback_webhook_url
-    case channel_type
-    when 'Channel::TwilioSms'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/twilio/callback"
-    when 'Channel::Sms'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/sms/#{channel.phone_number.delete_prefix('+')}"
-    when 'Channel::Line'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/line/#{channel.line_channel_id}"
-    when 'Channel::Whatsapp'
-      "#{ENV.fetch('FRONTEND_URL', nil)}/webhooks/whatsapp/#{channel.phone_number}"
-    end
   end
 
   def member_ids_with_assignment_capacity
@@ -217,29 +150,6 @@ class Inbox < ApplicationRecord
   end
 
   private
-
-  def default_name_for_blank_name
-    email? ? display_name_from_email : ''
-  end
-
-  def sanitize_raw_name(raw)
-    return nil if raw.blank?
-
-    result = apply_sanitization_rules(raw)
-    result.presence
-  end
-
-  def apply_sanitization_rules(name)
-    name.gsub(/[\\<>@"!#$%&*+=?^`{|}~:;()]/, '')        # Remove forbidden chars
-        .gsub(/[\x00-\x1F\x7F]/, ' ')                   # Replace control chars with spaces
-        .gsub(/\A[[:punct:]]+|[[:punct:]]+\z/, '')      # Remove leading/trailing punctuation
-        .gsub(/\s+/, ' ')                               # Normalize spaces
-        .strip
-  end
-
-  def display_name_from_email
-    channel.email.split('@').first.parameterize.titleize
-  end
 
   def dispatch_create_event
     return if ENV['ENABLE_INBOX_EVENTS'].blank?

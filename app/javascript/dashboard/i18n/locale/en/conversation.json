@@ -21,6 +21,12 @@
     "SEARCH_MESSAGES": "Search for messages in conversations",
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
+    "TRANSLATING": "Translating…",
+    "TRANSLATING_TO": "Translating to {language}…",
+    "VIEW_ORIGINAL_IN": "View original ({language})",
+    "VIEW_TRANSLATED_IN": "View translated ({language})",
+    "TRANSLATION_FAILED": "Could not translate, sent as typed",
+    "CONTACT_TRANSLATION_FAILED": "Could not translate",
     "EMPTY_STATE": {
       "CMD_BAR": "to open command menu",
       "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts"
@@ -46,6 +52,7 @@
     "CLICK_HERE": "Click here",
     "LOADING_INBOXES": "Loading inboxes",
     "LOADING_CONVERSATIONS": "Loading Conversations",
+    "ANONYMOUS_CALLER_CANNOT_REPLY": "Messages cannot be sent because this caller’s phone number is unavailable.",
     "CANNOT_REPLY": "You cannot reply due to",
     "24_HOURS_WINDOW": "24 hour message window restriction",
     "48_HOURS_WINDOW": "48 hour message window restriction",
@@ -81,13 +88,19 @@
     "UNSUPPORTED_MESSAGE_FACEBOOK": "This message is unsupported. You can view this message on the Facebook Messenger app.",
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "This message is unsupported. You can view this message on the Instagram app.",
     "UNSUPPORTED_MESSAGE_TIKTOK": "This message is unsupported. You can view this message on the TikTok app.",
-    "UNSUPPORTED_MESSAGE_WHATSAPP": "This message is unsupported. You can view this message on the WhatsApp app.",
+    "UNSUPPORTED_MESSAGE_WHATSAPP_TITLE": "Message content unavailable",
+    "UNSUPPORTED_MESSAGE_WHATSAPP": "We’re unable to display this message because Meta hasn’t provided its content. This can happen with WhatsApp Coexistence setups. To view the message, please check it in your WhatsApp Business app.",
+    "UNSUPPORTED_MESSAGE_WHATSAPP_DETAILS": "For more details, refer to {documentation}.",
+    "UNSUPPORTED_MESSAGE_WHATSAPP_LEARN_MORE": "Meta’s documentation",
     "WHATSAPP_FLOW_RESPONSE": "Submitted a flow response",
     "WHATSAPP_REFERRAL": {
       "AD": "Ad"
     },
     "SUCCESS_DELETE_MESSAGE": "Message deleted successfully",
     "FAIL_DELETE_MESSSAGE": "Couldn't delete message! Try again",
+    "DELETED_AUDIT_NOTE": {
+      "BADGE": "Deleted"
+    },
     "NO_RESPONSE": "No response",
     "REQUEST_CONTACT_INFO": {
       "ACTION": "Ask the customer to share their WhatsApp phone number",
@@ -131,6 +144,8 @@
       "MISSED_CALL": "Missed call",
       "MISSED_CALL_INBOUND_SUBTEXT": "No agent picked up",
       "MISSED_CALL_DECLINED_BY": "Declined by {agentName}",
+      "MISSED_CALL_OUTSIDE_HOURS": "Outside business hours",
+      "MISSED_CALL_NOBODY_ONLINE": "Nobody was online",
       "CALL_ENDED": "Call ended",
       "HANDLED_BY": "Handled by {agentName}",
       "NOT_ANSWERED_YET": "Not answered yet",
@@ -141,13 +156,17 @@
       "JOIN_CALL": "Join call",
       "CALL_BACK": "Call back",
       "TRANSCRIPT_SHOW_MORE": "Show more",
-      "TRANSCRIPT_SHOW_LESS": "Show less"
+      "TRANSCRIPT_SHOW_LESS": "Show less",
+      "DISMISS_FAILED": "Couldn't dismiss the call. It may keep ringing in your other tabs."
     },
     "HEADER": {
       "RESOLVE_ACTION": "Resolve",
       "REOPEN_ACTION": "Reopen",
       "OPEN_ACTION": "Open",
       "MORE_ACTIONS": "More actions",
+      "MUTE": "Mute",
+      "MUTED": "Muted",
+      "UNMUTE": "Unmute",
       "OPEN": "More",
       "CLOSE": "Close",
       "DETAILS": "details",
@@ -162,6 +181,13 @@
       "VOICE_CALL_FAILED": "Could not start the call.",
       "WHATSAPP_CALL_PERMISSION_REQUESTED": "Sent a call permission request to the contact. Try again once they accept.",
       "WHATSAPP_CALL_PERMISSION_PENDING": "Call permission request already sent recently. Try again once the contact accepts.",
+      "AUTO_TRANSLATE": {
+        "TURN_OFF": "Turn off auto-translate",
+        "TURN_ON": "Turn on auto-translate",
+        "TURNED_OFF": "Auto-translate is off for this conversation",
+        "TURNED_ON": "Auto-translate is on for this conversation",
+        "UPDATE_FAILED": "Could not change auto-translate for this conversation. Please try again."
+      },
       "SLA_STATUS": {
         "FRT": "FRT {status}",
         "NRT": "NRT {status}",
@@ -254,6 +280,8 @@
       "RESOLVED": "Mark as resolved",
       "MARK_AS_UNREAD": "Mark as unread",
       "MARK_AS_READ": "Mark as read",
+      "MUTE": "Mute notifications",
+      "UNMUTE": "Unmute notifications",
       "REOPEN": "Reopen conversation",
       "SNOOZE": {
         "TITLE": "Snooze",
@@ -324,17 +352,20 @@
       "STOP_AUDIO_RECORDING": "Stop audio recording",
       "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
-        "TO": "TO",
-        "ADD_BCC": "Add bcc",
+        "TO": "To",
         "CC": {
-          "LABEL": "CC",
+          "LABEL": "Cc",
           "PLACEHOLDER": "Emails separated by commas",
           "ERROR": "Please enter valid email addresses"
         },
         "BCC": {
-          "LABEL": "BCC",
+          "LABEL": "Bcc",
           "PLACEHOLDER": "Emails separated by commas",
           "ERROR": "Please enter valid email addresses"
+        },
+        "SUBJECT": {
+          "LABEL": "Subject",
+          "PLACEHOLDER": "Enter a subject"
         }
       },
       "UNDEFINED_VARIABLES": {
@@ -426,6 +457,14 @@
       "END_CALL": "End call",
       "MUTE": "Mute mic",
       "UNMUTE": "Unmute mic",
+      "SHOW_KEYPAD": "Show keypad",
+      "HIDE_KEYPAD": "Hide keypad",
+      "KEYPAD": "Call keypad",
+      "STAR": "Star",
+      "POUND": "Pound",
+      "KEYPAD_SEND_FAILED": "Could not send keypad tone",
+      "ON_HOLD": "On hold",
+      "HOLD_FAILED": "Couldn't update the hold. Please try again.",
       "VIEW_CHAT_HISTORY": "View chat history",
       "GO_TO_CONVERSATION": "Go to conversation thread"
     }
@@ -486,6 +525,7 @@
     "ACCORDION": {
       "CONTACT_DETAILS": "Contact Details",
       "CONVERSATION_ACTIONS": "Conversation Actions",
+      "QUEUE_ACTIONS": "Queue Actions",
       "CONVERSATION_LABELS": "Conversation Labels",
       "CONVERSATION_INFO": "Conversation Information",
       "CONTACT_NOTES": "Contact Notes",
@@ -495,6 +535,22 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
       "SHARED_FILES": "Attachments"
+    },
+    "QUEUE_ACTIONS": {
+      "STATUS_LABEL": "Queue status",
+      "STATUS": {
+        "WAITING": "Waiting",
+        "ASSIGNED": "Assigned",
+        "LEFT": "Left",
+        "NONE": "Not in queue"
+      },
+      "LOADING": "…",
+      "POSITION": "Position",
+      "LEAVE": "Mark as left",
+      "LEAVE_SUCCESS": "Conversation removed from queue",
+      "LEAVE_ERROR": "Could not remove conversation from queue",
+      "LOAD_ERROR": "Could not load queue status",
+      "EMPTY": "No queue entry for this conversation"
     },
     "SHARED_FILES": {
       "EMPTY": "No attachments yet",

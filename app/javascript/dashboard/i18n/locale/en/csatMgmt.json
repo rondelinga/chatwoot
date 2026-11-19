@@ -8,6 +8,10 @@
       "AVERAGE": "😐 Average",
       "GOOD": "😀 Good",
       "EXCELLENT": "😍 Excellent"
+    },
+    "LIKE_DISLIKE": {
+      "GOOD": "good",
+      "BAD": "bad"
     }
   }
 }

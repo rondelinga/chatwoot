@@ -1,6 +1,7 @@
 class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   before_action :prevent_reply_to_resolved_conversation, only: [:create]
   before_action :set_conversation, only: [:create]
+  before_action :check_conversation_status, only: [:create]
   before_action :set_message, only: [:update]
 
   def index
@@ -16,11 +17,14 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   def update
     if @message.content_type == 'input_email'
       @message.update!(submitted_email: contact_email)
-      ContactIdentifyAction.new(
+      identify_action = ContactIdentifyAction.new(
         contact: @contact,
         params: { email: contact_email, name: contact_name },
-        retain_original_contact_name: true
-      ).perform
+        retain_original_contact_name: true,
+        inbox_id: @web_widget.inbox.id
+      )
+      @contact = identify_action.perform
+      Conversations::UnverifiedContactNoteService.new(conversation: @message.conversation, matches: identify_action.unverified_matches).perform
     else
       @message.update!(message_update_params[:message])
     end
@@ -29,6 +33,33 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   end
 
   private
+
+  def check_conversation_status
+    return if conversation.nil?
+    return unless conversation.resolved?
+    return if @web_widget.inbox.allow_messages_after_resolved
+
+    send_conversation_closed_message
+
+    render json: {
+      error: 'conversation_closed',
+      message: I18n.t('conversations.closed_message')
+    }, status: :forbidden
+  end
+
+  def send_conversation_closed_message
+    last_message = conversation.messages.where(message_type: :template).last
+    return if last_message&.content == I18n.t('conversations.closed_message')
+
+    conversation.messages.create!(
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :template,
+      content: I18n.t('conversations.closed_message')
+    )
+  rescue StandardError => e
+    Rails.logger.error "Failed to send closed message: #{e.message}"
+  end
 
   def build_attachment
     return if params[:message][:attachments].blank?

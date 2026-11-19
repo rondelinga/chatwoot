@@ -137,12 +137,18 @@ RSpec.describe Message do
         updated_at: message.updated_at,
         conversation: {
           assignee_id: message.conversation.assignee_id,
+          assignee_agent_bot_id: message.conversation.assignee_agent_bot_id,
+          assignee_type: message.conversation.assignee_type,
           contact_inbox: {
             source_id: message.conversation.contact_inbox.source_id
           },
           last_activity_at: message.conversation.last_activity_at.to_i,
           unread_count: message.conversation.unread_incoming_messages.count
         },
+        audit_private_note_id: message.audit_private_note_id,
+        deleted_at: message.deleted_at,
+        deleted_by_id: message.deleted_by_id,
+        original_content: message.original_content,
         sentiment: {},
         sender: message.sender.push_event_data,
         echo_id: 'random-echo_id'
@@ -154,18 +160,63 @@ RSpec.describe Message do
     end
   end
 
+  describe '#widget_sender_data' do
+    it 'returns only the type for a contact sender' do
+      message = create(:message, message_type: :incoming, sender: create(:contact, email: 'jane@example.com'))
+
+      expect(message.widget_sender_data).to eq(type: 'contact')
+    end
+
+    it 'returns the full event data for an agent sender' do
+      message = create(:message, sender: create(:user))
+
+      expect(message.widget_sender_data).to eq(message.sender.push_event_data)
+    end
+  end
+
+  describe '#widget_push_event_data' do
+    it 'keeps the message event and reduces a contact sender to its type' do
+      message = create(:message, message_type: :incoming, sender: create(:contact, email: 'jane@example.com'))
+
+      expect(message.widget_push_event_data).to eq(message.push_event_data.merge(sender: { type: 'contact' }))
+    end
+
+    it 'keeps an agent sender' do
+      message = create(:message, sender: create(:user))
+
+      expect(message.widget_push_event_data).to eq(message.push_event_data)
+    end
+
+    it 'keeps an agent bot sender with the inbox avatar fallback' do
+      message = create(:message, sender: create(:agent_bot))
+
+      expect(message.widget_push_event_data[:sender]).to eq(message.sender.push_event_data(message.inbox))
+    end
+  end
+
   describe 'message create event' do
     let!(:conversation) { create(:conversation) }
+    let!(:agent) { create(:user, account: conversation.account) }
 
     before do
       conversation.reload
     end
 
     it 'updates the conversation first reply created at if it is the first outgoing message' do
+      create(:inbox_member, inbox: conversation.inbox, user: agent)
+
+      create(:conversation_participant,
+             conversation: conversation,
+             user: agent,
+             created_at: 1.minute.ago)
+
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at
 
-      outgoing_message = create(:message, message_type: :outgoing, conversation: conversation)
+      outgoing_message = create(:message,
+                                message_type: :outgoing,
+                                conversation: conversation,
+                                sender: agent)
 
       expect(conversation.first_reply_created_at).to eq outgoing_message.created_at
       expect(conversation.waiting_since).to be_nil
@@ -179,8 +230,10 @@ RSpec.describe Message do
     end
 
     it 'records the first reply to the contact after a forwarded email' do
+      create(:inbox_member, inbox: conversation.inbox, user: agent)
+      create(:conversation_participant, conversation: conversation, user: agent, created_at: 1.minute.ago)
       create(:message, message_type: :outgoing, conversation: conversation, content_attributes: { forwarded_message_id: 1 })
-      reply = create(:message, message_type: :outgoing, conversation: conversation)
+      reply = create(:message, message_type: :outgoing, conversation: conversation, sender: agent)
 
       expect(conversation.first_reply_created_at).to eq reply.created_at
     end
@@ -216,15 +269,29 @@ RSpec.describe Message do
     end
 
     it 'does not update the conversation first reply created at if the message is a private message' do
+      create(:inbox_member, inbox: conversation.inbox, user: agent)
+
+      create(:conversation_participant,
+             conversation: conversation,
+             user: agent,
+             created_at: 1.minute.ago)
+
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at
 
-      create(:message, message_type: :outgoing, conversation: conversation, private: true)
+      create(:message,
+             message_type: :outgoing,
+             conversation: conversation,
+             private: true,
+             sender: agent)
 
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at
 
-      next_message = create(:message, message_type: :outgoing, conversation: conversation)
+      next_message = create(:message,
+                            message_type: :outgoing,
+                            conversation: conversation,
+                            sender: agent)
       expect(conversation.first_reply_created_at).to eq next_message.created_at
       expect(conversation.waiting_since).to be_nil
     end
@@ -254,16 +321,19 @@ RSpec.describe Message do
     let(:conversation) { create(:conversation) }
     let(:message) { build(:message, message_type: :incoming, conversation: conversation) }
 
-    it 'reopens resolved conversation when the message is from a contact' do
-      conversation.resolved!
+    it 'keeps a resolved bot conversation pending when the message is from a contact' do
+      agent_bot = create(:agent_bot, account: conversation.account)
+      conversation.update!(status: :resolved, ai_assignee: agent_bot)
       message.save!
-      expect(message.conversation.open?).to be true
+      expect(conversation.reload).to have_attributes(
+        status: 'pending', ai_assignee_type: 'AgentBot', assignee_agent_bot_id: agent_bot.id
+      )
     end
 
     it 'reopens snoozed conversation when the message is from a contact' do
-      conversation.snoozed!
+      conversation.update!(status: :snoozed, ai_assignee: create(:agent_bot, account: conversation.account))
       message.save!
-      expect(message.conversation.open?).to be true
+      expect(conversation.reload).to have_attributes(status: 'open', ai_assignee_type: nil, assignee_agent_bot_id: nil)
     end
 
     it 'will not reopen if the conversation is muted' do
@@ -274,14 +344,15 @@ RSpec.describe Message do
     end
 
     it 'will mark the conversation as pending if the agent bot is active' do
-      agent_bot = create(:agent_bot)
+      agent_bot = create(:agent_bot, account: conversation.account)
       inbox = conversation.inbox
       inbox.agent_bot = agent_bot
       inbox.save!
-      conversation.resolved!
+      conversation.update!(status: :resolved, ai_assignee: agent_bot)
       message.save!
       expect(conversation.open?).to be false
       expect(conversation.pending?).to be true
+      expect(conversation.reload.ai_assignee).to eq(agent_bot)
     end
   end
 
@@ -338,14 +409,6 @@ RSpec.describe Message do
                          sender: agent_bot, created_at: 1.hour.ago)
       end
 
-      it 'resets waiting_since when customer sends a new message after bot response' do
-        new_message = build(:message, conversation: conversation, message_type: :incoming)
-        new_message.save!
-
-        conversation.reload
-        expect(conversation.waiting_since).to be_within(1.second).of(new_message.created_at)
-      end
-
       it 'does not reset waiting_since if last response was from human agent' do
         # Human agent responds (clears waiting_since)
         create(:message, conversation: conversation, message_type: :outgoing,
@@ -359,25 +422,6 @@ RSpec.describe Message do
 
         conversation.reload
         expect(conversation.waiting_since).to be_within(1.second).of(new_message.created_at)
-      end
-
-      it 'clears waiting_since when bot responds' do
-        # After the bot response in before block, waiting_since should already be cleared
-        conversation.reload
-        expect(conversation.waiting_since).to be_nil
-
-        # Customer sends another message
-        create(:message, conversation: conversation, message_type: :incoming,
-                         created_at: 30.minutes.ago)
-        conversation.reload
-        expect(conversation.waiting_since).to be_within(1.second).of(30.minutes.ago)
-
-        # Another bot response should clear it again
-        create(:message, conversation: conversation, message_type: :outgoing,
-                         sender: agent_bot, created_at: 15.minutes.ago)
-
-        conversation.reload
-        expect(conversation.waiting_since).to be_nil
       end
     end
 

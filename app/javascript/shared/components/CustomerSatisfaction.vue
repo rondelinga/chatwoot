@@ -1,9 +1,14 @@
 <script>
 import { mapGetters } from 'vuex';
 import Spinner from 'shared/components/Spinner.vue';
-import { CSAT_RATINGS, CSAT_DISPLAY_TYPES } from 'shared/constants/messages';
+import {
+  CSAT_RATINGS,
+  CSAT_DISPLAY_TYPES,
+  CSAT_LIKE_DISLIKE_RATINGS,
+} from 'shared/constants/messages';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import StarRating from 'shared/components/StarRating.vue';
+import LikeDislikeRating from 'shared/components/LikeDislikeRating.vue';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import { getContrastingTextColor } from '@chatwoot/utils';
 
@@ -12,6 +17,7 @@ export default {
     Spinner,
     FluentIcon,
     StarRating,
+    LikeDislikeRating,
   },
   props: {
     messageContentAttributes: {
@@ -29,6 +35,10 @@ export default {
     message: {
       type: String,
       default: '',
+    },
+    allowUpdate: {
+      type: Boolean,
+      default: false,
     },
   },
   setup() {
@@ -62,7 +72,7 @@ export default {
       return getContrastingTextColor(this.widgetColor);
     },
     title() {
-      return this.isRatingSubmitted
+      return this.isRatingSubmitted && !this.isLikeDislikeType
         ? this.$t('CSAT.SUBMITTED_TITLE')
         : this.message || this.$t('CSAT.TITLE');
     },
@@ -74,6 +84,21 @@ export default {
     },
     isStarType() {
       return this.displayType === CSAT_DISPLAY_TYPES.STAR;
+    },
+    isLikeDislikeType() {
+      return this.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE;
+    },
+    // Like/dislike keeps the feedback input open so the contact can re-rate and comment again.
+    shouldShowFeedbackInput() {
+      if (this.isLikeDislikeType) return !!this.selectedRating;
+      return !this.isFeedbackSubmitted;
+    },
+    feedbackPlaceholder() {
+      const [, dislike] = CSAT_LIKE_DISLIKE_RATINGS;
+      if (this.isLikeDislikeType && this.selectedRating === dislike.value) {
+        return this.$t('CSAT.DISLIKE_PLACEHOLDER');
+      }
+      return this.$t('CSAT.PLACEHOLDER');
     },
   },
 
@@ -127,6 +152,14 @@ export default {
       this.selectedRating = value;
       this.onSubmit();
     },
+    selectLikeDislikeRating(value) {
+      const [like, dislike] = CSAT_LIKE_DISLIKE_RATINGS;
+      if (this.selectedRating === dislike.value && value === like.value) {
+        this.feedback = '';
+      }
+      this.selectedRating = value;
+      this.onSubmit();
+    },
   },
 };
 </script>
@@ -140,6 +173,12 @@ export default {
       v-dompurify-html="formattedTitle"
       class="text-n-slate-12 text-sm font-medium pt-5 px-2.5 text-center prose prose-bubble"
     />
+    <p
+      v-if="allowUpdate && isLikeDislikeType"
+      class="text-n-slate-11 text-xs px-4 pt-1 text-center"
+    >
+      {{ $t('CSAT.CHANGE_RATING_HINT') }}
+    </p>
     <div v-if="isEmojiType" class="ratings flex justify-around py-5 px-4">
       <button
         v-for="rating in ratings"
@@ -156,14 +195,20 @@ export default {
       :is-disabled="isFeedbackSubmitted || isUpdating"
       @select-rating="selectStarRating"
     />
+    <LikeDislikeRating
+      v-else-if="isLikeDislikeType"
+      :selected-rating="selectedRating"
+      :is-disabled="isUpdating"
+      @select-rating="selectLikeDislikeRating"
+    />
     <form
-      v-if="!isFeedbackSubmitted"
+      v-if="shouldShowFeedbackInput"
       class="feedback-form flex"
       @submit.prevent="onSubmit()"
     >
       <input
         v-model="feedback"
-        :placeholder="$t('CSAT.PLACEHOLDER')"
+        :placeholder="feedbackPlaceholder"
         @keydown.enter="onSubmit"
       />
       <button

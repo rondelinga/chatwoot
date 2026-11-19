@@ -20,13 +20,32 @@ class RoomChannel < ApplicationCable::Channel
     return if @current_account.blank?
 
     data = { account_id: @current_account.id, users: ::OnlineStatusTracker.get_available_users(@current_account.id) }
-    data[:contacts] = ::OnlineStatusTracker.get_available_contacts(@current_account.id) if @current_user.is_a? User
-    ActionCable.server.broadcast(pubsub_token, { event: 'presence.update', data: data })
+    if @current_user.is_a? User
+      data[:contacts] = ::OnlineStatusTracker.get_available_contacts(@current_account.id)
+      data[:work_preferences] = work_preferences
+    end
+    payload = { event: 'presence.update', data: data }
+    ActionCable.server.broadcast(pubsub_token, payload)
+    # Other dashboards, including Supervision, are on the account stream.
+    ActionCable.server.broadcast("account_#{@current_account.id}", payload)
+  end
+
+  def work_preferences
+    @current_user.account_users.find_by!(account_id: @current_account.id).slice(:accepts_conversations, :accepts_calls)
   end
 
   def ensure_stream
     stream_from pubsub_token
+    return if restricted_agent?
+
     stream_from "account_#{@current_account.id}" if @current_account.present? && @current_user.is_a?(User)
+  end
+
+  def restricted_agent?
+    return false if @current_account.blank? || !@current_user.is_a?(User)
+
+    account_user = AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
+    Conversations::AgentAccessService.restricted_agent?(account_user)
   end
 
   def update_subscription

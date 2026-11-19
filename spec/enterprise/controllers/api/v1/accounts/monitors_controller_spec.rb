@@ -18,6 +18,43 @@ RSpec.describe 'Monitors API', type: :request do
 
   after { Redis::Alfred.delete(preview_key) }
 
+  describe 'Slack alert channel' do
+    let(:channel_builder) { instance_double(Integrations::Slack::ChannelBuilder, join: true) }
+
+    before { allow(Integrations::Slack::ChannelBuilder).to receive(:new).and_return(channel_builder) }
+
+    it 'joins and saves the channel, and clears it again' do
+      create(:integrations_hook, account: account)
+
+      patch "#{base}/#{monitor.id}", headers: headers, params: { slack_channel_id: 'C0ALERTS' }, as: :json
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['slack_channel_id']).to eq('C0ALERTS')
+      expect(channel_builder).to have_received(:join).with('C0ALERTS').once
+
+      patch "#{base}/#{monitor.id}", headers: headers, params: { slack_channel_id: '' }, as: :json
+      expect(response.parsed_body['slack_channel_id']).to be_nil
+      expect(channel_builder).to have_received(:join).once
+    end
+
+    it 'rejects a channel that is not in the connected workspace' do
+      create(:integrations_hook, account: account)
+      allow(channel_builder).to receive(:join).and_return(false)
+
+      patch "#{base}/#{monitor.id}", headers: headers, params: { slack_channel_id: 'C0MISSING' }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['error']).to eq('invalid_slack_channel')
+      expect(monitor.reload.slack_channel_id).to be_nil
+    end
+
+    it 'rejects a channel when Slack is not connected' do
+      patch "#{base}/#{monitor.id}", headers: headers, params: { slack_channel_id: 'C0ALERTS' }, as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(monitor.reload.slack_channel_id).to be_nil
+    end
+  end
+
   it 'forbids monitor access after downgrading to Startups' do
     account.update!(custom_attributes: { 'plan_name' => 'Startups' })
     Enterprise::Billing::ReconcilePlanFeaturesService.new(account: account).perform
@@ -110,13 +147,17 @@ RSpec.describe 'Monitors API', type: :request do
   end
 
   it 'returns shared account usage on the list and every monitor without hiding historical reports' do
+    travel_to(Time.utc(2026, 10, 31, 12))
     other_monitor = create(:conversation_monitor, account: account)
     now = Time.current.utc
-    ConversationMonitors::DailyUsage.create!(account: account, usage_date: now.to_date, calls_count: 100_000, limit_reached_at: now)
+    (1..19).each do |days_ago|
+      ConversationMonitors::DailyUsage.create!(account: account, usage_date: now.to_date - days_ago, calls_count: 500_000)
+    end
+    ConversationMonitors::DailyUsage.create!(account: account, usage_date: now.to_date, calls_count: 500_000, limit_reached_at: now)
 
     get base, headers: headers
     usage = response.parsed_body.dig('meta', 'usage')
-    expect(usage).to include('limit' => 100_000, 'used' => 100_000, 'remaining' => 0, 'limit_reached' => true,
+    expect(usage).to include('limit' => 10_000_000, 'used' => 10_000_000, 'remaining' => 0, 'limit_reached' => true,
                              'limit_reached_at' => now.to_i, 'resets_at' => now.beginning_of_month.next_month.to_i)
     [monitor, other_monitor].each do |record|
       get "#{base}/#{record.id}/timeseries", headers: headers, params: query
@@ -128,8 +169,12 @@ RSpec.describe 'Monitors API', type: :request do
   end
 
   it 'applies the same allowance to preview and does not send requests after exhaustion' do
+    travel_to(Time.utc(2026, 10, 31, 12))
     message
-    ConversationMonitors::DailyUsage.create!(account: account, usage_date: Time.current.utc.to_date, calls_count: 100_000,
+    (1..19).each do |days_ago|
+      ConversationMonitors::DailyUsage.create!(account: account, usage_date: Time.current.utc.to_date - days_ago, calls_count: 500_000)
+    end
+    ConversationMonitors::DailyUsage.create!(account: account, usage_date: Time.current.utc.to_date, calls_count: 500_000,
                                              limit_reached_at: Time.current)
     ConversationMonitors::PreviewJob.write(preview_key, { status: 'pending', condition: 'refund' })
     ConversationMonitors::PreviewJob.perform_now(account.id, admin.id, 'sample')
@@ -194,7 +239,7 @@ RSpec.describe 'Monitors API', type: :request do
   it 'does not expose a deleted conversation from a completed preview' do
     message
     stub_request(:post, ConversationMonitors::Configuration.endpoint).to_return(
-      status: 200, body: { model: 'typesafe/jev-1.13-20260917', answers: { '0' => { type: 'noul', noul: 0.6 } }, usage: { input_tokens: 10 } }.to_json
+      status: 200, body: { model: 'typesafe/jev-1.14-20261014', answers: { '0' => { type: 'noul', noul: 0.6 } }, usage: { input_tokens: 10 } }.to_json
     )
     ConversationMonitors::PreviewJob.write(preview_key, { status: 'pending', condition: 'refund' })
     ConversationMonitors::PreviewJob.perform_now(account.id, admin.id, 'sample')
@@ -210,7 +255,7 @@ RSpec.describe 'Monitors API', type: :request do
   it 'does not retain source text in preview storage or return redacted text later' do
     message
     stub_request(:post, ConversationMonitors::Configuration.endpoint).to_return(
-      status: 200, body: { model: 'typesafe/jev-1.13-20260917', answers: { '0' => { type: 'noul', noul: 0.99 } },
+      status: 200, body: { model: 'typesafe/jev-1.14-20261014', answers: { '0' => { type: 'noul', noul: 0.99 } },
                            usage: { input_tokens: 10 } }.to_json
     )
     ConversationMonitors::PreviewJob.write(preview_key, { status: 'pending', condition: 'refund' })

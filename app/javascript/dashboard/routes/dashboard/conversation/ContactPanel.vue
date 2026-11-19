@@ -18,12 +18,15 @@ import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import SharedFiles from './SharedFiles.vue';
+import QueueAction from './QueueAction.vue';
 import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import StripeCustomer from 'dashboard/components/widgets/conversation/StripeCustomer.vue';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 
 const props = defineProps({
   conversationId: {
@@ -44,6 +47,17 @@ const {
   isOnExpandedLayout,
 } = useUISettings();
 
+const { isAdmin } = useAdmin();
+const currentUser = useMapGetter('getCurrentUser');
+const { currentAccount, isCloudFeatureEnabled } = useAccount();
+
+const isSuperAdmin = computed(() => currentUser.value?.type === 'SuperAdmin');
+const canManageQueue = computed(
+  () =>
+    (isAdmin.value || isSuperAdmin.value) &&
+    Boolean(currentAccount.value?.queue_enabled)
+);
+
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
 
@@ -55,8 +69,6 @@ const shopifyIntegration = useFunctionGetter(
 const isShopifyFeatureEnabled = computed(
   () => shopifyIntegration.value.enabled
 );
-
-const { isCloudFeatureEnabled } = useAccount();
 
 const isLinearFeatureEnabled = computed(() =>
   isCloudFeatureEnabled(FEATURE_FLAGS.LINEAR)
@@ -76,6 +88,10 @@ const isLinearConnected = computed(
 );
 
 const store = useStore();
+const stripeIntegration = useFunctionGetter(
+  'integrations/getIntegration',
+  'stripe'
+);
 const currentChat = useMapGetter('getSelectedChat');
 const conversationId = computed(() => props.conversationId);
 const conversationMetadataGetter = useMapGetter(
@@ -135,8 +151,7 @@ onMounted(() => {
   conversationSidebarItems.value = conversationSidebarItemsOrder.value;
   getContactDetails();
   store.dispatch('attributes/get', 0);
-  // Load integrations to ensure linear integration state is available
-  store.dispatch('integrations/get', 'linear');
+  store.dispatch('integrations/get');
 });
 </script>
 
@@ -174,6 +189,20 @@ onMounted(() => {
                 :conversation-id="conversationId"
                 :inbox-id="inboxId"
               />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'queue_actions' && canManageQueue"
+            class="conversation--actions"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.QUEUE_ACTIONS')"
+              :is-open="isContactSidebarItemOpen('is_queue_actions_open')"
+              @toggle="
+                value => toggleSidebarUIState('is_queue_actions_open', value)
+              "
+            >
+              <QueueAction :conversation-id="conversationId" />
             </AccordionItem>
           </div>
           <div
@@ -223,9 +252,6 @@ onMounted(() => {
                 attribute-type="contact_attribute"
                 attribute-from="conversation_contact_panel"
                 :contact-id="contact.id"
-                :empty-state-message="
-                  $t('CONVERSATION_CUSTOM_ATTRIBUTES.NO_RECORDS_FOUND')
-                "
               />
             </AccordionItem>
           </div>
@@ -297,6 +323,28 @@ onMounted(() => {
               "
             >
               <ShopifyOrdersList :contact-id="contactId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="
+              element.name === 'stripe_customer' &&
+              isCloudFeatureEnabled(FEATURE_FLAGS.STRIPE) &&
+              stripeIntegration.enabled
+            "
+          >
+            <AccordionItem
+              :title="$t('STRIPE_INTEGRATION.TITLE')"
+              :is-open="isContactSidebarItemOpen('is_stripe_customer_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_stripe_customer_open', value)
+              "
+            >
+              <StripeCustomer
+                v-if="isContactSidebarItemOpen('is_stripe_customer_open')"
+                :conversation-id="conversationId"
+                :contact-email="contact.email"
+              />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'contact_notes'">

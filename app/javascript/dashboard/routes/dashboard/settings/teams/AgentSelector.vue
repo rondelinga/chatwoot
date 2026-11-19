@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { picoSearch } from '@chatwoot/pico-search';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import BaseTable from 'dashboard/components-next/table/BaseTable.vue';
 import BaseTableRow from 'dashboard/components-next/table/BaseTableRow.vue';
 import BaseTableCell from 'dashboard/components-next/table/BaseTableCell.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -13,11 +16,15 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  selectedAgents: {
+  primaryAgents: {
     type: Array,
     default: () => [],
   },
-  updateSelectedAgents: {
+  backupAgents: {
+    type: Array,
+    default: () => [],
+  },
+  updateAgents: {
     type: Function,
     default: () => {},
   },
@@ -29,78 +36,182 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  tiersEnabled: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const { t } = useI18n();
+const searchQuery = ref('');
 
-const selectedAgentCount = computed(() => props.selectedAgents.length);
+const filteredAgents = computed(() => {
+  const query = searchQuery.value.trim();
+  if (!query) return props.agentList;
+  return picoSearch(props.agentList, query, ['name', 'email']);
+});
 
-const allAgentsSelected = computed(
-  () =>
-    props.selectedAgents.length === props.agentList.length &&
-    props.agentList.length > 0
-);
+const visibleIds = computed(() => filteredAgents.value.map(agent => agent.id));
 
-const someAgentsSelected = computed(
-  () => props.selectedAgents.length > 0 && !allAgentsSelected.value
+const selectedAgentCount = computed(
+  () => props.primaryAgents.length + props.backupAgents.length
 );
 
 const disableSubmitButton = computed(() => selectedAgentCount.value === 0);
 
-const isAgentSelected = agentId => {
-  return props.selectedAgents.includes(agentId);
+const isPrimarySelected = agentId => props.primaryAgents.includes(agentId);
+const isBackupSelected = agentId => props.backupAgents.includes(agentId);
+
+const areAllVisibleSelected = selectedIds =>
+  visibleIds.value.length > 0 &&
+  visibleIds.value.every(id => selectedIds.includes(id));
+
+const areSomeVisibleSelected = selectedIds =>
+  !areAllVisibleSelected(selectedIds) &&
+  visibleIds.value.some(id => selectedIds.includes(id));
+
+const areAllVisiblePrimary = computed(() =>
+  areAllVisibleSelected(props.primaryAgents)
+);
+const areAllVisibleBackup = computed(() =>
+  areAllVisibleSelected(props.backupAgents)
+);
+const isSomeVisiblePrimary = computed(() =>
+  areSomeVisibleSelected(props.primaryAgents)
+);
+const isSomeVisibleBackup = computed(() =>
+  areSomeVisibleSelected(props.backupAgents)
+);
+
+const handlePrimarySelect = agentId => {
+  const primary = isPrimarySelected(agentId)
+    ? props.primaryAgents.filter(id => id !== agentId)
+    : [...props.primaryAgents, agentId];
+  const backup = props.backupAgents.filter(id => id !== agentId);
+
+  props.updateAgents({ primary, backup });
 };
 
-const handleSelectAgent = agentId => {
-  const shouldRemove = isAgentSelected(agentId);
+const handleBackupSelect = agentId => {
+  const backup = isBackupSelected(agentId)
+    ? props.backupAgents.filter(id => id !== agentId)
+    : [...props.backupAgents, agentId];
+  const primary = props.primaryAgents.filter(id => id !== agentId);
 
-  let result = [];
-  if (shouldRemove) {
-    result = props.selectedAgents.filter(item => item !== agentId);
-  } else {
-    result = [...props.selectedAgents, agentId];
+  props.updateAgents({ primary, backup });
+};
+
+const toggleAllPrimary = event => {
+  const idsToToggle = visibleIds.value;
+
+  if (event.target.checked) {
+    props.updateAgents({
+      primary: [...new Set([...props.primaryAgents, ...idsToToggle])],
+      backup: props.backupAgents.filter(id => !idsToToggle.includes(id)),
+    });
+    return;
   }
 
-  props.updateSelectedAgents(result);
+  props.updateAgents({
+    primary: props.primaryAgents.filter(id => !idsToToggle.includes(id)),
+    backup: props.backupAgents,
+  });
 };
 
-const toggleSelectAll = () => {
-  if (allAgentsSelected.value) {
-    props.updateSelectedAgents([]);
-  } else {
-    const result = props.agentList.map(item => item.id);
-    props.updateSelectedAgents(result);
+const toggleAllBackup = event => {
+  const idsToToggle = visibleIds.value;
+
+  if (event.target.checked) {
+    props.updateAgents({
+      primary: props.primaryAgents.filter(id => !idsToToggle.includes(id)),
+      backup: [...new Set([...props.backupAgents, ...idsToToggle])],
+    });
+    return;
   }
+
+  props.updateAgents({
+    primary: props.primaryAgents,
+    backup: props.backupAgents.filter(id => !idsToToggle.includes(id)),
+  });
 };
 
-const headers = computed(() => [
-  '',
-  t('TEAMS_SETTINGS.AGENTS.AGENT'),
-  t('TEAMS_SETTINGS.AGENTS.EMAIL'),
-]);
+const headers = computed(() => {
+  const columns = [t('TEAMS_SETTINGS.AGENTS.PRIMARY')];
+  if (props.tiersEnabled) columns.push(t('TEAMS_SETTINGS.AGENTS.BACKUP'));
+  columns.push(
+    t('TEAMS_SETTINGS.AGENTS.AGENT'),
+    t('TEAMS_SETTINGS.AGENTS.EMAIL')
+  );
+  return columns;
+});
 </script>
 
 <template>
-  <BaseTable :headers="headers" :items="agentList">
+  <Input
+    v-model="searchQuery"
+    :placeholder="t('TEAMS_SETTINGS.AGENTS.SEARCH_PLACEHOLDER')"
+    class="group mb-4 w-full max-w-sm [&>input]:!ps-8 [&>input]:!rounded-[0.625rem]"
+    size="sm"
+    type="search"
+  >
+    <template #prefix>
+      <Icon
+        icon="i-lucide-search"
+        class="absolute top-1/2 -translate-y-1/2 text-n-slate-11 group-focus-within:text-n-brand size-3.5 start-2.5"
+      />
+    </template>
+  </Input>
+
+  <BaseTable
+    :headers="headers"
+    :items="filteredAgents"
+    :no-data-message="t('TEAMS_SETTINGS.AGENTS.NO_RESULTS')"
+  >
     <template #header-0>
-      <div class="flex items-center">
+      <div class="flex items-center gap-2">
         <Checkbox
-          :model-value="allAgentsSelected"
-          :indeterminate="someAgentsSelected"
-          :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_ALL')"
-          @change="toggleSelectAll"
+          :model-value="areAllVisiblePrimary"
+          :indeterminate="isSomeVisiblePrimary"
+          :disabled="!visibleIds.length"
+          :title="t('TEAMS_SETTINGS.AGENTS.SELECT_ALL_PRIMARY')"
+          @change="toggleAllPrimary"
         />
+        <span v-if="tiersEnabled">{{
+          t('TEAMS_SETTINGS.AGENTS.PRIMARY')
+        }}</span>
       </div>
     </template>
-
+    <template v-if="tiersEnabled" #header-1>
+      <div class="flex items-center gap-2">
+        <Checkbox
+          :model-value="areAllVisibleBackup"
+          :indeterminate="isSomeVisibleBackup"
+          :disabled="!visibleIds.length"
+          :title="t('TEAMS_SETTINGS.AGENTS.SELECT_ALL_BACKUP')"
+          @change="toggleAllBackup"
+        />
+        <span>{{ t('TEAMS_SETTINGS.AGENTS.BACKUP') }}</span>
+      </div>
+    </template>
     <template #row="{ items }">
       <BaseTableRow v-for="agent in items" :key="agent.id" :item="agent">
         <template #default>
           <BaseTableCell class="w-5">
             <div class="flex items-center">
               <Checkbox
-                :model-value="isAgentSelected(agent.id)"
-                @change="() => handleSelectAgent(agent.id)"
+                :model-value="isPrimarySelected(agent.id)"
+                :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_PRIMARY')"
+                @change="() => handlePrimarySelect(agent.id)"
+              />
+            </div>
+          </BaseTableCell>
+
+          <BaseTableCell v-if="tiersEnabled" class="w-5">
+            <div class="flex items-center">
+              <Checkbox
+                :model-value="isBackupSelected(agent.id)"
+                :title="$t('TEAMS_SETTINGS.AGENTS.SELECT_BACKUP')"
+                @change="() => handleBackupSelect(agent.id)"
               />
             </div>
           </BaseTableCell>
@@ -138,10 +249,19 @@ const headers = computed(() => [
     <p class="text-body-main text-n-slate-11 mb-0">
       {{
         $t('TEAMS_SETTINGS.AGENTS.SELECTED_COUNT', {
-          selected: selectedAgents.length,
+          selected: selectedAgentCount,
           total: agentList.length,
         })
       }}
+      <template v-if="tiersEnabled">
+        ·
+        {{
+          $t('TEAMS_SETTINGS.AGENTS.TIER_COUNT', {
+            primary: primaryAgents.length,
+            backup: backupAgents.length,
+          })
+        }}
+      </template>
     </p>
     <NextButton
       type="submit"

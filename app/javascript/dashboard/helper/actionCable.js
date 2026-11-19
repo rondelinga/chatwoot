@@ -50,6 +50,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'assignee.changed': this.onAssigneeChanged,
       'conversation.typing_on': this.onTypingOn,
       'conversation.typing_off': this.onTypingOff,
+      'conversation.supervisor_typing': this.onSupervisorTyping,
       'conversation.contact_changed': this.onConversationContactChange,
       'presence.update': this.onPresenceUpdate,
       'contact.deleted': this.onContactDelete,
@@ -66,6 +67,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.enrichment_completed': this.onEnrichmentCompleted,
       'account.billing_updated': this.onBillingUpdated,
       'copilot.message.created': this.onCopilotMessageCreated,
+      // The store upserts by ID, so an updated approval card replaces the old one.
+      'copilot.message.updated': this.onCopilotMessageCreated,
       'captain.playground.response': this.onCaptainPlaygroundResponse,
       'voice_call.incoming': this.onVoiceCallIncoming,
       'voice_call.accepted': this.onVoiceCallAccepted,
@@ -94,8 +97,31 @@ class ActionCableConnector extends BaseActionCableConnector {
     return this.app.$store.getters.getCurrentAccountId === data.account_id;
   };
 
+  isRestrictedAgent = () => {
+    const user = this.app.$store.getters.getCurrentUser;
+    const accountId = this.app.$store.getters.getCurrentAccountId;
+    const account = user?.accounts?.find(
+      item => Number(item.id) === Number(accountId)
+    );
+
+    return account?.role === 'agent' && !account?.custom_role_id;
+  };
+
+  canAccessConversation = data => {
+    if (!this.isRestrictedAgent()) return true;
+
+    const assigneeId = data.meta?.assignee?.id;
+    if (!assigneeId) return true;
+
+    return assigneeId === this.app.$store.getters.getCurrentUser?.id;
+  };
+
   onMessageUpdated = data => {
+    if (data.conversation && !this.canAccessConversation(data.conversation))
+      return;
+
     this.app.$store.dispatch('updateMessage', data);
+    this.emitSupervision('message.updated', data);
   };
 
   onPresenceUpdate = data => {
@@ -103,9 +129,15 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('contacts/updatePresence', data.contacts);
     this.app.$store.dispatch('agents/updatePresence', data.users);
     this.app.$store.dispatch('setCurrentUserAvailability', data.users);
+    this.app.$store.dispatch(
+      'setCurrentUserWorkPreferences',
+      data.work_preferences
+    );
   };
 
   onConversationContactChange = payload => {
+    if (!this.canAccessConversation(payload)) return;
+
     const { meta = {}, id: conversationId } = payload;
     const { sender } = meta || {};
     if (conversationId) {
@@ -117,16 +149,30 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onAssigneeChanged = payload => {
-    const { id } = payload;
+    const { id, meta, messages: seedMessages } = payload;
     if (id) {
       this.app.$store.dispatch('updateConversation', payload);
+
+      const currentUserId = this.app.$store.getters.getCurrentUser?.id;
+      if (meta?.assignee?.id && meta.assignee.id === currentUserId) {
+        this.app.$store.dispatch('reloadConversationMessages', {
+          conversationId: id,
+          seedMessages,
+        });
+      }
+      DashboardAudioNotificationHelper.onAssigneeChanged(payload);
     }
     this.fetchConversationStats();
+    this.emitSupervision('assignee.changed', payload);
   };
 
   onConversationCreated = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('addConversation', data);
+    DashboardAudioNotificationHelper.onConversationCreated(data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.created', data);
   };
 
   onConversationBotHandoff = data => {
@@ -184,6 +230,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   }
 
   onConversationRead = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
   };
 
@@ -191,29 +239,41 @@ class ActionCableConnector extends BaseActionCableConnector {
   onLogout = () => AuthAPI.logout();
 
   onMessageCreated = data => {
+    if (!this.canAccessConversation(data.conversation)) return;
+
     const {
       conversation: { last_activity_at: lastActivityAt },
       conversation_id: conversationId,
+      private: isPrivate,
     } = data;
     DashboardAudioNotificationHelper.onNewMessage(data);
     this.app.$store.dispatch('addMessage', data);
-    this.app.$store.dispatch('updateConversationLastActivity', {
-      lastActivityAt,
-      conversationId,
-    });
+    this.emitSupervision('message.created', data);
+    if (!isPrivate) {
+      this.app.$store.dispatch('updateConversationLastActivity', {
+        lastActivityAt,
+        conversationId,
+      });
+    }
   };
 
   // eslint-disable-next-line class-methods-use-this
   onReload = () => window.location.reload();
 
   onStatusChange = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.status_changed', data);
   };
 
   onConversationUpdated = data => {
+    if (!this.canAccessConversation(data)) return;
+
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.emitSupervision('conversation.updated', data);
   };
 
   onConversationUnreadCountChanged = () => {
@@ -328,6 +388,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onTypingOn = ({ conversation, user }) => {
+    if (!this.canAccessConversation(conversation)) return;
+
     const conversationId = conversation.id;
 
     this.clearTimer(conversationId);
@@ -336,9 +398,12 @@ class ActionCableConnector extends BaseActionCableConnector {
       user,
     });
     this.initTimer({ conversation, user });
+    this.emitSupervision('conversation.typing_on', { conversation, user });
   };
 
   onTypingOff = ({ conversation, user }) => {
+    if (!this.canAccessConversation(conversation)) return;
+
     const conversationId = conversation.id;
 
     this.clearTimer(conversationId);
@@ -346,6 +411,16 @@ class ActionCableConnector extends BaseActionCableConnector {
       conversationId,
       user,
     });
+    this.emitSupervision('conversation.typing_off', { conversation, user });
+  };
+
+  onSupervisorTyping = data => {
+    this.emitSupervision('conversation.supervisor_typing', data);
+  };
+
+  emitSupervision = (event, data) => {
+    if (!this.app) return;
+    emitter.emit(BUS_EVENTS.SUPERVISION_EVENT, { event, data });
   };
 
   onConversationMentioned = data => {
@@ -376,6 +451,8 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onContactDelete = data => {
+    if (this.isRestrictedAgent()) return;
+
     this.app.$store.dispatch(
       'contacts/deleteContactThroughConversations',
       data.id
@@ -384,11 +461,14 @@ class ActionCableConnector extends BaseActionCableConnector {
   };
 
   onContactUpdate = data => {
+    if (this.isRestrictedAgent()) return;
+
     this.app.$store.dispatch('contacts/updateContact', data);
   };
 
   onNotificationCreated = data => {
     this.app.$store.dispatch('notifications/addNotification', data);
+    emitter.emit(BUS_EVENTS.NEW_NOTIFICATION, data);
   };
 
   onNotificationDeleted = data => {
@@ -437,11 +517,11 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onVoiceCallIncoming = data => {
     if (data?.provider !== VOICE_CALL_PROVIDERS.WHATSAPP) return;
-    // Defense in depth: the server already filters to online agent streams,
-    // but if anything ever broadcasts to a broader stream (e.g. account-wide),
-    // an agent who's set availability=offline/busy shouldn't ring.
-    const availability = this.app.$store.getters.getCurrentUserAvailability;
-    if (availability !== 'online') return;
+    // Defense in depth: the server already filters to online agent streams that
+    // take calls, but if anything ever broadcasts to a broader stream (e.g.
+    // account-wide), an agent who is not online or has turned calls off
+    // shouldn't ring.
+    if (!this.app.$store.getters.getCurrentUserReceivesCalls) return;
 
     useCallsStore().addCall({
       callSid: data.call_id,

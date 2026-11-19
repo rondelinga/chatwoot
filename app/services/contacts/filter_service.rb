@@ -8,13 +8,13 @@ class Contacts::FilterService < FilterService
     super(params, user)
   end
 
-  def perform
+  def perform(count: true)
     validate_query_operator
     @contacts = query_builder(@filters['contacts'])
 
     {
       contacts: @contacts,
-      count: @contacts.count
+      count: count ? @contacts.count : nil
     }
   end
 
@@ -48,3 +48,5 @@ class Contacts::FilterService < FilterService
     "!= :value_#{current_index}"
   end
 end
+
+Contacts::FilterService.prepend_mod_with('Contacts::FilterService')

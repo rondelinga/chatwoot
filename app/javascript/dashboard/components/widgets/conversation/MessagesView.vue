@@ -9,6 +9,7 @@ import {
   getCurrentInstance,
 } from 'vue';
 import {
+  unrefElement,
   useElementSize,
   useEventListener,
   useResizeObserver,
@@ -16,7 +17,6 @@ import {
 } from '@vueuse/core';
 // composable
 import { useTrack } from 'dashboard/composables';
-import { useLabelSuggestions } from 'dashboard/composables/useLabelSuggestions';
 import { useCampaignHistory } from 'dashboard/composables/useCampaignHistory';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
@@ -25,7 +25,6 @@ import { CONTACT_CONVERSATION_NAVIGATION } from 'dashboard/composables/useContac
 // components
 import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
-import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import ContactConversationLink from './ContactConversationLink.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -43,13 +42,7 @@ import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 // utils
 import { emitter } from 'shared/helpers/mitt';
 import { getTypingUsersText } from '../../../helper/commons';
-import {
-  captureTimelineAnchor,
-  getTimelineEntries,
-  getUnreadScrollTop,
-} from './helpers/campaignScrollAnchor';
-import { calculateScrollTop } from './helpers/scrollTopCalculationHelper';
-import { LocalStorage } from 'shared/helpers/localStorage';
+import { captureTimelineAnchor } from './helpers/campaignScrollAnchor';
 import {
   filterDuplicateSourceMessages,
   getReadMessages,
@@ -60,10 +53,7 @@ import {
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { CMD_AI_ASSIST } from 'dashboard/helper/commandbar/events';
 import { REPLY_POLICY } from 'shared/constants/links';
-import wootConstants, {
-  META_RESTRICTION_STATUS_URL,
-} from 'dashboard/constants/globals';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
+import { META_RESTRICTION_STATUS_URL } from 'dashboard/constants/globals';
 import { SESSION_STORAGE_KEYS } from 'dashboard/constants/sessionStorage';
 import { CONVERSATION_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -84,7 +74,6 @@ export default {
     MessageList,
     ReplyBox,
     Banner,
-    ConversationLabelSuggestion,
     ContactConversationLink,
     Spinner,
     NextButton,
@@ -101,12 +90,6 @@ export default {
     const topBannerRef = useTemplateRef('topBannerRef');
     const { height: containerHeight } = useElementSize(messagesViewRef);
     const { height: topBannerHeight } = useElementSize(topBannerRef);
-
-    const {
-      captainTasksEnabled,
-      isLabelSuggestionFeatureEnabled,
-      getLabelSuggestions,
-    } = useLabelSuggestions();
 
     const {
       olderConversation,
@@ -163,15 +146,30 @@ export default {
     // slide under the composer. A growing one is clamped by the browser.
     const { proxy } = getCurrentInstance();
     let listHeight = 0;
+    const pinPanelToBottom = target => {
+      proxy.isProgrammaticScroll = true;
+      target.scrollTop = target.scrollHeight;
+    };
     useResizeObserver(conversationPanelRef, ([{ target }]) => {
       const shrink = listHeight - target.clientHeight;
       listHeight = target.clientHeight;
       const { scrollTop, scrollHeight, clientHeight } = target;
       const wasAtEnd = scrollHeight - scrollTop - clientHeight <= shrink + 1;
       if (shrink <= 0 || !wasAtEnd) return;
-      proxy.isProgrammaticScroll = true;
-      target.scrollTop = scrollHeight - clientHeight;
+      pinPanelToBottom(target);
     });
+    useEventListener(
+      conversationPanelRef,
+      'load',
+      event => {
+        if (event.target?.tagName !== 'IMG') return;
+        if (!proxy.shouldAutoScroll) return;
+        const panel = unrefElement(conversationPanelRef);
+        if (!panel) return;
+        pinPanelToBottom(panel);
+      },
+      { capture: true }
+    );
     // ReplyBox attaches pasted files from anywhere on the page, folded or not.
     useEventListener(document, 'paste', e => {
       if (e.clipboardData?.files.length) revealReplyBox();
@@ -179,9 +177,6 @@ export default {
 
     return {
       ...useCampaignHistory(),
-      captainTasksEnabled,
-      getLabelSuggestions,
-      isLabelSuggestionFeatureEnabled,
       olderConversation,
       newerConversation,
       openConversation,
@@ -209,10 +204,8 @@ export default {
       isLoadingPrevious: true,
       heightBeforeLoad: null,
       conversationPanel: null,
-      hasUserScrolled: false,
       isProgrammaticScroll: false,
-      messageSentSinceOpened: false,
-      labelSuggestions: [],
+      shouldAutoScroll: true,
     };
   },
 
@@ -221,20 +214,8 @@ export default {
       currentChat: 'getSelectedChat',
       currentUserId: 'getCurrentUserID',
       listLoadingStatus: 'getAllMessagesLoaded',
-      currentAccountId: 'getCurrentAccountId',
       isMetaMessageSendingDisabled: 'globalConfig/isMetaMessageSendingDisabled',
     }),
-    isOpen() {
-      return this.currentChat?.status === wootConstants.STATUS_TYPE.OPEN;
-    },
-    shouldShowLabelSuggestions() {
-      return (
-        this.isOpen &&
-        this.captainTasksEnabled &&
-        this.isLabelSuggestionFeatureEnabled &&
-        !this.messageSentSinceOpened
-      );
-    },
     inboxId() {
       return this.currentChat.inbox_id;
     },
@@ -259,6 +240,26 @@ export default {
       }
 
       return '';
+    },
+    supervisorTypingPreview() {
+      const superviseRoutes = [
+        'supervision_supervise',
+        'supervision_supervise_conversation',
+      ];
+      if (!superviseRoutes.includes(this.$route.name)) return null;
+
+      const assigneeId = this.currentChat?.meta?.assignee?.id;
+      if (!assigneeId) return null;
+
+      const typing =
+        this.$store.getters['supervision/getTypingByUserId'][assigneeId];
+      if (
+        !typing ||
+        Number(typing.conversationId) !== Number(this.currentChat.id)
+      ) {
+        return null;
+      }
+      return typing;
     },
     getMessages() {
       const messages = this.currentChat.messages || [];
@@ -402,7 +403,7 @@ export default {
       );
       this.$nextTick(() => {
         if (this.currentChat.id !== conversationId) return;
-        if (!this.hasUserScrolled && !this.$route.query.messageId) {
+        if (this.shouldAutoScroll && !this.$route.query.messageId) {
           this.scrollToBottom();
         } else {
           restoreAnchor();
@@ -414,15 +415,14 @@ export default {
         return;
       }
       this.fetchAllAttachmentsFromCurrentChat();
-      this.fetchSuggestions();
-      this.messageSentSinceOpened = false;
       this.resetReplyEditorHeight();
+      this.shouldAutoScroll = true;
     },
     // The link is appended once the neighbours arrive, below an already scrolled list.
     newerConversation(conversation) {
       if (!conversation) return;
       this.$nextTick(() => {
-        if (!this.$route.query.messageId && !this.hasUserScrolled) {
+        if (!this.$route.query.messageId && this.shouldAutoScroll) {
           this.scrollToBottom();
         }
       });
@@ -431,11 +431,6 @@ export default {
 
   created() {
     emitter.on(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
-    // when a message is sent we set the flag to true this hides the label suggestions,
-    // until the chat is changed and the flag is reset in the watch for currentChat
-    emitter.on(BUS_EVENTS.MESSAGE_SENT, () => {
-      this.messageSentSinceOpened = true;
-    });
     // Anything that wants to write must bring the folded editor back first.
     emitter.on(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.showReplyBox);
     emitter.on(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, this.showReplyBox);
@@ -445,7 +440,6 @@ export default {
   mounted() {
     this.addScrollListener();
     this.fetchAllAttachmentsFromCurrentChat();
-    this.fetchSuggestions();
   },
 
   unmounted() {
@@ -454,47 +448,6 @@ export default {
   },
 
   methods: {
-    async fetchSuggestions() {
-      // start empty, this ensures that the label suggestions are not shown
-      this.labelSuggestions = [];
-
-      if (this.isLabelSuggestionDismissed()) {
-        return;
-      }
-
-      // Early exit if conversation already has labels - no need to suggest more
-      const existingLabels = this.currentChat?.labels || [];
-      if (existingLabels.length > 0) return;
-
-      if (!this.captainTasksEnabled || !this.isLabelSuggestionFeatureEnabled) {
-        return;
-      }
-
-      this.labelSuggestions = await this.getLabelSuggestions();
-
-      // once the labels are fetched, we need to scroll to bottom
-      // but we need to wait for the DOM to be updated
-      // so we use the nextTick method
-      this.$nextTick(() => {
-        // this param is added to route, telling the UI to navigate to the message
-        // it is triggered by the SCROLL_TO_MESSAGE method
-        // see setActiveChat on ConversationView.vue for more info
-        const { messageId } = this.$route.query;
-
-        // only trigger the scroll to bottom if the user has not scrolled
-        // and there's no active messageId that is selected in view
-        if (!messageId && !this.hasUserScrolled) {
-          this.scrollToBottom();
-        }
-      });
-    },
-    isLabelSuggestionDismissed() {
-      return LocalStorage.getFlag(
-        LOCAL_STORAGE_KEYS.DISMISSED_LABEL_SUGGESTIONS,
-        this.currentAccountId,
-        this.currentChat.id
-      );
-    },
     fetchAllAttachmentsFromCurrentChat() {
       this.$store.dispatch('fetchAllAttachments', this.currentChat.id);
     },
@@ -504,14 +457,17 @@ export default {
       emitter.off(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, this.showReplyBox);
       emitter.off(CMD_AI_ASSIST, this.showReplyBox);
     },
-    onScrollToMessage({ messageId = '' } = {}) {
+    onScrollToMessage({ messageId = '', force = false } = {}) {
       this.$nextTick(() => {
-        const messageElement = document.getElementById('message' + messageId);
+        const messageElement = messageId
+          ? document.getElementById('message' + messageId)
+          : null;
         if (messageElement) {
           this.isProgrammaticScroll = true;
+          this.shouldAutoScroll = false;
           messageElement.scrollIntoView({ behavior: 'smooth' });
           this.fetchPreviousMessages();
-        } else {
+        } else if (force || this.shouldAutoScroll) {
           this.scrollToBottom();
         }
       });
@@ -528,41 +484,16 @@ export default {
       this.conversationPanel.removeEventListener('scroll', this.handleScroll);
     },
     scrollToBottom() {
+      if (!this.conversationPanel) return;
+
       this.isProgrammaticScroll = true;
-      let relevantMessages = [];
-
-      // label suggestions are not part of the messages list
-      // so we need to handle them separately
-      let labelSuggestions =
-        this.conversationPanel.querySelector('.label-suggestion');
-
-      // if there are unread messages, scroll to the first unread message
-      if (this.unreadMessageCount > 0) {
-        const scrollTop = getUnreadScrollTop(
-          this.conversationPanel,
-          this.unReadMessages[0]?.id
-        );
-        if (scrollTop !== undefined) {
-          this.conversationPanel.scrollTop = scrollTop;
-          return;
-        }
-      }
-      if (labelSuggestions) {
-        // when scrolling to the bottom, the label suggestions is below the last message
-        // so we scroll there if there are no unread messages
-        // Unread messages always take the highest priority
-        relevantMessages = [labelSuggestions];
-      } else {
-        // if there are no unread messages or label suggestion, scroll to the last message
-        // capturing last message from the messages list
-        relevantMessages = getTimelineEntries(this.conversationPanel).slice(-1);
-      }
-
-      this.conversationPanel.scrollTop = calculateScrollTop(
-        this.conversationPanel.scrollHeight,
-        this.$el.scrollHeight,
-        relevantMessages
-      );
+      this.shouldAutoScroll = true;
+      this.conversationPanel.scrollTop = this.conversationPanel.scrollHeight;
+      this.$nextTick(() => {
+        if (!this.shouldAutoScroll || !this.conversationPanel) return;
+        this.isProgrammaticScroll = true;
+        this.conversationPanel.scrollTop = this.conversationPanel.scrollHeight;
+      });
     },
     setScrollParams() {
       this.heightBeforeLoad = this.conversationPanel.scrollHeight;
@@ -600,13 +531,18 @@ export default {
       }
     },
 
+    isNearBottom() {
+      const panel = this.conversationPanel;
+      if (!panel) return true;
+
+      return panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 150;
+    },
+
     handleScroll(e) {
       if (this.isProgrammaticScroll) {
-        // Reset the flag
         this.isProgrammaticScroll = false;
-        this.hasUserScrolled = false;
       } else {
-        this.hasUserScrolled = true;
+        this.shouldAutoScroll = this.isNearBottom();
       }
       emitter.emit(BUS_EVENTS.ON_MESSAGE_LIST_SCROLL);
       this.fetchPreviousMessages(e.target.scrollTop);
@@ -645,7 +581,13 @@ export default {
         :href-link-text="$t('CONVERSATION.INSTAGRAM_RESTRICTION_STATUS_LINK')"
       />
       <Banner
-        v-if="!currentChat.can_reply"
+        v-if="currentChat.anonymous_caller"
+        color-scheme="alert"
+        class="mx-2 mt-2 overflow-hidden rounded-lg"
+        :banner-message="$t('CONVERSATION.ANONYMOUS_CALLER_CANNOT_REPLY')"
+      />
+      <Banner
+        v-else-if="!currentChat.can_reply"
         color-scheme="alert"
         class="mx-2 mt-2 overflow-hidden rounded-lg"
         :banner-message="replyWindowBannerMessage"
@@ -715,12 +657,6 @@ export default {
         </li>
       </template>
       <template #after>
-        <ConversationLabelSuggestion
-          v-if="shouldShowLabelSuggestions"
-          :suggested-labels="labelSuggestions"
-          :chat-labels="currentChat.labels"
-          :conversation-id="currentChat.id"
-        />
         <ContactConversationLink
           v-if="newerConversation"
           direction="newer"
@@ -750,6 +686,23 @@ export default {
             alt="Someone is typing"
           />
         </div>
+      </div>
+      <div
+        v-if="supervisorTypingPreview"
+        class="mx-4 mb-2 rounded-lg border border-n-amber-6 bg-n-amber-3 px-3 py-2 text-sm text-n-amber-12"
+      >
+        <p class="text-xs font-medium">
+          {{
+            $t('SUPERVISION.TYPING_PREVIEW', {
+              name:
+                supervisorTypingPreview.user?.name ||
+                currentChat.meta.assignee.name,
+            })
+          }}
+        </p>
+        <p v-if="supervisorTypingPreview.text" class="mt-1 whitespace-pre-wrap">
+          {{ supervisorTypingPreview.text }}
+        </p>
       </div>
       <Transition v-bind="foldTransition">
         <div

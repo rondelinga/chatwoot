@@ -1,4 +1,29 @@
 module Enterprise::SearchService
+  def filter_contacts
+    return Contact.none.page(params[:page]).per(15) unless contact_search_allowed?
+
+    super
+  end
+
+  def apply_contact_access_scope(contacts_query)
+    return contacts_query unless inbox_scoped_contacts?
+
+    contacts_query.joins(:contact_inboxes).where(contact_inboxes: { inbox_id: accessable_inbox_ids }).distinct
+  end
+
+  def inbox_scoped_contacts?
+    return false if account_user&.administrator?
+    return false if account_user&.custom_role_permission?('contact_manage')
+
+    account_user&.custom_role_permission?('contact_inbox_manage')
+  end
+
+  def contact_search_allowed?
+    return true if account_user&.administrator? || account_user&.custom_role.blank?
+
+    account_user.custom_role_permission?('contact_manage', 'contact_inbox_manage')
+  end
+
   def advanced_search
     where_conditions = build_where_conditions
     apply_filters(where_conditions)
@@ -53,23 +78,8 @@ module Enterprise::SearchService
     where_conditions[:created_at] = time_conditions if time_conditions.any?
   end
 
-  def cap_until_time(until_param)
-    max_future = 90.days.from_now
-    requested_time = Time.zone.at(until_param.to_i)
-
-    [requested_time, max_future].min
-  end
-
   def enforce_time_limit(since_param)
-    max_lookback = Limits::MESSAGE_SEARCH_TIME_RANGE_LIMIT_DAYS.days.ago
-
-    if since_param.present?
-      requested_time = Time.zone.at(since_param.to_i)
-      # Silently cap to max_lookback if requested time is too far back
-      [requested_time, max_lookback].max
-    else
-      max_lookback
-    end
+    since_param.present? ? cap_since_time(since_param) : search_window_start
   end
 
   def apply_inbox_filter(where_conditions)

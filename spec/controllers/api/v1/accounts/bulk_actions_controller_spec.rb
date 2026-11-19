@@ -32,7 +32,7 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
     end
 
     context 'when it is an authenticated user' do
-      let!(:agent) { create(:user, account: account, role: :agent) }
+      let!(:agent) { create(:user, account: account, role: :administrator) }
 
       before do
         Conversation.all.find_each { |conversation| create(:inbox_member, inbox: conversation.inbox, user: agent) }
@@ -42,6 +42,30 @@ RSpec.describe 'Api::V1::Accounts::BulkActionsController', type: :request do
         post "/api/v1/accounts/#{account.id}/bulk_actions",
              headers: agent.create_new_auth_token,
              params: { type: 'Test', fields: { status: 'snoozed' }, ids: %w[1 2 3] }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'Rejects bulk assignment to an assignee outside the account' do
+        other_user = create(:user, account: create(:account))
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/bulk_actions",
+               headers: agent.create_new_auth_token,
+               params: { type: 'Conversation', fields: { assignee_id: other_user.id }, ids: Conversation.first(2).pluck(:display_id) }
+        end.not_to have_enqueued_job(BulkActionsJob)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'Rejects bulk assignment to a team outside the account' do
+        other_team = create(:team, account: create(:account))
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/bulk_actions",
+               headers: agent.create_new_auth_token,
+               params: { type: 'Conversation', fields: { team_id: other_team.id }, ids: Conversation.first(2).pluck(:display_id) }
+        end.not_to have_enqueued_job(BulkActionsJob)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end

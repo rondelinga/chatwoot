@@ -28,6 +28,7 @@ class DashboardController < ActionController::Base
     DEPLOYMENT_ENV
     INSTALLATION_PRICING_PLAN
     CAPTAIN_TOOLS_MANIFEST_ENABLED
+    CAPTAIN_TOOLS_CATALOG_URL
   ].freeze
 
   before_action :set_application_pack
@@ -78,12 +79,13 @@ class DashboardController < ActionController::Base
       VAPID_PUBLIC_KEY: VapidService.public_key,
       ENABLE_ACCOUNT_SIGNUP: GlobalConfigService.load('ENABLE_ACCOUNT_SIGNUP', 'false'),
       FB_APP_ID: GlobalConfigService.load('FB_APP_ID', ''),
-      INSTAGRAM_APP_ID: GlobalConfigService.load('INSTAGRAM_APP_ID', ''),
+      INSTAGRAM_APP_ID: Instagram::LoginConfiguration.app_id,
       TIKTOK_APP_ID: GlobalConfigService.load('TIKTOK_APP_ID', ''),
       FACEBOOK_API_VERSION: GlobalConfigService.load('FACEBOOK_API_VERSION', 'v18.0'),
       WHATSAPP_APP_ID: GlobalConfigService.load('WHATSAPP_APP_ID', ''),
       WHATSAPP_CONFIGURATION_ID: GlobalConfigService.load('WHATSAPP_CONFIGURATION_ID', ''),
       IS_ENTERPRISE: ChatwootApp.enterprise?,
+      IS_COMPANY_ENRICHMENT_ENABLED: ChatwootApp.enterprise? && GlobalConfigService.load('CONTEXT_DEV_API_KEY', nil).present?,
       AZURE_APP_ID: GlobalConfigService.load('AZURE_APP_ID', ''),
       GIT_SHA: GIT_HASH,
       ALLOWED_LOGIN_METHODS: allowed_login_methods,

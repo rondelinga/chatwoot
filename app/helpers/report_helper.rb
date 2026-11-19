@@ -1,43 +1,28 @@
 module ReportHelper
+  include ReportBotMetricsHelper
+
   private
 
   def scope
     case params[:type]
-    when :account
-      account
-    when :inbox
-      inbox
-    when :agent
-      user
-    when :label
-      label
-    when :team
-      team
+    when :account then account
+    when :inbox   then inbox
+    when :agent   then user
+    when :label   then label
+    when :team    then team
+    when :agent_bot then agent_bot
     end
   end
 
-  def conversations_count
-    (get_grouped_values conversations).count
-  end
+  def conversations_count = get_grouped_values(conversations).count
+  def incoming_messages_count = get_grouped_values(incoming_messages).count
+  def outgoing_messages_count = get_grouped_values(outgoing_messages).count
+  def resolutions_count = get_grouped_values(resolutions).count
+  def bot_resolutions_count = get_grouped_values(bot_resolutions).count
+  def bot_handoffs_count = get_grouped_values(bot_handoffs).count
 
-  def incoming_messages_count
-    (get_grouped_values incoming_messages).count
-  end
-
-  def outgoing_messages_count
-    (get_grouped_values outgoing_messages).count
-  end
-
-  def resolutions_count
-    (get_grouped_values resolutions).count
-  end
-
-  def bot_resolutions_count
-    (get_grouped_values bot_resolutions).count
-  end
-
-  def bot_handoffs_count
-    (get_grouped_values bot_handoffs).count
+  def agent_bot
+    scope.agent_bots.where(account_id: account.id)
   end
 
   def conversations

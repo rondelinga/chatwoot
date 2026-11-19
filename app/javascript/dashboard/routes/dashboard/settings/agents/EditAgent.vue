@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
-import { required, minLength } from '@vuelidate/validators';
+import { required, minLength, minValue, integer } from '@vuelidate/validators';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
+import MultiSelect from 'dashboard/components-next/filter/inputs/MultiSelect.vue';
 import Auth from '../../../../api/auth';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -38,6 +39,14 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  activeChatLimit: {
+    default: null,
+    validator: value => value === null || Number.isInteger(value),
+  },
+  activeChatLimitEnabled: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['close']);
@@ -50,18 +59,55 @@ const { t } = useI18n();
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
 const selectedRoleId = ref(props.customRoleId || props.type);
+const activeChatLimitEnabled = ref(props.activeChatLimitEnabled);
+const activeChatLimitValue = ref(props.activeChatLimit);
 const agentCredentials = ref({ email: props.email });
+const inboxList = ref([]);
+const selectedInboxes = ref([]);
+const teamList = ref([]);
+const selectedTeams = ref([]);
 
-const rules = {
+const fetchInboxes = async () => {
+  await store.dispatch('inboxes/get');
+  inboxList.value = store.getters['inboxes/getInboxes'];
+};
+
+const fetchAgentInboxes = async () => {
+  const inboxes = await store.dispatch('agents/getInboxes', props.id);
+  selectedInboxes.value = inboxes;
+};
+
+const fetchTeams = async () => {
+  await store.dispatch('teams/get');
+  teamList.value = store.getters['teams/getTeams'];
+};
+
+const fetchAgentTeams = async () => {
+  const teams = await store.dispatch('agents/getTeams', props.id);
+  selectedTeams.value = teams;
+};
+
+onMounted(async () => {
+  await fetchInboxes();
+  await fetchAgentInboxes();
+  await fetchTeams();
+  await fetchAgentTeams();
+});
+
+const rules = computed(() => ({
   agentName: { required, minLength: minLength(1) },
   selectedRoleId: { required },
   agentAvailability: { required },
-};
+  activeChatLimitValue: activeChatLimitEnabled.value
+    ? { required, integer, minValue: minValue(0) }
+    : {},
+}));
 
 const v$ = useVuelidate(rules, {
   agentName,
   selectedRoleId,
   agentAvailability,
+  activeChatLimitValue,
 });
 
 const pageTitle = computed(
@@ -126,6 +172,12 @@ const editAgent = async () => {
       id: props.id,
       name: agentName.value,
       availability: agentAvailability.value,
+      inbox_ids: selectedInboxes.value.map(i => i.id),
+      team_ids: selectedTeams.value.map(team => team.id),
+      active_chat_limit_enabled: activeChatLimitEnabled.value,
+      active_chat_limit: activeChatLimitEnabled.value
+        ? activeChatLimitValue.value
+        : props.activeChatLimit,
     };
 
     if (selectedRole.value.name.startsWith('custom_')) {
@@ -202,6 +254,41 @@ const resetPassword = async () => {
             {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_AVAILABILITY.ERROR') }}
           </span>
         </label>
+      </div>
+
+      <div class="w-full">
+        {{ $t('PROFILE_SETTINGS.FORM.INBOX.LABEL') }}
+        <MultiSelect v-model="selectedInboxes" :options="inboxList" />
+      </div>
+
+      <div class="w-full">
+        {{ $t('PROFILE_SETTINGS.FORM.TEAM.LABEL') }}
+        <MultiSelect v-model="selectedTeams" :options="teamList" />
+      </div>
+
+      <div class="w-full">
+        <label class="flex items-center gap-2">
+          <input v-model="activeChatLimitEnabled" type="checkbox" />
+          <span>{{ $t('AGENT_MGMT.EDIT.FORM.CHAT_LIMIT.ENABLED') }}</span>
+        </label>
+        <div v-if="activeChatLimitEnabled" class="mt-2">
+          <label :class="{ error: v$.activeChatLimitValue.$error }">
+            {{ $t('AGENT_MGMT.EDIT.FORM.CHAT_LIMIT.VALUE') }}
+            <input
+              v-model.number="activeChatLimitValue"
+              type="number"
+              min="0"
+              step="1"
+              @input="v$.activeChatLimitValue.$touch"
+            />
+            <span v-if="v$.activeChatLimitValue.$error" class="message">
+              {{ $t('AGENT_MGMT.EDIT.FORM.CHAT_LIMIT.ERROR') }}
+            </span>
+          </label>
+          <p class="text-label-small text-n-slate-11">
+            {{ $t('AGENT_MGMT.EDIT.FORM.CHAT_LIMIT.HELP') }}
+          </p>
+        </div>
       </div>
 
       <div class="flex flex-row justify-start w-full gap-2 px-0 py-2">

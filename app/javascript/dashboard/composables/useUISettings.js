@@ -4,6 +4,7 @@ import wootConstants from 'dashboard/constants/globals';
 
 export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'conversation_actions' },
+  { name: 'queue_actions' },
   { name: 'macros' },
   { name: 'conversation_info' },
   { name: 'contact_attributes' },
@@ -12,6 +13,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'previous_conversation' },
   { name: 'conversation_participants' },
   { name: 'linear_issues' },
+  { name: 'stripe_customer' },
   { name: 'shopify_orders' },
 ]);
 

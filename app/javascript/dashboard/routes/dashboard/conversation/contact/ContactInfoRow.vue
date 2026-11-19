@@ -40,6 +40,10 @@ export default {
       type: String,
       default: '',
     },
+    valueClass: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['update'],
   data() {
@@ -112,6 +116,7 @@ export default {
       <span
         v-if="value"
         class="overflow-hidden text-sm whitespace-nowrap text-ellipsis"
+        :class="valueClass"
         :title="value"
       >
         {{ value }}
@@ -149,12 +154,16 @@ export default {
       />
       <span
         v-if="value"
-        v-dompurify-html="value"
         class="overflow-hidden text-sm whitespace-nowrap text-ellipsis"
-      />
+        :class="valueClass"
+        :title="value"
+      >
+        {{ value }}
+      </span>
       <span v-else class="text-sm text-n-slate-11">
         {{ $t('CONTACT_PANEL.NOT_AVAILABLE') }}
       </span>
+      <slot v-if="value" />
       <NextButton
         v-if="showCopy"
         ghost

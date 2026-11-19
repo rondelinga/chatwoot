@@ -11,6 +11,7 @@
 #  current_sign_in_at     :datetime
 #  current_sign_in_ip     :string
 #  custom_attributes      :jsonb
+#  device_trust_version   :integer          default(0), not null
 #  display_name           :string
 #  email                  :string
 #  encrypted_password     :string           default(""), not null
@@ -19,7 +20,7 @@
 #  message_signature      :text
 #  name                   :string           not null
 #  otp_backup_codes       :text
-#  otp_required_for_login :boolean          default(FALSE)
+#  otp_required_for_login :boolean          default(FALSE), not null
 #  otp_secret             :string
 #  provider               :string           default("email"), not null
 #  pubsub_token           :string
@@ -100,18 +101,24 @@ class User < ApplicationRecord
   has_many :inboxes, through: :inbox_members, source: :inbox
   has_many :messages, as: :sender, dependent: :nullify
   has_many :invitees, through: :account_users, class_name: 'User', foreign_key: 'inviter_id', source: :inviter, dependent: :nullify
-
   has_many :user_sessions, dependent: :destroy
+  has_many :created_canned_responses, class_name: 'CannedResponse', foreign_key: 'created_by_id', dependent: :nullify,
+                                      inverse_of: :created_by
   has_many :custom_filters, dependent: :destroy_async
+  has_many :report_filter_presets, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :nullify
   has_many :mentions, dependent: :destroy_async
   has_many :notes, dependent: :nullify
   has_many :notification_settings, dependent: :destroy_async
+  has_many :notification_sounds, dependent: :destroy_async
   has_many :notification_subscriptions, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :team_members, dependent: :destroy_async
   has_many :teams, through: :team_members
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
+  has_many :user_pinned_labels, dependent: :destroy_async
+  has_many :pinned_labels, through: :user_pinned_labels, source: :label
+
   # rubocop:disable Rails/HasManyOrHasOneDependent
   # we are handling this in `remove_macros` callback
   has_many :macros, foreign_key: 'created_by_id', inverse_of: :created_by
@@ -128,8 +135,34 @@ class User < ApplicationRecord
   end
 
   def send_devise_notification(notification, *)
-    devise_mailer.with(account: Current.account).send(notification, self, *).deliver_later
+    mailer_params = { account: Current.account }
+    mailer_params[:redirect_url] = @confirmation_redirect_url if notification == :confirmation_instructions && @confirmation_redirect_url.present?
+    devise_mailer.with(mailer_params).send(notification, self, *).deliver_later
   end
+
+  def send_confirmation_instructions_with_redirect(redirect_url:)
+    @confirmation_redirect_url = redirect_url
+    send_confirmation_instructions
+  ensure
+    @confirmation_redirect_url = nil
+  end
+
+  def send_reset_password_instructions(redirect_url: nil, sso_account_id: nil)
+    @reset_password_account_id = sso_account_id
+    @reset_password_redirect_url = redirect_url
+    super()
+  ensure
+    @reset_password_account_id = nil
+    @reset_password_redirect_url = nil
+  end
+
+  def send_reset_password_instructions_notification(token)
+    devise_mailer
+      .with(account: Current.account, redirect_url: @reset_password_redirect_url, sso_account_id: @reset_password_account_id)
+      .reset_password_instructions(self, token)
+      .deliver_later
+  end
+  private :send_reset_password_instructions_notification
 
   def set_password_and_uid
     self.uid = email
@@ -220,6 +253,20 @@ class User < ApplicationRecord
   def postpone_email_change_until_confirmation_and_regenerate_confirmation_token
     unconfirmed_email_will_change!
     super
+  end
+
+  def pin_label(label)
+    user_pinned_labels.find_or_create_by(label: label) do |upl|
+      upl.position = user_pinned_labels.maximum(:position).to_i + 1
+    end
+  end
+
+  def unpin_label(label)
+    user_pinned_labels.find_by(label: label)&.destroy
+  end
+
+  def label_pinned?(label_id)
+    user_pinned_labels.exists?(label_id: label_id)
   end
 
   private

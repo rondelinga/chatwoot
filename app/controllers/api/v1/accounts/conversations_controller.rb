@@ -3,6 +3,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include DateRangeHelper
   include HmacConcern
   include ConversationCustomAttributesConcern
+  include ConversationLastSeenConcern
   include ConversationAssignmentTargetsConcern
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
@@ -29,6 +30,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachments
     @attachments_count = @conversation.attachments.count
+
     @attachments = @conversation.attachments
                                 .includes({ file_attachment: :blob }, message: [:inbox, { sender: { avatar_attachment: :blob } }])
                                 .order(created_at: :desc)
@@ -61,7 +63,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def mute
-    @conversation.mute!
+    @conversation.mute!(banned_until: parse_banned_until_param, timezone: params[:timezone])
     head :ok
   end
 
@@ -139,6 +141,19 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   private
 
+  def parse_banned_until_param
+    raw = params[:banned_until]
+    return nil if raw.blank?
+
+    if ConversationMuteHelpers::BAN_DURATIONS.key?(raw.to_s)
+      Time.current + ConversationMuteHelpers::BAN_DURATIONS[raw.to_s]
+    else
+      Time.zone.parse(raw.to_s)
+    end
+  rescue ArgumentError, TypeError
+    nil
+  end
+
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
     raise ActionController::ParameterMissing, :priority unless params[:priority].nil? || Conversation.priorities.key?(params[:priority])
@@ -148,29 +163,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachment_params
     params.permit(:page)
-  end
-
-  def update_last_seen_on_conversation(last_seen_at, update_assignee)
-    updates = { agent_last_seen_at: last_seen_at }
-    updates[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
-
-    # rubocop:disable Rails/SkipsModelValidations
-    @conversation.update_columns(updates)
-    # rubocop:enable Rails/SkipsModelValidations
-
-    ::Conversations::UnreadCounts::Notifier.new(@conversation).perform
-    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(Current.account).conversation_changed!
-  end
-
-  def should_update_last_seen?
-    # Update if at least one relevant timestamp is older than 1 hour or not set
-    # This prevents redundant DB writes when agents repeatedly view the same conversation
-    agent_needs_update = @conversation.agent_last_seen_at.blank? || @conversation.agent_last_seen_at < 1.hour.ago
-    return agent_needs_update unless assignee?
-
-    # For assignees, check both timestamps - update if either is old
-    assignee_needs_update = @conversation.assignee_last_seen_at.blank? || @conversation.assignee_last_seen_at < 1.hour.ago
-    agent_needs_update || assignee_needs_update
   end
 
   def set_conversation_status
@@ -230,10 +222,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def conversation_finder
     @conversation_finder ||= ConversationFinder.new(Current.user, params)
-  end
-
-  def assignee?
-    @conversation.assignee_id? && Current.user == @conversation.assignee
   end
 end
 

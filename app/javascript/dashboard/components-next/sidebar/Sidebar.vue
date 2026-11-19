@@ -4,6 +4,8 @@ import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useConfig } from 'dashboard/composables/useConfig';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
+import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useCommandBar } from '@chatwoot/jumpbar';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -29,6 +31,8 @@ import {
   resolveSidebarSort,
   sortSidebarItems,
 } from 'dashboard/helper/sidebarSort';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -54,6 +58,7 @@ const isCallsAvailable = computed(
   () => isOnChatwootCloud.value || isEnterprise
 );
 const searchShortcut = useKbd([`$mod`, 'k']);
+const commandBar = useCommandBar();
 const { t } = useI18n();
 
 const isACustomBrandedInstance = useMapGetter(
@@ -76,6 +81,11 @@ const isMonitorsAvailable = computed(
     [FEATURE_FLAGS.REPORTS, FEATURE_FLAGS.CONVERSATION_MONITORS].every(flag =>
       isFeatureEnabledonAccount.value(accountId.value, flag)
     )
+);
+
+const { uiSettings } = useUISettings();
+const hasCommandBarV2 = computed(
+  () => uiSettings.value.command_bar_v2 === true
 );
 
 const hasAdvancedAssignment = computed(() => {
@@ -102,10 +112,10 @@ const hasFilteredUnreadCounts = computed(() => {
   );
 });
 
-const hasDataImport = computed(() => {
+const hasCaptainMcpServers = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
-    FEATURE_FLAGS.DATA_IMPORT
+    FEATURE_FLAGS.CAPTAIN_MCP_SERVERS
   );
 });
 
@@ -139,6 +149,12 @@ const expandedItem = ref(null);
 
 const setExpandedItem = name => {
   expandedItem.value = expandedItem.value === name ? null : name;
+  if (name === 'Supervision') {
+    LocalStorage.set(
+      LOCAL_STORAGE_KEYS.SUPERVISION_SIDEBAR_EXPANDED,
+      expandedItem.value === 'Supervision'
+    );
+  }
 };
 
 const {
@@ -255,6 +271,13 @@ const getSidebarSectionSort = useMapGetter(
 );
 
 onMounted(() => {
+  const supervisionExpanded = LocalStorage.get(
+    LOCAL_STORAGE_KEYS.SUPERVISION_SIDEBAR_EXPANDED
+  );
+  if (supervisionExpanded === true && !expandedItem.value) {
+    expandedItem.value = 'Supervision';
+  }
+
   store.dispatch('labels/get');
   store.dispatch('inboxes/get');
   store.dispatch('notifications/unReadCount');
@@ -346,6 +369,17 @@ const newReportRoutes = () => [
     label: t('SIDEBAR.REPORTS_AGENT'),
     to: accountScopedRoute('agent_reports_index'),
     activeOn: ['agent_reports_show'],
+  },
+  {
+    name: 'Reports Agent Activity',
+    label: t('SIDEBAR.AGENT_ACTIVITY'),
+    to: accountScopedRoute('agent_activity'),
+  },
+  {
+    name: 'Reports Agent Overview',
+    label: t('SIDEBAR.REPORTS_AGENT_OVERVIEW'),
+    to: accountScopedRoute('agent_reports_show_empty'),
+    activeOn: ['agent_reports_show', 'agent_reports_show_empty'],
   },
   {
     name: 'Reports Label',
@@ -509,6 +543,28 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'Supervision',
+      label: t('SIDEBAR.SUPERVISION'),
+      icon: 'i-lucide-eye',
+      children: [
+        {
+          name: 'Supervise',
+          label: t('SIDEBAR.SUPERVISION_SUPERVISE'),
+          to: accountScopedRoute('supervision_supervise'),
+          activeOn: [
+            'supervision_supervise',
+            'supervision_supervise_conversation',
+          ],
+        },
+        {
+          name: 'Supervision Inbox',
+          label: t('SIDEBAR.SUPERVISION_INBOX'),
+          to: accountScopedRoute('supervision_inbox'),
+          activeOn: ['supervision_inbox'],
+        },
+      ],
+    },
+    {
       name: 'Captain',
       icon: 'i-woot-captain',
       label: t('SIDEBAR.CAPTAIN'),
@@ -567,8 +623,16 @@ const menuItems = computed(() => {
         },
         {
           name: 'Tools',
-          label: t('SIDEBAR.CAPTAIN_TOOLS'),
-          activeOn: ['captain_tools_index'],
+          label: hasCaptainMcpServers.value
+            ? t('SIDEBAR.CAPTAIN_TOOLS_AND_MCP')
+            : t('SIDEBAR.CAPTAIN_TOOLS'),
+          activeOn: [
+            'captain_tools_index',
+            'captain_tools_installed',
+            'captain_tools_custom',
+            'captain_tools_explore',
+            'captain_mcp_servers_index',
+          ],
           to: accountScopedRoute('captain_assistants_index', {
             navigationPath: 'captain_tools_index',
           }),
@@ -691,6 +755,11 @@ const menuItems = computed(() => {
       icon: 'i-lucide-chart-spline',
       children: [
         {
+          name: 'Reports All Metrics',
+          label: t('SIDEBAR.REPORTS_ALL_METRICS'),
+          to: accountScopedRoute('all_conversation_metrics_reports'),
+        },
+        {
           name: 'Report Overview',
           label: t('SIDEBAR.REPORTS_OVERVIEW'),
           to: accountScopedRoute('account_overview_reports'),
@@ -705,6 +774,11 @@ const menuItems = computed(() => {
           name: 'Reports CSAT',
           label: t('SIDEBAR.CSAT'),
           to: accountScopedRoute('csat_reports'),
+        },
+        {
+          name: 'Reports Queued Customers',
+          label: t('SIDEBAR.REPORTS_QUEUED_CUSTOMERS'),
+          to: accountScopedRoute('queued_customers_reports'),
         },
         {
           name: 'Reports SLA',
@@ -836,6 +910,39 @@ const menuItems = computed(() => {
           ],
           to: accountScopedRoute('settings_teams_list'),
         },
+        {
+          name: 'Settings Routing Types',
+          label: t('SIDEBAR.ROUTING_TYPES'),
+          icon: 'i-lucide-route',
+          activeOn: ['routing_types_list'],
+          to: accountScopedRoute('routing_types_list'),
+        },
+        {
+          name: 'Settings Inboxes',
+          label: t('SIDEBAR.INBOXES'),
+          icon: 'i-lucide-inbox',
+          activeOn: [
+            'settings_inbox_list',
+            'settings_inbox_show',
+            'settings_inbox_new',
+            'settings_inbox_finish',
+            'settings_inboxes_page_channel',
+            'settings_inboxes_add_agents',
+          ],
+          to: accountScopedRoute('settings_inbox_list'),
+        },
+        {
+          name: 'Settings Custom Attributes',
+          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
+          icon: 'i-lucide-code',
+          to: accountScopedRoute('attributes_list'),
+        },
+        {
+          name: 'Settings Custom Roles',
+          label: t('SIDEBAR.CUSTOM_ROLES'),
+          icon: 'i-lucide-shield-plus',
+          to: accountScopedRoute('custom_roles_list'),
+        },
         ...(hasAdvancedAssignment.value
           ? [
               {
@@ -856,20 +963,6 @@ const menuItems = computed(() => {
             ]
           : []),
         {
-          name: 'Settings Inboxes',
-          label: t('SIDEBAR.INBOXES'),
-          icon: 'i-lucide-inbox',
-          activeOn: [
-            'settings_inbox_list',
-            'settings_inbox_show',
-            'settings_inbox_new',
-            'settings_inbox_finish',
-            'settings_inboxes_page_channel',
-            'settings_inboxes_add_agents',
-          ],
-          to: accountScopedRoute('settings_inbox_list'),
-        },
-        {
           name: 'Settings Templates',
           label: t('SIDEBAR.WHATSAPP_TEMPLATES'),
           icon: 'i-lucide-layout-template',
@@ -880,12 +973,6 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.LABELS'),
           icon: 'i-lucide-tags',
           to: accountScopedRoute('labels_list'),
-        },
-        {
-          name: 'Settings Custom Attributes',
-          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
-          icon: 'i-lucide-code',
-          to: accountScopedRoute('attributes_list'),
         },
         {
           name: 'Settings Automation',
@@ -917,27 +1004,17 @@ const menuItems = computed(() => {
           icon: 'i-lucide-blocks',
           to: accountScopedRoute('settings_applications'),
         },
-        ...(hasDataImport.value
-          ? [
-              {
-                name: 'Settings Data',
-                label: t('SIDEBAR.DATA'),
-                icon: 'i-lucide-database',
-                to: accountScopedRoute('settings_data_imports'),
-              },
-            ]
-          : []),
+        {
+          name: 'Settings Data',
+          label: t('SIDEBAR.DATA'),
+          icon: 'i-lucide-database',
+          to: accountScopedRoute('settings_data_imports'),
+        },
         {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('auditlogs_list'),
-        },
-        {
-          name: 'Settings Custom Roles',
-          label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
-          to: accountScopedRoute('custom_roles_list'),
         },
         {
           name: 'Settings Sla',
@@ -1021,16 +1098,40 @@ const menuItems = computed(() => {
         </template>
       </div>
       <div
-        class="flex gap-2"
+        class="flex gap-2 min-w-0"
         :class="isEffectivelyCollapsed ? 'flex-col items-center' : 'px-2'"
       >
+        <div
+          v-if="hasCommandBarV2 && !isEffectivelyCollapsed"
+          class="flex items-center w-full min-w-0 h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
+        >
+          <RouterLink
+            :to="{ name: 'search' }"
+            class="flex flex-grow gap-2 items-center px-2 py-1 min-w-0 h-7"
+          >
+            <span
+              class="flex-shrink-0 i-lucide-search size-4 text-n-slate-10"
+            />
+            <span class="flex-grow min-w-0 truncate text-start text-n-slate-10">
+              {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
+            </span>
+          </RouterLink>
+          <button
+            type="button"
+            class="flex-shrink-0 px-2 h-full text-xs tracking-wide whitespace-nowrap rounded-e-lg text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 dark:hover:bg-n-slate-9/30"
+            :title="t('COMMAND_BAR.SEARCH_PLACEHOLDER')"
+            @click="commandBar.open()"
+          >
+            {{ searchShortcut }}
+          </button>
+        </div>
         <RouterLink
-          v-if="!isEffectivelyCollapsed"
+          v-else-if="!isEffectivelyCollapsed"
           :to="{ name: 'search' }"
-          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
+          class="flex gap-2 items-center px-2 py-1 w-full min-w-0 h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
         >
           <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-10" />
-          <span class="flex-grow text-start text-n-slate-10">
+          <span class="flex-grow min-w-0 truncate text-start text-n-slate-10">
             {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
           </span>
           <span

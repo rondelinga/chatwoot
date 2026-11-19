@@ -47,6 +47,10 @@ vi.mock('dashboard/composables/store', async () => {
 
 vi.mock('dashboard/composables', () => ({ useAlert: mocks.alerts }));
 
+vi.mock('dashboard/composables/useAdmin', () => ({
+  useAdmin: () => ({ isAdmin: { value: true } }),
+}));
+
 vi.mock('dashboard/composables/usePolicy', async () => {
   const { ref } = await import('vue');
   // Reactive, so a spec can simulate account features loading after the page mounts
@@ -61,14 +65,14 @@ vi.mock('dashboard/composables/usePolicy', async () => {
 
 vi.mock('vue-router', async importOriginal => ({
   ...(await importOriginal()),
-  useRoute: () => ({ params: { assistantId: '1' } }),
+  useRoute: () => ({ params: { assistantId: '1' }, query: {} }),
 }));
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: translate }),
 }));
 
-const PageLayoutStub = {
+const ToolsPageLayoutStub = {
   inheritAttrs: false,
   emits: ['click'],
   template: '<div><slot name="body" /></div>',
@@ -107,10 +111,11 @@ const DialogStub = {
 
 const mountIndex = () =>
   shallowMount(Index, {
+    props: { source: 'custom' },
     global: {
       mocks: { $t: translate },
       stubs: {
-        PageLayout: PageLayoutStub,
+        ToolsPageLayout: ToolsPageLayoutStub,
         CaptainPaywall: true,
         CustomToolsPageEmptyState: true,
         CreateCustomToolDialog: true,
@@ -143,7 +148,7 @@ describe('Captain custom tools', () => {
 
     expect(mocks.dispatch).toHaveBeenCalledWith(
       'captainCustomTools/get',
-      expect.objectContaining({ assistantId: '1', page: 1 })
+      expect.objectContaining({ assistantId: '1', source: 'custom', page: 1 })
     );
   });
 
@@ -173,11 +178,14 @@ describe('Captain custom tools', () => {
       expect.anything()
     );
     expect(mocks.dialogOpen).toHaveBeenCalledOnce();
-    expect(wrapper.findComponent(DialogStub).props('description')).toBe(
+    const disableDialog = wrapper
+      .findAllComponents(DialogStub)
+      .find(dialog => dialog.props('title') === 'Disable Order lookup?');
+    expect(disableDialog.props('description')).toBe(
       'This tool is used by 2 enabled scenarios.'
     );
 
-    await wrapper.get('[data-test="confirm"]').trigger('click');
+    await disableDialog.get('[data-test="confirm"]').trigger('click');
     await flushPromises();
 
     expect(mocks.dispatch).toHaveBeenCalledWith('captainCustomTools/update', {

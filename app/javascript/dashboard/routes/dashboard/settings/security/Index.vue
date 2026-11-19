@@ -6,6 +6,7 @@ import SettingsLayout from '../SettingsLayout.vue';
 import SamlSettings from './components/SamlSettings.vue';
 import SamlPaywall from './components/SamlPaywall.vue';
 import EnforceMfa from './components/EnforceMfa.vue';
+import AgentHistorySettings from './components/AgentHistorySettings.vue';
 
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { INSTALLATION_TYPES } from 'dashboard/constants/installationTypes';
@@ -59,6 +60,7 @@ const showSamlSection = computed(
     </template>
     <template #body>
       <div class="flex flex-col gap-4">
+        <AgentHistorySettings />
         <EnforceMfa v-if="isMfaAvailable" />
         <template v-if="showSamlSection">
           <SamlPaywall v-if="showPaywall" />

@@ -1,6 +1,5 @@
 <script>
 import { mapGetters } from 'vuex';
-import router from '../../../../index';
 import { useAlert } from 'dashboard/composables';
 import { useVuelidate } from '@vuelidate/core';
 
@@ -16,8 +15,8 @@ export default {
   },
   validations: {
     selectedAgents: {
-      isEmpty() {
-        return !!this.selectedAgents.length;
+      isEmpty(agents) {
+        return agents.length > 0;
       },
     },
   },
@@ -26,7 +25,8 @@ export default {
   },
   data() {
     return {
-      selectedAgents: [],
+      primaryAgents: [],
+      backupAgents: [],
       isCreating: false,
     };
   },
@@ -55,6 +55,9 @@ export default {
       const { id } = this.currentTeam;
       return id && !this.uiFlags.isFetching;
     },
+    selectedAgents() {
+      return [...this.primaryAgents, ...this.backupAgents];
+    },
   },
 
   async mounted() {
@@ -64,34 +67,43 @@ export default {
       await this.$store.dispatch('teamMembers/get', {
         teamId,
       });
-      const members = this.teamMembers.map(item => item.id);
-      this.updateSelectedAgents(members);
+      const tiersEnabled = this.currentTeam.assignment_tiers_enabled !== false;
+      this.primaryAgents = this.teamMembers
+        .filter(member => tiersEnabled && member.assignment_tier === 'primary')
+        .map(member => member.id);
+      this.backupAgents = this.teamMembers
+        .filter(member => tiersEnabled && member.assignment_tier === 'backup')
+        .map(member => member.id);
+      if (!tiersEnabled) {
+        this.primaryAgents = this.teamMembers.map(member => member.id);
+      }
     } catch {
-      this.updateSelectedAgents([]);
+      this.primaryAgents = [];
+      this.backupAgents = [];
     }
   },
 
   methods: {
-    updateSelectedAgents(newAgentList) {
+    updateAgents({ primary, backup }) {
       this.v$.selectedAgents.$touch();
-      this.selectedAgents = [...newAgentList];
+      this.primaryAgents = [...primary];
+      this.backupAgents = [...backup];
     },
     async addAgents() {
       this.isCreating = true;
-      const { teamId, selectedAgents } = this;
+      const { teamId, primaryAgents, backupAgents } = this;
 
       try {
+        const tiersEnabled =
+          this.currentTeam.assignment_tiers_enabled !== false;
         await this.$store.dispatch('teamMembers/update', {
           teamId,
-          agentsList: selectedAgents,
+          primaryUserIds: tiersEnabled
+            ? primaryAgents
+            : [...new Set([...primaryAgents, ...backupAgents])],
+          backupUserIds: tiersEnabled ? backupAgents : [],
         });
-        router.replace({
-          name: 'settings_teams_edit_finish',
-          params: {
-            page: 'edit',
-            teamId,
-          },
-        });
+        useAlert(this.$t('TEAMS_SETTINGS.EDIT.API.AGENTS_SUCCESS_MESSAGE'));
         this.$store.dispatch('teams/get');
       } catch (error) {
         useAlert(error.message);
@@ -103,33 +115,31 @@ export default {
 </script>
 
 <template>
-  <div class="h-full w-full px-8 pt-8 col-span-6 overflow-auto">
-    <form class="flex flex-col gap-4 mx-0" @submit.prevent="addAgents">
-      <PageHeader
-        :header-title="headerTitle"
-        :header-content="$t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.DESC')"
-      />
+  <form class="flex flex-col gap-4 mx-0" @submit.prevent="addAgents">
+    <PageHeader
+      :header-title="headerTitle"
+      :header-content="$t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.DESC')"
+    />
 
-      <div class="w-full h-full">
-        <div v-if="v$.selectedAgents.$error">
-          <p class="error-message pb-2">
-            {{ $t('TEAMS_SETTINGS.ADD.AGENT_VALIDATION_ERROR') }}
-          </p>
-        </div>
-        <AgentSelector
-          v-if="showAgentsList"
-          :agent-list="agentList"
-          :selected-agents="selectedAgents"
-          :update-selected-agents="updateSelectedAgents"
-          :is-working="isCreating"
-          :submit-button-text="
-            $t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.BUTTON_TEXT')
-          "
-        />
-        <div v-else class="flex items-center justify-center py-6">
-          <Spinner class="text-n-blue-11" />
-        </div>
+    <div class="w-full h-full">
+      <div v-if="v$.selectedAgents.$error">
+        <p class="error-message pb-2">
+          {{ $t('TEAMS_SETTINGS.ADD.AGENT_VALIDATION_ERROR') }}
+        </p>
       </div>
-    </form>
-  </div>
+      <AgentSelector
+        v-if="showAgentsList"
+        :agent-list="agentList"
+        :primary-agents="primaryAgents"
+        :backup-agents="backupAgents"
+        :tiers-enabled="currentTeam.assignment_tiers_enabled !== false"
+        :update-agents="updateAgents"
+        :is-working="isCreating"
+        :submit-button-text="$t('TEAMS_SETTINGS.EDIT_FLOW.AGENTS.BUTTON_TEXT')"
+      />
+      <div v-else class="flex items-center justify-center py-6">
+        <Spinner class="text-n-blue-11" />
+      </div>
+    </div>
+  </form>
 </template>

@@ -1,17 +1,31 @@
 <script>
 import V4Button from 'dashboard/components-next/button/Button.vue';
-import { useAlert } from 'dashboard/composables';
+import { useAlert, useTrack } from 'dashboard/composables';
+import { useRestrictedAgent } from 'dashboard/composables/useRestrictedAgent';
+import differenceInDays from 'date-fns/differenceInDays';
+import fromUnixTime from 'date-fns/fromUnixTime';
 import ReportFilters from './ReportFilters.vue';
+import ReportFilterPresets from './ReportFilterPresets.vue';
 import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
+import { REPORTS_EVENTS } from '../../../../../helper/AnalyticsHelper/events';
 import ReportHeader from './ReportHeader.vue';
+import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
+import { DATE_RANGE_TYPES } from 'dashboard/components/ui/DatePicker/helpers/DatePickerHelper';
+import { generateReportURLParams } from '../helpers/reportFilterHelper';
+import {
+  buildPresetReportQuery,
+  parsePresetFilters,
+  serializeReportQuery,
+} from '../helpers/reportFilterPresetHelper';
 
 export default {
   components: {
     ReportHeader,
     V4Button,
     ReportFilters,
+    ReportFilterPresets,
     ReportContainer,
   },
   props: {
@@ -44,6 +58,11 @@ export default {
       default: null,
     },
   },
+  setup() {
+    const { canExportData } = useRestrictedAgent();
+
+    return { canExportData };
+  },
   data() {
     return {
       from: 0,
@@ -51,6 +70,10 @@ export default {
       selectedFilter: this.selectedItem,
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
+      // Remounts ReportFilters so it re-reads the URL after a preset is applied
+      filtersKey: 0,
+      // ReportFilters reads its range from the URL on mount, so it waits for the default range
+      isDefaultRangeReady: false,
     };
   },
   computed: {
@@ -72,6 +95,20 @@ export default {
     selectedFilterId() {
       return this.selectedFilter?.id || null;
     },
+    presetFilters() {
+      const entityId = Number(this.$route.params.id);
+      const entityIds = entityId ? [entityId] : [];
+      const idsFor = type => (this.type === type ? entityIds : []);
+
+      return {
+        ...serializeReportQuery(this.$route.query),
+        groupById: this.groupBy.id,
+        agentIds: idsFor('agent'),
+        inboxIds: idsFor('inbox'),
+        teamIds: idsFor('team'),
+        labelIds: idsFor('label'),
+      };
+    },
     reportKeys() {
       return {
         CONVERSATIONS: 'conversations_count',
@@ -83,13 +120,47 @@ export default {
         RESOLUTION_TIME: 'avg_resolution_time',
         RESOLUTION_COUNT: 'resolutions_count',
         REPLY_TIME: 'reply_time',
+        ...(this.isAgentType && { AGENT_CHAT_DURATION: 'agent_chat_duration' }),
       };
     },
+  },
+  watch: {
+    filterItemsList(items) {
+      // Opening the report without an entity id shows the first entity
+      if (!this.$route.params.id && items.length) {
+        this.$router.replace({
+          name: `${this.type}_reports_show`,
+          params: { ...this.$route.params, id: items[0].id },
+          query: this.$route.query,
+        });
+      }
+    },
+  },
+  async created() {
+    await this.applyDefaultRange();
   },
   mounted() {
     this.$store.dispatch(this.actionKey);
   },
   methods: {
+    async applyDefaultRange() {
+      // Upstream ReportFilters defaults to the last 7 days; these reports open on today
+      const { query } = this.$route;
+      if (!query.range && !query.from && !query.to) {
+        const today = new Date();
+        await this.$router.replace({
+          query: {
+            ...query,
+            ...generateReportURLParams({
+              from: getUnixStartOfDay(today),
+              to: getUnixEndOfDay(today),
+              range: DATE_RANGE_TYPES.TODAY,
+            }),
+          },
+        });
+      }
+      this.isDefaultRangeReady = true;
+    },
     fetchAllData() {
       if (this.selectedFilter) {
         const { from, to, groupBy, businessHours } = this;
@@ -136,13 +207,44 @@ export default {
         this.$store.dispatch(dispatchMethods[type], params);
       }
     },
+    async applyPreset(filters) {
+      const preset = parsePresetFilters(filters);
+      const presetEntityId = {
+        agent: preset.agentIds,
+        inbox: preset.inboxIds,
+        team: preset.teamIds,
+        label: preset.labelIds,
+      }[this.type][0];
+      const entity = this.filterItemsList.find(
+        item => item.id === presetEntityId
+      );
+
+      await this.$router.replace({
+        name: `${this.type}_reports_show`,
+        params: {
+          ...this.$route.params,
+          id: entity?.id ?? this.$route.params.id,
+        },
+        query: buildPresetReportQuery(filters, this.$route.query),
+      });
+      this.filtersKey += 1;
+    },
     onFilterChange(payload) {
       const { from, to, businessHours, groupBy } = payload;
+      if (this.from !== 0 && this.to !== 0) {
+        useTrack(REPORTS_EVENTS.FILTER_REPORT, {
+          filterValue: { from, to, groupBy, businessHours },
+          reportType: this.type,
+        });
+      }
       this.from = from;
       this.to = to;
       this.businessHours = businessHours;
 
-      if (groupBy) {
+      if (differenceInDays(fromUnixTime(to), fromUnixTime(from)) === 0) {
+        // Single-day ranges are reported hourly
+        this.groupBy = GROUP_BY_FILTER[5];
+      } else if (groupBy) {
         this.groupBy = groupBy;
       } else {
         this.groupBy = GROUP_BY_FILTER[1];
@@ -167,6 +269,7 @@ export default {
 <template>
   <ReportHeader :header-title="reportTitle" :has-back-button="hasBackButton">
     <V4Button
+      v-if="canExportData"
       :label="downloadButtonLabel"
       icon="i-ph-download-simple"
       size="sm"
@@ -174,8 +277,15 @@ export default {
     />
   </ReportHeader>
 
-  <ReportFilters
+  <ReportFilterPresets
     v-if="filterItemsList"
+    class="mb-3"
+    :filters="presetFilters"
+    @apply="applyPreset"
+  />
+  <ReportFilters
+    v-if="filterItemsList && isDefaultRangeReady"
+    :key="filtersKey"
     :filter-type="filterType"
     :selected-item="selectedFilter"
     @filter-change="onFilterChange"

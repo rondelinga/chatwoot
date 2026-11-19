@@ -1,5 +1,8 @@
 {
   "CHAT_LIST": {
+    "CLOSED_LABEL": "Resolved",
+    "HIDE_CHAT": "Hide Chat",
+    "DISMISS_ICON": "×",
     "LOADING": "Fetching conversations",
     "LOAD_MORE_CONVERSATIONS": "Load more conversations",
     "EOF": "All conversations loaded 🎉",
@@ -8,6 +11,10 @@
     },
     "FAILED_TO_SEND": "Failed to send",
     "FETCH_ERROR": "Couldn't load conversations. Please try again.",
+    "AGENTS_OVERVIEW": {
+      "BUTTON": "Overview",
+      "TOOLTIP": "View open conversations by agent"
+    },
     "TAB_HEADING": "Conversations",
     "MENTION_HEADING": "Mentions",
     "UNATTENDED_HEADING": "Unattended",
@@ -29,6 +36,9 @@
       },
       "pending": {
         "TEXT": "Pending"
+      },
+      "queued": {
+        "TEXT": "Queued"
       },
       "snoozed": {
         "TEXT": "Snoozed"

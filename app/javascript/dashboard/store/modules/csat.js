@@ -1,7 +1,7 @@
 import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import types from '../mutation-types';
 import CSATReports from '../../api/csatReports';
-import { downloadCsvFile } from '../../helper/downloadHelper';
+import { downloadFile } from '../../helper/downloadHelper';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
 import { REPORTS_EVENTS } from '../../helper/AnalyticsHelper/events';
 
@@ -20,6 +20,7 @@ export const state = {
       5: 0,
     },
     totalSentMessagesCount: 0,
+    totalCountBeforeExclusion: 0,
   },
   uiFlags: {
     isFetching: false,
@@ -85,9 +86,10 @@ export const actions = {
   },
   downloadCSATReports(_, params) {
     return CSATReports.download(params).then(response => {
-      downloadCsvFile(params.fileName, response.data);
+      downloadFile(params.fileName, response.data, params.format);
       AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
         reportType: 'csat',
+        format: params.format,
       });
     });
   },
@@ -115,6 +117,7 @@ export const mutations = {
       total_count: totalResponseCount,
       ratings_count: ratingsCount,
       total_sent_messages_count: totalSentMessagesCount,
+      total_count_before_exclusion: totalCountBeforeExclusion,
     }
   ) {
     _state.metrics.totalResponseCount = totalResponseCount || 0;
@@ -126,6 +129,8 @@ export const mutations = {
       5: ratingsCount['5'] || 0,
     };
     _state.metrics.totalSentMessagesCount = totalSentMessagesCount || 0;
+    _state.metrics.totalCountBeforeExclusion =
+      totalCountBeforeExclusion ?? totalResponseCount ?? 0;
   },
   [types.UPDATE_CSAT_RESPONSE]: MutationHelpers.update,
 };

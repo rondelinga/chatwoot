@@ -1,15 +1,40 @@
 class Conversations::EventDataPresenter < SimpleDelegator
   def push_data
+    push_identity.merge(push_state, push_timestamps)
+  end
+
+  # Like #push_data but with message text normalized for external integrations (webhooks).
+  def webhook_data
+    push_data.merge(account: account.webhook_data, messages: webhook_push_messages)
+  end
+
+  def widget_data
+    {
+      id: display_id,
+      inbox_id: inbox_id,
+      contact_last_seen_at: contact_last_seen_at.to_i,
+      status: status
+    }
+  end
+
+  private
+
+  def push_identity
     {
       additional_attributes: additional_attributes,
-      can_reply: can_reply?,
+      **push_reply_state,
       channel: inbox.try(:channel_type),
       contact_inbox: contact_inbox,
       id: display_id,
       inbox_id: inbox_id,
       messages: push_messages,
       labels: label_list,
-      meta: push_meta,
+      meta: push_meta
+    }
+  end
+
+  def push_state
+    {
       status: status,
       custom_attributes: custom_attributes,
       snoozed_until: snoozed_until,
@@ -17,26 +42,24 @@ class Conversations::EventDataPresenter < SimpleDelegator
       first_reply_created_at: first_reply_created_at,
       priority: priority,
       waiting_since: waiting_since.to_i,
-      **push_timestamps
+      resolved_by_contact: resolved_by_contact,
+      csat_response: push_csat_response
     }
   end
 
-  # Like #push_data but with message text normalized for external integrations (webhooks).
-  def webhook_data
-    push_data.merge(
-      account: account.webhook_data,
-      messages: webhook_push_messages
-    )
-  end
-
-  private
-
   def push_messages
-    [messages.where(account_id: account_id).chat.last&.push_event_data].compact
+    [messages.where(account_id: account_id).last&.push_event_data].compact
   end
 
   def webhook_push_messages
     [messages.where(account_id: account_id).chat.last&.webhook_push_event_data].compact
+  end
+
+  def push_reply_state
+    {
+      anonymous_caller: contact_inbox&.anonymous_caller?,
+      can_reply: can_reply?
+    }
   end
 
   def push_meta
@@ -45,8 +68,15 @@ class Conversations::EventDataPresenter < SimpleDelegator
       assignee: assigned_entity&.push_event_data,
       assignee_type: assignee_type,
       team: team&.push_event_data,
+      team_id: team_id,
       hmac_verified: contact_inbox&.hmac_verified
     }
+  end
+
+  def push_csat_response
+    return {} unless csat_survey_response
+
+    { rating: csat_survey_response.rating, status: csat_response_status }
   end
 
   def push_timestamps

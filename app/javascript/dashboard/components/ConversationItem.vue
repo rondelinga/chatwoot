@@ -2,7 +2,7 @@
 import { computed, ref, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
-import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper';
+import { useConversationRoutePath } from 'dashboard/composables/useConversationRoutePath';
 import ConversationCard from './widgets/conversation/ConversationCard.vue';
 import ConversationCardExpanded from 'dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
@@ -10,16 +10,16 @@ import ConversationContextMenu from './widgets/conversation/contextMenu/Index.vu
 
 const props = defineProps({
   source: { type: Object, required: true },
-  teamId: { type: [String, Number], default: 0 },
-  label: { type: String, default: '' },
-  conversationType: { type: String, default: '' },
-  foldersId: { type: [String, Number], default: 0 },
   showAssignee: { type: Boolean, default: false },
   showExpanded: { type: Boolean, default: false },
+  isOpenFilter: { type: Boolean, default: true },
 });
+
+const emit = defineEmits(['hideConversation']);
 
 const router = useRouter();
 const store = useStore();
+const { buildConversationPath } = useConversationRoutePath();
 
 const selectConversation = inject('selectConversation');
 const deSelectConversation = inject('deSelectConversation');
@@ -54,7 +54,6 @@ watch(
 const currentChat = useMapGetter('getSelectedChat');
 const inboxesList = useMapGetter('inboxes/getInboxes');
 const activeInbox = useMapGetter('getSelectedInbox');
-const accountId = useMapGetter('getCurrentAccountId');
 
 const chatMetadata = computed(() => props.source.meta || {});
 const assignee = computed(() => chatMetadata.value.assignee || {});
@@ -79,19 +78,7 @@ const showAssigneeForExpandedCard = computed(
   () => props.showExpanded || props.showAssignee
 );
 
-const conversationPath = computed(() =>
-  frontendURL(
-    conversationUrl({
-      accountId: accountId.value,
-      activeInbox: activeInbox.value,
-      id: props.source.id,
-      label: props.label,
-      teamId: props.teamId,
-      conversationType: props.conversationType,
-      foldersId: props.foldersId,
-    })
-  )
-);
+const conversationPath = computed(() => buildConversationPath(props.source.id));
 
 const onCardClick = e => {
   const path = conversationPath.value;
@@ -176,6 +163,10 @@ const onDeleteConversation = () => {
   deleteConversation(props.source.id);
   closeContextMenu();
 };
+
+const onHideConversation = id => {
+  emit('hideConversation', id);
+};
 </script>
 
 <template>
@@ -191,10 +182,12 @@ const onDeleteConversation = () => {
     :show-assignee="showAssigneeForExpandedCard"
     :show-inbox-name="showInboxName"
     :is-inbox-view="isInboxView"
+    :is-open-filter="isOpenFilter"
     @select-conversation="onExpandedSelect"
     @de-select-conversation="onExpandedSelect"
     @click="onCardClick"
     @contextmenu="openContextMenu"
+    @hide-conversation="onHideConversation"
   />
 
   <!-- Default (condensed) layout -->
@@ -208,13 +201,14 @@ const onDeleteConversation = () => {
     :is-active-chat="isActiveChat"
     :show-assignee="showAssignee"
     :show-inbox-name="showInboxName"
+    :is-open-filter="isOpenFilter"
     @click="onCardClick"
     @contextmenu="openContextMenu"
     @select-conversation="selectConversation"
     @de-select-conversation="deSelectConversation"
+    @hide-conversation="onHideConversation"
   />
 
-  <!-- Shared context menu for both layouts -->
   <ContextMenu
     v-if="showContextMenu"
     :x="contextMenu.x"
@@ -229,6 +223,7 @@ const onDeleteConversation = () => {
       :has-unread-messages="source.unread_count > 0"
       :conversation-labels="source.labels"
       :conversation-url="conversationPath"
+      :is-open-filter="isOpenFilter"
       @update-conversation="onUpdateConversation"
       @assign-agent="onAssignAgent"
       @assign-label="onAssignLabel"

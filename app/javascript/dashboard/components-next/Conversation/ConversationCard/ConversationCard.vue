@@ -11,6 +11,7 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
+import CardRatingIcon from './CardRatingIcon.vue';
 
 const props = defineProps({
   conversation: {
@@ -132,18 +133,26 @@ const onCardClick = e => {
           </span>
         </div>
       </div>
-      <CardMessagePreview
-        v-show="showMessagePreviewWithoutMeta"
-        :conversation="conversation"
-      />
-      <CardMessagePreviewWithMeta
-        v-show="!showMessagePreviewWithoutMeta"
-        ref="cardMessagePreviewWithMetaRef"
-        :conversation="conversation"
-        :contact="contact"
-        :account-labels="accountLabels"
-        :has-labels="hasVisibleLabels"
-      />
+      <div class="flex items-center gap-1 min-w-0">
+        <CardMessagePreview
+          v-show="showMessagePreviewWithoutMeta"
+          :conversation="conversation"
+          class="flex-1 min-w-0"
+        />
+        <CardMessagePreviewWithMeta
+          v-show="!showMessagePreviewWithoutMeta"
+          ref="cardMessagePreviewWithMetaRef"
+          :conversation="conversation"
+          :contact="contact"
+          :account-labels="accountLabels"
+          :has-labels="hasVisibleLabels"
+          class="flex-1 min-w-0"
+        />
+        <CardRatingIcon
+          :csat-response="conversation.csat_response"
+          show-label
+        />
+      </div>
     </div>
   </div>
 </template>

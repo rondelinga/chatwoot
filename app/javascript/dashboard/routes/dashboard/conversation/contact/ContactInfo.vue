@@ -1,37 +1,46 @@
 <script>
+import { computed } from 'vue';
 import { mapGetters } from 'vuex';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useAlert } from 'dashboard/composables';
 import {
   DuplicateContactException,
   ExceptionWithMessage,
 } from 'shared/helpers/CustomErrors';
 import { useExactTimestamp } from 'shared/composables/useExactTimestamp';
-import { useAdmin } from 'dashboard/composables/useAdmin';
+import { useMapGetter } from 'dashboard/composables/store';
+import { CONTACT_ACCESS_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import {
+  getUserPermissions,
+  hasPermissions,
+} from 'dashboard/helper/permissionsHelper';
 import ContactInfoRow from './ContactInfoRow.vue';
-import ViewAllConversations from './ViewAllConversations.vue';
 import Avatar from 'next/avatar/Avatar.vue';
-import SocialIcons from './SocialIcons.vue';
+import SocialProfileLinks from 'dashboard/components-next/social-profiles/SocialProfileLinks.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ContactDeleteModal from 'dashboard/modules/contact/ContactDeleteModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import OutboundMessageButton from 'dashboard/components-next/Contacts/OutboundMessageButton.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
+import Flag from 'dashboard/components-next/flag/Flag.vue';
 
 export default {
   components: {
     NextButton,
     ContactInfoRow,
-    ViewAllConversations,
     EditContact,
     Avatar,
     ComposeConversation,
-    SocialIcons,
+    SocialProfileLinks,
+    OutboundMessageButton,
     ContactMergeModal,
     ContactDeleteModal,
     VoiceCallButton,
     InlineInput,
+    Flag,
   },
   props: {
     contact: {
@@ -45,9 +54,52 @@ export default {
   },
   emits: ['panelClose'],
   setup() {
-    const { isAdmin } = useAdmin();
+    const currentUser = useMapGetter('getCurrentUser');
+    const currentAccountId = useMapGetter('getCurrentAccountId');
+
+    const canViewContactProfile = computed(() => {
+      const permissions = getUserPermissions(
+        currentUser.value,
+        currentAccountId.value
+      );
+
+      return hasPermissions(
+        ['administrator', ...CONTACT_ACCESS_PERMISSIONS],
+        permissions
+      );
+    });
+
+    const currentPermissions = computed(() =>
+      getUserPermissions(currentUser.value, currentAccountId.value)
+    );
+
+    const canEditContact = computed(() => {
+      if (
+        hasPermissions(
+          ['administrator', 'contact_manage', 'contact_edit'],
+          currentPermissions.value
+        )
+      ) {
+        return true;
+      }
+
+      return (
+        hasPermissions(['agent'], currentPermissions.value) &&
+        !hasPermissions(['custom_role'], currentPermissions.value)
+      );
+    });
+
+    const canDeleteContact = computed(() =>
+      hasPermissions(
+        ['administrator', 'contact_delete'],
+        currentPermissions.value
+      )
+    );
+
     return {
-      isAdmin,
+      canViewContactProfile,
+      canEditContact,
+      canDeleteContact,
       exactTimestamp: useExactTimestamp(),
     };
   },
@@ -62,25 +114,39 @@ export default {
     ...mapGetters({
       uiFlags: 'contacts/getUIFlags',
       currentChat: 'getSelectedChat',
+      isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
     }),
+    hasCompaniesFeature() {
+      return this.isFeatureEnabledOnAccount(
+        Number(this.$route.params.accountId),
+        FEATURE_FLAGS.COMPANIES
+      );
+    },
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
+    },
+    companyLink() {
+      return this.hasCompaniesFeature && this.contact.company_id
+        ? `/app/accounts/${this.$route.params.accountId}/companies/${this.contact.company_id}`
+        : '';
     },
     additionalAttributes() {
       return this.contact.additional_attributes || {};
     },
     location() {
-      const {
-        country = '',
-        city = '',
-        country_code: countryCode,
-      } = this.additionalAttributes;
+      const { country = '', city = '' } = this.additionalAttributes;
       const cityAndCountry = [city, country].filter(item => !!item).join(', ');
 
       if (!cityAndCountry) {
         return '';
       }
-      return this.findCountryFlag(countryCode, cityAndCountry);
+      return this.countryCode ? cityAndCountry : `${cityAndCountry} 🌎`;
+    },
+    countryCode() {
+      const { country_code: countryCode } = this.additionalAttributes;
+      const isValid =
+        typeof countryCode === 'string' && /^[a-z]{2}$/i.test(countryCode);
+      return isValid ? countryCode : '';
     },
     socialProfiles() {
       const {
@@ -109,6 +175,34 @@ export default {
     formattedWhatsappUsername() {
       return this.whatsappUsername ? `@${this.whatsappUsername}` : '';
     },
+    isAuthorized() {
+      return Boolean(this.currentChat?.meta?.hmac_verified);
+    },
+    authorizationStatus() {
+      return this.isAuthorized
+        ? this.$t('CONTACT_PANEL.AUTHORIZATION.AUTHORIZED')
+        : this.$t('CONTACT_PANEL.AUTHORIZATION.NOT_AUTHORIZED');
+    },
+    authorizationStatusClass() {
+      return this.isAuthorized ? 'text-n-teal-11' : 'text-n-ruby-11';
+    },
+    blockedUntilText() {
+      if (!this.contact.blocked_until) {
+        return this.$t('CONTACT_PANEL.BLOCKED_PERMANENTLY');
+      }
+      const date = new Date(this.contact.blocked_until).toLocaleString([], {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return `${this.$t('CONTACT_PANEL.BLOCKED_UNTIL')} ${date}`;
+    },
+    // Delete Modal
+    confirmDeleteMessage() {
+      return ` ${this.contact.name}?`;
+    },
   },
   watch: {
     'contact.id': {
@@ -121,18 +215,6 @@ export default {
   methods: {
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
-    },
-    findCountryFlag(countryCode, cityAndCountry) {
-      try {
-        if (!countryCode) {
-          return `${cityAndCountry} 🌎`;
-        }
-
-        const code = countryCode?.toLowerCase();
-        return `${cityAndCountry} <span class="fi fi-${code} size-3.5"></span>`;
-      } catch (error) {
-        return '';
-      }
     },
     startEditingName() {
       this.editName = this.contact.name || '';
@@ -219,13 +301,17 @@ export default {
             />
             <h3
               v-else
-              class="flex-shrink max-w-full min-w-0 my-0 text-base capitalize break-words text-n-slate-12 cursor-pointer hover:text-n-slate-12/80"
-              :title="$t('CONTACT_PANEL.CLICK_TO_EDIT')"
-              @click="startEditingName"
+              class="flex-shrink max-w-full min-w-0 my-0 text-base capitalize break-words text-n-slate-12"
+              :class="{
+                'cursor-pointer hover:text-n-slate-12/80': canEditContact,
+              }"
+              :title="canEditContact ? $t('CONTACT_PANEL.CLICK_TO_EDIT') : ''"
+              @click="canEditContact && startEditingName()"
             >
               {{ contact.name }}
             </h3>
             <NextButton
+              v-if="canEditContact"
               ghost
               xs
               slate
@@ -251,6 +337,7 @@ export default {
               class="i-lucide-info text-sm text-n-slate-10"
             />
             <a
+              v-if="canViewContactProfile"
               :href="contactProfileLink"
               target="_blank"
               rel="noopener nofollow noreferrer"
@@ -272,7 +359,7 @@ export default {
             emoji="✉️"
             :title="$t('CONTACT_PANEL.EMAIL_ADDRESS')"
             show-copy
-            editable
+            :editable="canEditContact"
             @update="value => onFieldUpdate('email', value)"
           />
           <ContactInfoRow
@@ -282,7 +369,7 @@ export default {
             emoji="📞"
             :title="$t('CONTACT_PANEL.PHONE_NUMBER')"
             show-copy
-            editable
+            :editable="canEditContact"
             @update="value => onFieldUpdate('phone_number', value)"
           />
           <ContactInfoRow
@@ -301,11 +388,12 @@ export default {
             :title="$t('CONTACT_PANEL.IDENTIFIER')"
           />
           <ContactInfoRow
+            :href="companyLink"
             :value="additionalAttributes.company_name"
             icon="building-bank"
             emoji="🏢"
             :title="$t('CONTACT_PANEL.COMPANY')"
-            editable
+            :editable="canEditContact && !hasCompaniesFeature"
             @update="
               value =>
                 updateContactField({
@@ -322,8 +410,30 @@ export default {
             icon="map"
             emoji="🌍"
             :title="$t('CONTACT_PANEL.LOCATION')"
+          >
+            <Flag
+              v-if="location && countryCode"
+              :country="countryCode"
+              class="size-3.5"
+            />
+          </ContactInfoRow>
+          <ContactInfoRow
+            :key="`auth-${contact.id}`"
+            :value="authorizationStatus"
+            :value-class="authorizationStatusClass"
+            :icon="isAuthorized ? 'lock-closed' : 'lock-shield'"
+            :emoji="isAuthorized ? '🔒' : '🔓'"
+            :title="$t('CONTACT_PANEL.AUTHORIZATION.LABEL')"
           />
-          <SocialIcons :social-profiles="socialProfiles" />
+          <ContactInfoRow
+            v-if="contact.blocked"
+            :value="blockedUntilText"
+            icon="dismiss-circle"
+            emoji="🚫"
+            :title="$t('CONTACT_PANEL.BLOCKED_UNTIL')"
+            class="text-red-500"
+          />
+          <SocialProfileLinks :profiles="socialProfiles" class="my-2" />
         </div>
       </div>
       <div class="flex items-center w-full mt-0.5 gap-2">
@@ -338,7 +448,13 @@ export default {
             />
           </template>
         </ComposeConversation>
-        <ViewAllConversations />
+        <OutboundMessageButton
+          :contact="contact"
+          icon-only
+          size="sm"
+          slate
+          faded
+        />
         <VoiceCallButton
           :phone="contact.phone_number"
           :contact-id="contact.id"
@@ -350,6 +466,7 @@ export default {
           :tooltip-label="$t('CONTACT_PANEL.CALL')"
         />
         <NextButton
+          v-if="canEditContact"
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
           icon="i-ph-pencil-simple"
           slate
@@ -370,7 +487,7 @@ export default {
           </template>
         </ContactMergeModal>
         <ContactDeleteModal
-          v-if="isAdmin"
+          v-if="canDeleteContact"
           :contact="contact"
           @deleted="$emit('panelClose')"
         >

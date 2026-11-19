@@ -4,12 +4,17 @@ import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
 import { vOnClickOutside } from '@vueuse/components';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useEmitter } from 'dashboard/composables/emitter';
+import {
+  CMD_SWITCH_SORT,
+  CMD_SWITCH_STATUS,
+} from 'dashboard/helper/commandbar/events';
 import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import wootConstants from 'dashboard/constants/globals';
 import SelectMenu from 'dashboard/components-next/selectmenu/SelectMenu.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
-defineProps({
+const props = defineProps({
   isOnExpandedLayout: {
     type: Boolean,
     required: true,
@@ -17,6 +22,10 @@ defineProps({
   showStatusFilter: {
     type: Boolean,
     default: true,
+  },
+  alignMenuToEnd: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -54,6 +63,10 @@ const chatStatusOptions = computed(() => [
   {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.pending.TEXT'),
     value: 'pending',
+  },
+  {
+    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.queued.TEXT'),
+    value: 'queued',
   },
   {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
@@ -114,6 +127,10 @@ const activeChatStatusLabel = computed(
       ?.label || ''
 );
 
+const menuAlignEnd = computed(
+  () => props.isOnExpandedLayout || props.alignMenuToEnd
+);
+
 const activeChatSortLabel = computed(
   () =>
     chatSortOptions.value.find(m => m.value === chatSortFilter.value)?.label ||
@@ -140,6 +157,9 @@ const handleSortChange = value => {
   store.dispatch('setChatSortFilter', value);
   saveSelectedFilter('sort', value);
 };
+
+useEmitter(CMD_SWITCH_STATUS, handleStatusChange);
+useEmitter(CMD_SWITCH_SORT, handleSortChange);
 </script>
 
 <template>
@@ -157,8 +177,8 @@ const handleSortChange = value => {
       v-on-click-outside="() => toggleDropdown()"
       class="mt-1 bg-n-alpha-3 backdrop-blur-[100px] border border-n-weak w-72 rounded-xl p-4 absolute z-40 top-full"
       :class="{
-        'ltr:left-0 rtl:right-0': !isOnExpandedLayout,
-        'ltr:right-0 rtl:left-0': isOnExpandedLayout,
+        'ltr:left-0 rtl:right-0': !menuAlignEnd,
+        'ltr:right-0 rtl:left-0': menuAlignEnd,
       }"
     >
       <div
@@ -172,7 +192,7 @@ const handleSortChange = value => {
           :model-value="chatStatusFilter"
           :options="chatStatusOptions"
           :label="activeChatStatusLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
+          :sub-menu-position="menuAlignEnd ? 'left' : 'right'"
           @update:model-value="handleStatusChange"
         />
       </div>
@@ -187,7 +207,7 @@ const handleSortChange = value => {
           :model-value="chatSortFilter"
           :options="chatSortOptions"
           :label="activeChatSortLabel"
-          :sub-menu-position="isOnExpandedLayout ? 'left' : 'right'"
+          :sub-menu-position="menuAlignEnd ? 'left' : 'right'"
           @update:model-value="handleSortChange"
         />
       </div>

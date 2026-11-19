@@ -11,6 +11,7 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import WithLabel from 'v3/components/Form/WithLabel.vue';
 import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
 import CSATDisplayTypeSelector from './components/CSATDisplayTypeSelector.vue';
+import CSATBehaviorSettings from './components/CSATBehaviorSettings.vue';
 import CSATTemplate from 'dashboard/components-next/template-preview/CSATTemplate.vue';
 import Editor from 'dashboard/components-next/Editor/Editor.vue';
 import FilterSelect from 'dashboard/components-next/filter/inputs/FilterSelect.vue';
@@ -48,6 +49,10 @@ const state = reactive({
   csatSurveyEnabled: false,
   displayType: 'emoji',
   message: '',
+  messageEnabled: true,
+  csatOnResolveEnabled: true,
+  likeDislikeHintMessage: '',
+  likeDislikeHintEnabled: true,
   templateButtonText: 'Please rate us',
   surveyRuleOperator: 'contains',
   templateLanguage: 'en',
@@ -152,6 +157,10 @@ const initializeState = () => {
   const {
     display_type: displayType = CSAT_DISPLAY_TYPES.EMOJI,
     message = '',
+    message_enabled: messageEnabled = true,
+    csat_on_resolve_enabled: csatOnResolveEnabled = true,
+    like_dislike_hint_message: likeDislikeHintMessage = '',
+    like_dislike_hint_enabled: likeDislikeHintEnabled = true,
     button_text: buttonText = 'Please rate us',
     language = 'en',
     survey_rules: surveyRules = {},
@@ -159,6 +168,10 @@ const initializeState = () => {
 
   state.displayType = displayType;
   state.message = message;
+  state.messageEnabled = messageEnabled;
+  state.csatOnResolveEnabled = csatOnResolveEnabled;
+  state.likeDislikeHintMessage = likeDislikeHintMessage;
+  state.likeDislikeHintEnabled = likeDislikeHintEnabled;
   state.templateButtonText = buttonText;
   state.templateLanguage = language;
   state.surveyRuleOperator = surveyRules.operator || 'contains';
@@ -426,6 +439,10 @@ const performSave = async () => {
     const csatConfig = {
       display_type: state.displayType,
       message: state.message,
+      message_enabled: state.messageEnabled,
+      csat_on_resolve_enabled: state.csatOnResolveEnabled,
+      like_dislike_hint_message: state.likeDislikeHintMessage,
+      like_dislike_hint_enabled: state.likeDislikeHintEnabled,
       button_text: state.templateButtonText,
       language: state.templateLanguage,
       survey_rules: {
@@ -519,7 +536,18 @@ const handleConfirmTemplateUpdate = async () => {
             />
           </WithLabel>
 
-          <template v-if="isAnyWhatsAppChannel">
+          <CSATBehaviorSettings
+            v-model:message-enabled="state.messageEnabled"
+            v-model:csat-on-resolve-enabled="state.csatOnResolveEnabled"
+            v-model:like-dislike-hint-enabled="state.likeDislikeHintEnabled"
+            v-model:like-dislike-hint-message="state.likeDislikeHintMessage"
+            :show-like-dislike-hint="
+              !isAnyWhatsAppChannel &&
+              state.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE
+            "
+          />
+
+          <template v-if="state.messageEnabled && isAnyWhatsAppChannel">
             <div
               class="flex flex-col gap-4 justify-between w-full lg:flex-row lg:gap-6"
             >
@@ -661,7 +689,7 @@ const handleConfirmTemplateUpdate = async () => {
           </template>
 
           <!-- Non-WhatsApp channels layout -->
-          <template v-else>
+          <template v-else-if="state.messageEnabled">
             <WithLabel
               :label="$t('INBOX_MGMT.CSAT.MESSAGE.LABEL')"
               name="message"

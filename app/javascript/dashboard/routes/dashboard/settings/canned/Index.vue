@@ -9,6 +9,10 @@ import { useI18n } from 'vue-i18n';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
 import { picoSearch } from '@chatwoot/pico-search';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+import {
+  usePageCommands,
+  recordCommands,
+} from 'dashboard/modules/command-bar/composables/usePageCommands';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -70,16 +74,8 @@ const toggleSort = () => {
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
 };
 
-const fetchCannedResponses = async () => {
-  try {
-    await store.dispatch('getCannedResponse');
-  } catch (error) {
-    // Ignore Error
-  }
-};
-
 onMounted(() => {
-  fetchCannedResponses();
+  store.dispatch('getCannedResponse', { all: true });
 });
 
 const showAlertMessage = message => {
@@ -133,9 +129,34 @@ const confirmDeletion = () => {
 const tableHeaders = computed(() => {
   return [
     t('CANNED_MGMT.LIST.TABLE_HEADER.SHORT_CODE'),
+    t('CANNED_MGMT.LIST.TABLE_HEADER.VISIBILITY'),
     t('CANNED_MGMT.LIST.TABLE_HEADER.ACTIONS'),
   ];
 });
+
+usePageCommands(() => [
+  {
+    id: 'add_canned_response',
+    title: t('CANNED_MGMT.HEADER_BTN_TXT'),
+    run: openAddPopup,
+  },
+  ...recordCommands({
+    id: 'edit_canned_response',
+    title: t('CANNED_MGMT.EDIT.TITLE'),
+    icon: 'i-lucide-pencil',
+    records: records.value,
+    label: response => `/${response.short_code}`,
+    run: openEditPopup,
+  }),
+  ...recordCommands({
+    id: 'delete_canned_response',
+    title: t('COMMAND_BAR.COMMANDS.DELETE_CANNED_RESPONSE'),
+    icon: 'i-lucide-trash-2',
+    records: records.value,
+    label: response => `/${response.short_code}`,
+    run: openDeletePopup,
+  }),
+]);
 </script>
 
 <template>
@@ -221,6 +242,23 @@ const tableHeaders = computed(() => {
                 </div>
               </BaseTableCell>
 
+              <BaseTableCell>
+                <span
+                  class="px-2 py-0.5 rounded-full text-xs font-medium"
+                  :class="
+                    cannedItem.visibility === 'public_response'
+                      ? 'bg-n-teal-2 text-n-teal-11'
+                      : 'bg-n-amber-2 text-n-amber-11'
+                  "
+                >
+                  {{
+                    cannedItem.visibility === 'public_response'
+                      ? $t('CANNED_MGMT.VISIBILITY.PUBLIC')
+                      : $t('CANNED_MGMT.VISIBILITY.PRIVATE')
+                  }}
+                </span>
+              </BaseTableCell>
+
               <BaseTableCell align="end" class="w-24">
                 <div class="flex gap-3 justify-end flex-shrink-0">
                   <Button
@@ -256,6 +294,8 @@ const tableHeaders = computed(() => {
         :id="activeResponse.id"
         :edshort-code="activeResponse.short_code"
         :edcontent="activeResponse.content"
+        :edvisibility="activeResponse.visibility"
+        :edscopes="activeResponse.canned_response_scopes || []"
         :on-close="hideEditPopup"
       />
     </woot-modal>

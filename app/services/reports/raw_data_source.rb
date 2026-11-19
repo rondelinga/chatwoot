@@ -1,4 +1,5 @@
 class Reports::RawDataSource < Reports::DataSource
+  include Reports::RawSummaryQueries
   def timeseries
     average_metric? ? average_timeseries : count_timeseries
   end
@@ -59,21 +60,44 @@ class Reports::RawDataSource < Reports::DataSource
     ).count
   end
 
+  def account_scope?
+    dimension_type == 'account'
+  end
+
   def average_scope
-    scope.reporting_events.where(name: raw_event_name, created_at: range, account_id: account.id)
+    events = scope.reporting_events.where(name: raw_event_name, created_at: range, account_id: account.id)
+    return events unless account_scope?
+
+    events = events.joins(:conversation).where(conversations: { inbox_id: filtered_inbox_ids }) if filtered_inbox_ids.present?
+    events = events.where(user_id: filtered_user_ids) if filtered_user_ids.present?
+    events
   end
 
   def count_scope
     case metric.to_s
     when 'conversations_count'
-      scope.conversations.where(account_id: account.id, created_at: range)
+      conversations = scope.conversations.where(account_id: account.id, created_at: range)
+      return conversations unless account_scope?
+
+      conversations = conversations.where(inbox_id: filtered_inbox_ids) if filtered_inbox_ids.present?
+      conversations = conversations.where(assignee_id: filtered_user_ids) if filtered_user_ids.present?
+      conversations
     when 'incoming_messages_count'
-      scope.messages.where(account_id: account.id, created_at: range).incoming.unscope(:order)
+      message_count_scope(:incoming)
     when 'outgoing_messages_count'
-      scope.messages.where(account_id: account.id, created_at: range).outgoing.unscope(:order)
+      message_count_scope(:outgoing)
     else
       reporting_event_count_scope
     end
+  end
+
+  def message_count_scope(direction)
+    messages = scope.messages.where(account_id: account.id, created_at: range).public_send(direction).unscope(:order)
+    return messages unless account_scope?
+
+    messages = messages.where(inbox_id: filtered_inbox_ids) if filtered_inbox_ids.present?
+    messages = messages.joins(:conversation).where(conversations: { assignee_id: filtered_user_ids }) if filtered_user_ids.present?
+    messages
   end
 
   def reporting_event_count_scope
@@ -82,11 +106,30 @@ class Reports::RawDataSource < Reports::DataSource
       account_id: account.id,
       created_at: range
     )
+    events = apply_account_event_filters(events)
 
     return events.where.not(conversation_id: bot_handoff_conversation_ids_subquery) if raw_count_strategy == :exclude_bot_handoffs
     return events unless raw_count_strategy == :distinct_conversation
 
-    events.joins(:conversation).select(:conversation_id).distinct
+    events.select(:conversation_id).distinct
+  end
+
+  def apply_account_event_filters(events)
+    return events unless account_scope?
+    return events if filtered_inbox_ids.blank? && filtered_user_ids.blank?
+
+    events = events.joins(:conversation)
+    events = events.where(conversations: { inbox_id: filtered_inbox_ids }) if filtered_inbox_ids.present?
+    events = events.where(conversations: { assignee_id: filtered_user_ids }) if filtered_user_ids.present?
+    events
+  end
+
+  def filtered_inbox_ids
+    Array(inbox_ids).reject(&:blank?)
+  end
+
+  def filtered_user_ids
+    Array(user_ids).reject(&:blank?)
   end
 
   def bot_handoff_conversation_ids_subquery
@@ -95,68 +138,6 @@ class Reports::RawDataSource < Reports::DataSource
       account_id: account.id,
       created_at: range
     ).where.not(conversation_id: nil).select(:conversation_id)
-  end
-
-  def summary_scope
-    scope = account.reporting_events.where(created_at: range)
-    return scope.joins(:conversation) if dimension_type == 'team'
-
-    scope
-  end
-
-  def summary_conversation_counts
-    account.conversations
-           .where(created_at: range)
-           .group(summary_conversation_group_by_key)
-           .count
-  end
-
-  def merge_summary_results(metric_results, conversation_counts)
-    (metric_results.keys | conversation_counts.keys).each_with_object({}) do |dimension_id, results|
-      record = metric_results[dimension_id]
-      results[dimension_id] = summary_attributes_for(record, conversation_counts[dimension_id])
-    end
-  end
-
-  def summary_select_fields
-    ["#{summary_group_by_key} as #{summary_index_key}"] + summary_metrics.map { |definition| summary_select_field(definition) }
-  end
-
-  def summary_select_field(definition)
-    if definition.count?
-      "COUNT(CASE WHEN name = '#{definition.raw_event_name}' THEN 1 END) as #{definition.summary_key}"
-    else
-      "AVG(CASE WHEN name = '#{definition.raw_event_name}' THEN #{average_value_key} END) as #{definition.summary_key}"
-    end
-  end
-
-  def summary_attributes_for(record, conversations_count = 0)
-    summary_metrics.each_with_object({ conversations_count: conversations_count.to_i }) do |definition, attributes|
-      value = record&.public_send(definition.summary_key)
-      attributes[definition.summary_key] = definition.count? ? value.to_i : value
-    end
-  end
-
-  def summary_group_by_key
-    {
-      'account' => :account_id,
-      'agent' => :user_id,
-      'inbox' => :inbox_id,
-      'team' => 'conversations.team_id'
-    }[dimension_type]
-  end
-
-  def summary_conversation_group_by_key
-    {
-      'account' => :account_id,
-      'agent' => :assignee_id,
-      'inbox' => :inbox_id,
-      'team' => :team_id
-    }[dimension_type]
-  end
-
-  def summary_index_key
-    summary_group_by_key.to_s.split('.').last
   end
 
   def average_value_key

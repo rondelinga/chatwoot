@@ -19,6 +19,8 @@ import {
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
+import { openCommandBar } from 'dashboard/modules/command-bar/openCommandBar';
+import { SNOOZE_CONVERSATION_PAGE } from 'dashboard/modules/command-bar/commands';
 
 const store = useStore();
 const getters = useStoreGetters();
@@ -47,13 +49,16 @@ const isResolved = computed(
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
 );
+const isQueued = computed(
+  () => currentChat.value.status === wootConstants.STATUS_TYPE.QUEUED
+);
 
 const showAdditionalActions = computed(
   () => !isPending.value && !isSnoozed.value
 );
 
 const showOpenButton = computed(() => {
-  return isPending.value || isSnoozed.value;
+  return isPending.value || isSnoozed.value || isQueued.value;
 });
 
 const getConversationParams = () => {
@@ -76,10 +81,8 @@ const getConversationParams = () => {
   };
 };
 
-const openSnoozeModal = () => {
-  const ninja = document.querySelector('ninja-keys');
-  ninja.open({ parent: 'snooze_conversation' });
-};
+const openSnoozeModal = () =>
+  openCommandBar({ page: SNOOZE_CONVERSATION_PAGE });
 
 const toggleStatus = (status, snoozedUntil, customAttributes = null) => {
   closeDropdown();
@@ -251,6 +254,18 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
             icon="i-lucide-circle-dot-dashed"
             class="w-full"
             @click="() => toggleStatus(wootConstants.STATUS_TYPE.PENDING)"
+          />
+        </WootDropdownItem>
+        <WootDropdownItem v-if="isQueued">
+          <Button
+            :label="t('CONVERSATION.HEADER.RESOLVE_ACTION')"
+            ghost
+            slate
+            sm
+            start
+            icon="i-lucide-check"
+            class="w-full"
+            @click="onCmdResolveConversation"
           />
         </WootDropdownItem>
       </WootDropdownMenu>

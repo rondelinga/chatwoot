@@ -2,56 +2,64 @@
 #
 # Table name: conversations
 #
-#  id                     :integer          not null, primary key
-#  additional_attributes  :jsonb
-#  ai_assignee_type       :string
-#  agent_last_seen_at     :datetime
-#  assignee_last_seen_at  :datetime
-#  cached_label_list      :text
-#  contact_last_seen_at   :datetime
-#  custom_attributes      :jsonb
-#  first_reply_created_at :datetime
-#  identifier             :string
-#  last_activity_at       :datetime         not null
-#  priority               :integer
-#  snoozed_until          :datetime
-#  status                 :integer          default("open"), not null
-#  status_changed_at      :datetime
-#  uuid                   :uuid             not null
-#  waiting_since          :datetime
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  account_id             :integer          not null
-#  assignee_agent_bot_id  :bigint
-#  assignee_id            :integer
-#  campaign_id            :bigint
-#  contact_id             :bigint
-#  contact_inbox_id       :bigint
-#  display_id             :integer          not null
-#  inbox_id               :integer          not null
-#  sla_policy_id          :bigint
-#  team_id                :bigint
+#  id                      :integer          not null, primary key
+#  additional_attributes   :jsonb
+#  agent_last_seen_at      :datetime
+#  ai_assignee_type        :string
+#  assignee_last_seen_at   :datetime
+#  automation_label_titles :string           default([]), not null, is an Array
+#  cached_label_list       :text
+#  contact_last_seen_at    :datetime
+#  custom_attributes       :jsonb
+#  first_reply_created_at  :datetime
+#  identifier              :string
+#  last_activity_at        :datetime         not null
+#  priority                :integer
+#  proxied_at              :datetime
+#  resolved_at             :datetime
+#  resolved_by_contact     :boolean          default(FALSE)
+#  snoozed_until           :datetime
+#  status                  :integer          default("open"), not null
+#  status_changed_at       :datetime
+#  uuid                    :uuid             not null
+#  waiting_since           :datetime
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  account_id              :integer          not null
+#  assignee_agent_bot_id   :bigint
+#  assignee_id             :integer
+#  campaign_id             :bigint
+#  contact_id              :bigint
+#  contact_inbox_id        :bigint
+#  display_id              :integer          not null
+#  inbox_id                :integer          not null
+#  sla_policy_id           :bigint
+#  team_id                 :bigint
 #
 # Indexes
 #
-#  conv_acid_inbid_stat_asgnid_idx                    (account_id,inbox_id,status,assignee_id)
-#  index_conversations_on_account_id                  (account_id)
-#  index_conversations_on_account_id_and_display_id   (account_id,display_id) UNIQUE
-#  index_conversations_on_assignee_id_and_account_id  (assignee_id,account_id)
-#  index_conversations_on_campaign_id                 (campaign_id)
-#  index_conversations_on_contact_id                  (contact_id)
-#  index_conversations_on_contact_inbox_id            (contact_inbox_id)
-#  index_conversations_on_created_at                  (created_at)
-#  index_conversations_on_first_reply_created_at      (first_reply_created_at)
-#  index_conversations_on_id_and_account_id           (account_id,id)
-#  index_conversations_on_identifier_and_account_id   (identifier,account_id)
-#  index_conversations_on_inbox_id                    (inbox_id)
-#  index_conversations_on_priority                    (priority)
-#  index_conversations_on_status_and_account_id       (status,account_id)
-#  index_conversations_on_status_and_priority         (status,priority)
-#  index_conversations_on_team_id                     (team_id)
-#  index_conversations_on_uuid                        (uuid) UNIQUE
-#  index_conversations_on_waiting_since               (waiting_since)
+#  conv_acid_inbid_stat_asgnid_idx                            (account_id,inbox_id,status,assignee_id)
+#  index_conversations_on_account_assignee_status_updated_at  (account_id,assignee_id,status,updated_at)
+#  index_conversations_on_account_id                          (account_id)
+#  index_conversations_on_account_id_and_display_id           (account_id,display_id) UNIQUE
+#  index_conversations_on_account_id_status_created_at        (account_id,status,created_at)
+#  index_conversations_on_assignee_id_and_account_id          (assignee_id,account_id)
+#  index_conversations_on_campaign_id                         (campaign_id)
+#  index_conversations_on_contact_id                          (contact_id)
+#  index_conversations_on_contact_inbox_id                    (contact_inbox_id)
+#  index_conversations_on_created_at                          (created_at)
+#  index_conversations_on_first_reply_created_at              (first_reply_created_at)
+#  index_conversations_on_id_and_account_id                   (account_id,id)
+#  index_conversations_on_identifier_and_account_id           (identifier,account_id)
+#  index_conversations_on_inbox_id                            (inbox_id)
+#  index_conversations_on_priority                            (priority)
+#  index_conversations_on_proxied_at                          (proxied_at)
+#  index_conversations_on_resolved_at                         (resolved_at)
+#  index_conversations_on_status_and_account_id               (status,account_id)
+#  index_conversations_on_status_and_priority                 (status,priority)
+#  index_conversations_on_team_id                             (team_id)
+#  index_conversations_on_uuid                                (uuid) UNIQUE
+#  index_conversations_on_waiting_since                       (waiting_since)
 #
 
 class Conversation < ApplicationRecord
@@ -64,8 +72,11 @@ class Conversation < ApplicationRecord
   include SortHandler
   include PushDataHelper
   include ConversationMuteHelpers
+  include ConversationChatRouting
+  include ConversationParticipantSessions
+  include ConversationQueueStatus
 
-  CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS = %w[conversation_language].freeze
+  CONVERSATION_UPDATED_ADDITIONAL_ATTRIBUTE_KEYS = %w[conversation_language auto_translate_disabled].freeze
   FILTERED_UNREAD_COUNT_ADDITIONAL_ATTRIBUTE_KEYS = %w[browser_language conversation_language mail_subject referer].freeze
   FILTERED_UNREAD_COUNT_UPDATE_KEYS = %w[
     cached_label_list campaign_id custom_attributes first_reply_created_at label_list last_activity_at priority snoozed_until waiting_since
@@ -77,14 +88,14 @@ class Conversation < ApplicationRecord
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
   before_validation :validate_additional_attributes
-  before_validation :reset_agent_bot_when_assignee_present
+  before_validation :clear_invalid_ai_assignee
   validates :additional_attributes, jsonb_attributes_length: true
   validates :custom_attributes, jsonb_attributes_length: true
   validates :uuid, uniqueness: true
   validate :validate_referer_url
 
-  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
-  enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
+  enum :status, { open: 0, resolved: 1, pending: 2, snoozed: 3, queued: 4 }
+  enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }
 
   scope :unassigned, -> { where(assignee_id: nil, assignee_agent_bot_id: nil) }
   scope :assigned, -> { where.not(assignee_id: nil).or(where.not(assignee_agent_bot_id: nil)) }
@@ -93,17 +104,24 @@ class Conversation < ApplicationRecord
     order(unread_messages_count_arel.desc).sort_on_last_activity_at('desc')
   }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
+  scope :auto_resolvable, -> { where(status: %i[open queued]) }
   scope :resolvable_not_waiting, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
-    open.where('last_activity_at < ? AND waiting_since IS NULL', Time.now.utc - auto_resolve_after.minutes)
+    threshold = Time.now.utc - auto_resolve_after.minutes
+    open.where('last_activity_at < ? AND waiting_since IS NULL', threshold)
+        .or(queued.where('last_activity_at < ?', threshold))
   }
   scope :resolvable_all, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
-    open.where('last_activity_at < ?', Time.now.utc - auto_resolve_after.minutes)
+    auto_resolvable.where('last_activity_at < ?', Time.now.utc - auto_resolve_after.minutes)
   }
+  scope :resolvable_pending, lambda { |auto_resolve_pending_after|
+    return none if auto_resolve_pending_after.to_i.zero?
 
+    pending.where('last_activity_at < ?', Time.now.utc - auto_resolve_pending_after.minutes)
+  }
   scope :last_user_message_at, lambda {
     joins(
       "INNER JOIN (#{last_messaged_conversations.to_sql}) AS grouped_conversations
@@ -111,6 +129,25 @@ class Conversation < ApplicationRecord
     ).sort_on_last_user_message_at
   }
 
+  scope :filter_by_label_ids, lambda { |label_ids, account_id|
+    return all if label_ids.blank?
+
+    label_ids = label_ids.reject(&:blank?)
+    return all if label_ids.empty?
+
+    tag_ids = ReportingEvent.tag_ids_for_labels(label_ids, account_id)
+    return none if tag_ids.empty?
+
+    joins(:taggings)
+      .where(
+        taggings: {
+          taggable_type: 'Conversation',
+          context: 'labels',
+          tag_id: tag_ids
+        }
+      )
+      .distinct
+  }
   belongs_to :account
   belongs_to :inbox
   belongs_to :assignee, class_name: 'User', optional: true, inverse_of: :assigned_conversations
@@ -127,6 +164,7 @@ class Conversation < ApplicationRecord
   has_many :mentions, dependent: :destroy_async
   has_many :messages, dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
+  has_one :conversation_queue, dependent: :destroy
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
@@ -135,16 +173,19 @@ class Conversation < ApplicationRecord
 
   before_save :ensure_snooze_until_reset
   before_save :set_status_changed_at
+  before_save :clear_bot_assignee_when_leaving_pending
+  before_save :enforce_queue_status_invariants
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
   after_create :mark_contact_as_lead
-
+  after_update :leave_queue_if_assignee_present
+  after_update :remove_from_queue_if_status_changed
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :process_queue_on_assignment_change
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   before_destroy :set_unread_count_deletion_data
   after_destroy_commit :notify_conversation_deletion
-
   delegate :auto_resolve_after, to: :account
 
   def can_reply?
@@ -171,7 +212,7 @@ class Conversation < ApplicationRecord
 
   def toggle_status
     # FIXME: implement state machine with aasm
-    self.status = open? ? :resolved : :open
+    self.status = open? || queued? ? :resolved : :open
     self.status = :open if pending? || snoozed?
     save
   end
@@ -210,6 +251,12 @@ class Conversation < ApplicationRecord
 
   def cached_label_list_array
     (cached_label_list || '').split(',').map(&:strip)
+  end
+
+  def csat_response_status
+    return nil unless csat_survey_response
+
+    csat_survey_response.csat_status
   end
 
   def notifiable_assignee_change?
@@ -268,6 +315,15 @@ class Conversation < ApplicationRecord
     dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
   end
 
+  # Team-routed inboxes stay open unless routing already assigned a bot.
+  # Inboxes without teams keep the legacy active-bot pending behavior.
+  def pending_for_bot?
+    return true if assignee_agent_bot_id.present?
+    return false if inbox.inbox_teams.exists?
+
+    inbox.active_bot?
+  end
+
   private
 
   def execute_after_update_commit_callbacks
@@ -283,6 +339,7 @@ class Conversation < ApplicationRecord
     return unless saved_change_to_status? && status == 'resolved'
 
     # rubocop:disable Rails/SkipsModelValidations
+    update_column(:resolved_at, Time.current)
     update_column(:waiting_since, nil)
     # rubocop:enable Rails/SkipsModelValidations
   end
@@ -307,8 +364,20 @@ class Conversation < ApplicationRecord
     self.additional_attributes = {} unless additional_attributes.is_a?(Hash)
   end
 
+  def clear_invalid_ai_assignee
+    self.ai_assignee = nil if assignee_id.present? || (status_changed? && open?)
+  end
+
   def reset_agent_bot_when_assignee_present
     return if assignee_id.blank?
+
+    self.ai_assignee = nil
+  end
+
+  def clear_bot_assignee_when_leaving_pending
+    return unless will_save_change_to_status?
+    return unless open?
+    return unless status_in_database == 'pending'
 
     self.ai_assignee = nil
   end
@@ -318,19 +387,16 @@ class Conversation < ApplicationRecord
 
     return handle_campaign_status if campaign.present?
 
-    set_active_bot_conversation if inbox.active_bot?
+    set_active_bot_conversation if pending_for_bot?
   end
 
   def handle_campaign_status
-    set_active_bot_conversation if campaign.sender_id.nil? && inbox.active_bot?
+    set_active_bot_conversation if campaign.sender_id.nil? && pending_for_bot?
   end
 
   def set_active_bot_conversation
     # TODO: make this an inbox config instead of assuming bot conversations should start as pending
     self.status = :pending
-    return unless inbox.agent_bot_inbox&.active? && assignee_id.blank?
-
-    self.ai_assignee = inbox.agent_bot
   end
 
   def notify_conversation_creation
@@ -351,7 +417,7 @@ class Conversation < ApplicationRecord
 
   def list_of_keys
     %w[team_id assignee_id assignee_agent_bot_id ai_assignee_type status snoozed_until custom_attributes label_list waiting_since
-       first_reply_created_at priority]
+       first_reply_created_at priority resolved_by_contact]
   end
 
   def allowed_keys?

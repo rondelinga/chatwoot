@@ -104,6 +104,7 @@ const table = useVueTable({
   },
   columns,
   enableSorting: false,
+  autoResetPageIndex: false,
   getCoreRowModel: getCoreRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   initialState: {

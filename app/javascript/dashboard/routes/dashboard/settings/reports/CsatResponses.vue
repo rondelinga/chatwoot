@@ -7,8 +7,9 @@ import CsatFilters from './components/Csat/CsatFilters.vue';
 import { generateFileName } from '../../../../helper/downloadHelper';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
-import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadDropdown from 'dashboard/components/DownloadDropdown.vue';
+import { useReportDownloadOptions } from 'dashboard/composables/useReportDownloadOptions';
 
 export default {
   name: 'CsatResponses',
@@ -17,7 +18,11 @@ export default {
     CsatTable,
     CsatFilters,
     ReportHeader,
-    V4Button,
+    DownloadDropdown,
+  },
+  setup() {
+    const { downloadOptions } = useReportDownloadOptions();
+    return { downloadOptions };
   },
   data() {
     return {
@@ -25,24 +30,32 @@ export default {
       from: 0,
       to: 0,
       userIds: [],
-      inbox: null,
-      team: null,
+      inboxIds: [],
+      teamIds: [],
       rating: null,
+      excludedLabels: [],
+      timeRange: {
+        since: '00:00',
+        until: '23:59',
+      },
     };
   },
   computed: {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
+      csatMetrics: 'csat/getMetrics',
     }),
     requestPayload() {
       return {
         from: this.from,
         to: this.to,
         user_ids: this.userIds,
-        inbox_id: this.inbox,
-        team_id: this.team,
+        inbox_id: this.inboxIds,
+        team_id: this.teamIds,
         rating: this.rating,
+        excluded_labels: this.excludedLabels,
+        timeRange: this.timeRange,
       };
     },
     isTeamsEnabled() {
@@ -70,11 +83,13 @@ export default {
         ...this.requestPayload,
       });
     },
-    downloadReports() {
+    downloadReports(option) {
       const type = 'csat';
+      const format = option?.value || option || 'csv';
       try {
         this.$store.dispatch('csat/downloadCSATReports', {
-          fileName: generateFileName({ type, to: this.to }),
+          format,
+          fileName: generateFileName({ type, to: this.to, format }),
           ...this.requestPayload,
         });
       } catch (error) {
@@ -89,9 +104,11 @@ export default {
       from,
       to,
       selectedAgents,
-      selectedInbox,
-      selectedTeam,
+      selectedInboxes,
+      selectedTeams,
       selectedRating,
+      excludedLabels,
+      timeRange,
     }) {
       // do not track filter change on initial load
       if (this.from !== 0 && this.to !== 0) {
@@ -103,10 +120,23 @@ export default {
 
       this.from = from;
       this.to = to;
-      this.userIds = selectedAgents.map(el => el.id);
-      this.inbox = selectedInbox?.id;
-      this.team = selectedTeam?.id;
-      this.rating = selectedRating?.value;
+
+      const normalizeArray = value => {
+        if (Array.isArray(value)) {
+          return value;
+        }
+        if (value) {
+          return [value];
+        }
+        return [];
+      };
+
+      this.userIds = normalizeArray(selectedAgents).map(el => el.id);
+      this.inboxIds = normalizeArray(selectedInboxes).map(el => el.id);
+      this.teamIds = normalizeArray(selectedTeams).map(el => el.id);
+      this.rating = selectedRating?.value ?? null;
+      this.excludedLabels = Array.isArray(excludedLabels) ? excludedLabels : [];
+      if (timeRange) this.timeRange = timeRange;
 
       this.getAllData();
     },
@@ -116,11 +146,10 @@ export default {
 
 <template>
   <ReportHeader :header-title="$t('CSAT_REPORTS.HEADER')">
-    <V4Button
+    <DownloadDropdown
       :label="$t('CSAT_REPORTS.DOWNLOAD')"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadReports"
+      :options="downloadOptions"
+      @select="downloadReports"
     />
   </ReportHeader>
 
@@ -129,6 +158,27 @@ export default {
       :show-team-filter="isTeamsEnabled"
       @filter-change="onFilterChange"
     />
+    <div
+      v-if="excludedLabels.length"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm rounded-xl bg-n-amber-3 text-n-amber-11"
+    >
+      <span class="i-lucide-triangle-alert size-4 shrink-0" />
+      <span>
+        {{
+          $t('CSAT_REPORTS.EXCLUSIONS.BANNER', {
+            tags: excludedLabels.join(', '),
+          })
+        }}
+      </span>
+      <span>
+        {{
+          $t('CSAT_REPORTS.EXCLUSIONS.SHOWN', {
+            shown: csatMetrics.totalResponseCount,
+            total: csatMetrics.totalCountBeforeExclusion,
+          })
+        }}
+      </span>
+    </div>
     <CsatMetrics :filters="requestPayload" />
     <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
   </div>

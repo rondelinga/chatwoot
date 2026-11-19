@@ -6,6 +6,7 @@ import Rating from 'survey/components/Rating.vue';
 import Feedback from 'survey/components/Feedback.vue';
 import Banner from 'survey/components/Banner.vue';
 import StarRating from 'shared/components/StarRating.vue';
+import LikeDislikeRating from 'shared/components/LikeDislikeRating.vue';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import { getSurveyDetails, updateSurvey } from 'survey/api/survey';
 
@@ -20,6 +21,7 @@ export default {
     Banner,
     Feedback,
     StarRating,
+    LikeDislikeRating,
   },
   setup() {
     const { formatMessage } = useMessageFormatter();
@@ -64,10 +66,18 @@ export default {
     isStarType() {
       return this.displayType === CSAT_DISPLAY_TYPES.STAR;
     },
+    isLikeDislikeType() {
+      return this.displayType === CSAT_DISPLAY_TYPES.LIKE_DISLIKE;
+    },
+    // Like/dislike keeps the rating input visible so the contact can change it.
+    shouldHideRatingInput() {
+      return this.isRatingSubmitted && !this.isLikeDislikeType;
+    },
     shouldShowBanner() {
       return this.isRatingSubmitted || this.errorMessage;
     },
     enableFeedbackForm() {
+      if (this.isLikeDislikeType) return !!this.selectedRating;
       return !this.isFeedbackSubmitted && this.isRatingSubmitted;
     },
     shouldShowErrorMessage() {
@@ -93,6 +103,7 @@ export default {
     selectRating(rating) {
       if (this.isFeedbackSubmitted || this.isUpdating) return;
       this.selectedRating = rating;
+      this.feedbackMessage = '';
       this.updateSurveyDetails();
     },
     sendFeedback(message) {
@@ -187,29 +198,38 @@ export default {
           :message="message"
         />
         <label
-          v-if="!isRatingSubmitted"
+          v-if="!shouldHideRatingInput"
           class="mb-4 text-base font-medium text-n-slate-11"
         >
           {{ $t('SURVEY.RATING.LABEL') }}
         </label>
         <Rating
-          v-if="isEmojiType"
+          v-if="isEmojiType && !shouldHideRatingInput"
           :selected-rating="selectedRating"
           :is-disabled="isFeedbackSubmitted || isUpdating"
           @select-rating="selectRating"
         />
         <StarRating
-          v-if="isStarType"
+          v-if="isStarType && !shouldHideRatingInput"
           :selected-rating="selectedRating"
           :is-disabled="isFeedbackSubmitted || isUpdating"
           class="[&>button>span]:text-4xl !justify-start !px-0"
           @select-rating="selectRating"
         />
+        <LikeDislikeRating
+          v-if="isLikeDislikeType"
+          :selected-rating="selectedRating"
+          :is-disabled="isFeedbackSubmitted || isUpdating"
+          class="!text-4xl !justify-start !px-0 !pt-0 mb-1"
+          @select-rating="selectRating"
+        />
         <Feedback
           v-if="enableFeedbackForm"
+          :key="`feedback-${selectedRating}`"
           :is-updating="isUpdating"
           :is-button-disabled="isButtonDisabled"
           :selected-rating="selectedRating"
+          :initial-feedback="feedbackMessage"
           @send-feedback="sendFeedback"
         />
       </div>

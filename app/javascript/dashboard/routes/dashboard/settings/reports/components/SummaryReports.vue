@@ -1,17 +1,18 @@
 <script setup>
-import OverviewReportFilters from './OverviewReportFilters.vue';
+import AdvancedReportFilters from 'dashboard/routes/dashboard/settings/reports/components/AdvancedReportFilters.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { formatTime } from '@chatwoot/utils';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
-import { generateFileName } from 'dashboard/helper/downloadHelper';
 import {
   useVueTable,
   createColumnHelper,
   getCoreRowModel,
+  getSortedRowModel,
 } from '@tanstack/vue-table';
 import { computed, onMounted, ref, h } from 'vue';
+import ReportsAPI from 'dashboard/api/reports';
 
 const props = defineProps({
   type: {
@@ -34,6 +35,22 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  showAgentChatDuration: {
+    type: Boolean,
+    default: false,
+  },
+  showCsatScore: {
+    type: Boolean,
+    default: false,
+  },
+  customHeaderClass: {
+    type: String,
+    default: '',
+  },
+  customCellClass: {
+    type: String,
+    default: '',
+  },
 });
 
 const store = useStore();
@@ -41,6 +58,14 @@ const store = useStore();
 const from = ref(0);
 const to = ref(0);
 const businessHours = ref(false);
+const selectedAgents = ref([]);
+const selectedInboxes = ref([]);
+const selectedTeams = ref([]);
+const selectedLabels = ref([]);
+const timeRange = ref({
+  since: '00:00',
+  until: '23:59',
+});
 import { useI18n } from 'vue-i18n';
 import SummaryReportLink from './SummaryReportLink.vue';
 
@@ -71,56 +96,148 @@ const defaulSpanRender = cellProps =>
     cellProps.getValue()
   );
 
-const columns = computed(() => [
-  columnHelper.accessor('name', {
-    header: t(`SUMMARY_REPORTS.${props.type.toUpperCase()}`),
-    width: 300,
-    cell: cellProps => h(SummaryReportLink, cellProps),
-  }),
-  columnHelper.accessor('conversationsCount', {
-    header: t('SUMMARY_REPORTS.CONVERSATIONS'),
-    width: 200,
-    cell: defaulSpanRender,
-  }),
-  columnHelper.accessor('avgFirstResponseTime', {
-    header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME'),
-    width: 200,
-    cell: defaulSpanRender,
-  }),
-  columnHelper.accessor('avgResolutionTime', {
-    header: t('SUMMARY_REPORTS.AVG_RESOLUTION_TIME'),
-    width: 200,
-    cell: defaulSpanRender,
-  }),
-  columnHelper.accessor('avgReplyTime', {
-    header: t('SUMMARY_REPORTS.AVG_REPLY_TIME'),
-    width: 200,
-    cell: defaulSpanRender,
-  }),
-  columnHelper.accessor('resolutionsCount', {
-    header: t('SUMMARY_REPORTS.RESOLUTION_COUNT'),
-    width: 200,
-    cell: defaulSpanRender,
-  }),
-]);
+const columns = computed(() => {
+  const baseColumns = [
+    columnHelper.accessor('name', {
+      header: t(`SUMMARY_REPORTS.${props.type.toUpperCase()}`),
+      width: 300,
+      cell: cellProps =>
+        h(SummaryReportLink, {
+          ...cellProps,
+          class: props.customCellClass || '',
+        }),
+      enableSorting: true,
+    }),
+    columnHelper.accessor('conversationsCount', {
+      header: t('SUMMARY_REPORTS.CONVERSATIONS'),
+      width: 200,
+      cell: defaulSpanRender,
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.conversationsCountRaw || 0;
+        const b = rowB.original.conversationsCountRaw || 0;
+        return a - b;
+      },
+    }),
+    columnHelper.accessor('avgFirstResponseTime', {
+      header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME'),
+      width: 200,
+      cell: defaulSpanRender,
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.avgFirstResponseTimeRaw || 0;
+        const b = rowB.original.avgFirstResponseTimeRaw || 0;
+        return a - b;
+      },
+    }),
+    columnHelper.accessor('avgResolutionTime', {
+      header: t('SUMMARY_REPORTS.AVG_RESOLUTION_TIME'),
+      width: 200,
+      cell: defaulSpanRender,
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.avgResolutionTimeRaw || 0;
+        const b = rowB.original.avgResolutionTimeRaw || 0;
+        return a - b;
+      },
+    }),
+    columnHelper.accessor('avgReplyTime', {
+      header: t('SUMMARY_REPORTS.AVG_REPLY_TIME'),
+      width: 200,
+      cell: defaulSpanRender,
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.avgReplyTimeRaw || 0;
+        const b = rowB.original.avgReplyTimeRaw || 0;
+        return a - b;
+      },
+    }),
+    columnHelper.accessor('resolutionsCount', {
+      header: t('SUMMARY_REPORTS.RESOLUTION_COUNT'),
+      width: 200,
+      cell: defaulSpanRender,
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.resolutionsCountRaw || 0;
+        const b = rowB.original.resolutionsCountRaw || 0;
+        return a - b;
+      },
+    }),
+  ];
+
+  if (props.showAgentChatDuration) {
+    baseColumns.push(
+      columnHelper.accessor('agentChatDuration', {
+        header: t('SUMMARY_REPORTS.AGENT_CHAT_DURATION'),
+        width: 220,
+        cell: defaulSpanRender,
+        enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.agentChatDurationRaw || 0;
+          const b = rowB.original.agentChatDurationRaw || 0;
+          return a - b;
+        },
+      })
+    );
+  }
+
+  if (props.showCsatScore) {
+    baseColumns.push(
+      columnHelper.accessor('csatSatisfactionScore', {
+        header: t('SUMMARY_REPORTS.CSAT_SATISFACTION_SCORE'),
+        width: 200,
+        cell: defaulSpanRender,
+        enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.csatSatisfactionScoreRaw || 0;
+          const b = rowB.original.csatSatisfactionScoreRaw || 0;
+          return a - b;
+        },
+      })
+    );
+  }
+
+  return baseColumns;
+});
 
 const renderAvgTime = value => (value ? formatTime(value) : '--');
 
 const renderCount = value => (value ? value.toLocaleString() : '--');
 
-const tableData = computed(() =>
-  rowItems.value.map(row => {
+const renderCsatScore = value => (value ? `${value}%` : '--');
+
+const hasActiveFilters = computed(() => {
+  return (
+    selectedAgents.value.length > 0 ||
+    selectedInboxes.value.length > 0 ||
+    selectedTeams.value.length > 0 ||
+    selectedLabels.value.length > 0
+  );
+});
+
+const tableData = computed(() => {
+  let filteredRows = rowItems.value;
+
+  if (hasActiveFilters.value) {
+    const metricsIds = reportMetrics.value.map(m => m.id);
+    filteredRows = rowItems.value.filter(row => metricsIds.includes(row.id));
+  }
+
+  return filteredRows.map(row => {
     const rowMetrics = getMetrics(row.id);
+
     const {
       conversationsCount,
       avgFirstResponseTime,
       avgResolutionTime,
       avgReplyTime,
       resolvedConversationsCount,
+      agentChatDuration,
+      csatSatisfactionScore,
     } = rowMetrics;
-    return {
+
+    const baseRow = {
       id: row.id,
-      // we fallback on title, label for instance does not have a name property
       name: row.name ?? row.title,
       type: props.type,
       conversationsCount: renderCount(conversationsCount),
@@ -128,15 +245,38 @@ const tableData = computed(() =>
       avgReplyTime: renderAvgTime(avgReplyTime),
       avgResolutionTime: renderAvgTime(avgResolutionTime),
       resolutionsCount: renderCount(resolvedConversationsCount),
+      conversationsCountRaw: conversationsCount || 0,
+      resolutionsCountRaw: resolvedConversationsCount || 0,
+      avgFirstResponseTimeRaw: avgFirstResponseTime || 0,
+      avgReplyTimeRaw: avgReplyTime || 0,
+      avgResolutionTimeRaw: avgResolutionTime || 0,
     };
-  })
-);
+
+    if (props.showAgentChatDuration) {
+      baseRow.agentChatDuration = renderAvgTime(agentChatDuration);
+      baseRow.agentChatDurationRaw = agentChatDuration || 0;
+    }
+
+    if (props.showCsatScore) {
+      baseRow.csatSatisfactionScore = renderCsatScore(csatSatisfactionScore);
+      baseRow.csatSatisfactionScoreRaw = csatSatisfactionScore || 0;
+    }
+
+    return baseRow;
+  });
+});
 
 const fetchReportsWithRetry = async () => {
   const params = {
     since: from.value,
     until: to.value,
     businessHours: businessHours.value,
+    userIds: selectedAgents.value.map(agent => agent.id),
+    inboxIds: selectedInboxes.value.map(inbox => inbox.id),
+    teamIds: selectedTeams.value.map(team => team.id),
+    labelIds: selectedLabels.value.map(label => label.id),
+    timeSince: timeRange.value.since,
+    timeUntil: timeRange.value.until,
   };
   try {
     await store.dispatch(props.actionKey, params);
@@ -160,6 +300,15 @@ const onFilterChange = updatedFilter => {
   from.value = updatedFilter.from;
   to.value = updatedFilter.to;
   businessHours.value = updatedFilter.businessHours;
+  if (updatedFilter.timeRange) timeRange.value = updatedFilter.timeRange;
+  if (updatedFilter.selectedAgents)
+    selectedAgents.value = updatedFilter.selectedAgents;
+  if (updatedFilter.selectedInbox)
+    selectedInboxes.value = updatedFilter.selectedInbox;
+  if (updatedFilter.selectedTeam)
+    selectedTeams.value = updatedFilter.selectedTeam;
+  if (updatedFilter.selectedLabel)
+    selectedLabels.value = updatedFilter.selectedLabel;
   fetchAllData();
 };
 
@@ -170,47 +319,77 @@ const table = useVueTable({
   get columns() {
     return columns.value;
   },
-  enableSorting: false,
+  enableSorting: true,
   getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(),
 });
 
-// downloadReports method is not used in this component
-// but it is exposed to be used in the parent component
-const downloadReports = () => {
-  const dispatchMethods = {
-    agent: 'downloadAgentReports',
-    label: 'downloadLabelReports',
-    inbox: 'downloadInboxReports',
-    team: 'downloadTeamReports',
+const downloadReports = async (format = 'csv') => {
+  const params = {
+    from: from.value,
+    to: to.value,
+    businessHours: businessHours.value,
+    userIds: selectedAgents.value.map(agent => agent.id),
+    inboxIds: selectedInboxes.value.map(inbox => inbox.id),
+    teamIds: selectedTeams.value.map(team => team.id),
+    labelIds: selectedLabels.value.map(label => label.id),
+    timeSince: timeRange.value.since,
+    timeUntil: timeRange.value.until,
+    format,
   };
-  if (dispatchMethods[props.type]) {
-    const fileName = generateFileName({
-      type: props.type,
-      to: to.value,
-      businessHours: businessHours.value,
-    });
-    const params = {
-      from: from.value,
-      to: to.value,
-      fileName,
-      businessHours: businessHours.value,
-    };
-    store.dispatch(dispatchMethods[props.type], params);
+
+  let response;
+
+  if (props.type === 'agent') {
+    response = await ReportsAPI.getAgentReports(params);
+  } else if (props.type === 'label') {
+    response = await ReportsAPI.getLabelReports(params);
+  } else if (props.type === 'inbox') {
+    response = await ReportsAPI.getInboxReports(params);
+  } else if (props.type === 'team') {
+    response = await ReportsAPI.getTeamReports(params);
   }
+
+  const fileName = `${props.type}_report_${Date.now()}.${format}`;
+  const mimeType =
+    format === 'xlsx'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv';
+
+  const blob = new Blob([response.data], { type: mimeType });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };
 
 defineExpose({ downloadReports });
 </script>
 
 <template>
-  <OverviewReportFilters
-    :disabled="isLoading"
-    @filter-change="onFilterChange"
-  />
+  <div class="flex flex-col gap-3">
+    <AdvancedReportFilters
+      :section="type"
+      show-time-range-filter
+      show-agents-filter
+      show-inbox-filter
+      show-team-filter
+      show-labels-filter
+      @filter-change="onFilterChange"
+    />
+  </div>
   <div
-    class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="relative flex-1 overflow-hidden px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
-    <Table :table="table" />
+    <Table
+      :table="table"
+      :custom-header-class="customHeaderClass"
+      :custom-cell-class="customCellClass"
+    />
     <Transition
       enter-active-class="transition-opacity duration-300 ease-out"
       leave-active-class="transition-opacity duration-200 ease-in"

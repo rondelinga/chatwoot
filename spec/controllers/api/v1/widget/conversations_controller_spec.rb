@@ -71,9 +71,9 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
       expect(response).to have_http_status(:success)
       json_response = response.parsed_body
       expect(json_response['id']).not_to be_nil
-      expect(json_response['contact']['email']).to eq 'contact-email@chatwoot.com'
-      expect(json_response['contact']['phone_number']).to eq '+919745313456'
-      expect(json_response['contact']['name']).to eq 'contact-name'
+      expect(json_response).not_to have_key('contact')
+      expect(json_response['messages'].first['sender']).to eq('type' => 'contact')
+      expect(contact.reload).to have_attributes(email: 'contact-email@chatwoot.com', phone_number: '+919745313456', name: 'contact-name')
     end
 
     it 'creates a conversation with correct message and custom attributes' do
@@ -106,13 +106,44 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
       expect(response).to have_http_status(:success)
       json_response = response.parsed_body
       expect(json_response['id']).not_to be_nil
-      expect(json_response['contact']['email']).to be_nil
-      expect(json_response['contact']['name']).to eq 'alphy'
+      expect(contact.reload).to have_attributes(email: nil, name: 'alphy')
       expect(json_response['messages'][0]['content']).to eq 'This is a test message'
+    end
+
+    it 'adds a private note when the email matches an identified contact' do
+      identified_contact = create(:contact, account: account, identifier: 'customer-1', email: 'contact-email@chatwoot.com')
+      create(:contact_inbox, contact: identified_contact, inbox: web_widget.inbox)
+
+      post '/api/v1/widget/conversations',
+           headers: { 'X-Auth-Token' => token },
+           params: conversation_params,
+           as: :json
+
+      expect(response).to have_http_status(:success)
+      note = account.conversations.find_by(display_id: response.parsed_body['id']).messages.find_by(private: true)
+      expect(note.content).to include('contact-email@chatwoot.com')
+      expect(note.content).to include("/contacts/#{identified_contact.id}")
+      expect(response.parsed_body['messages'].pluck('content')).not_to include(note.content)
+    end
+
+    it 'still sends the greeting when it adds the private note' do
+      web_widget.inbox.update!(greeting_enabled: true, greeting_message: 'Hello from the team')
+      identified_contact = create(:contact, account: account, identifier: 'customer-1', email: 'contact-email@chatwoot.com')
+      create(:contact_inbox, contact: identified_contact, inbox: web_widget.inbox)
+
+      post '/api/v1/widget/conversations',
+           headers: { 'X-Auth-Token' => token },
+           params: conversation_params,
+           as: :json
+
+      messages = account.conversations.find_by(display_id: response.parsed_body['id']).messages
+      expect(messages.where(private: true).count).to eq 1
+      expect(messages.pluck(:content)).to include('Hello from the team')
     end
 
     it 'does not update the name if the contact already exist' do
       existing_contact = create(:contact, account: account, email: 'contact-email@chatwoot.com')
+      create(:contact_inbox, contact: existing_contact, inbox: web_widget.inbox)
 
       post '/api/v1/widget/conversations',
            headers: { 'X-Auth-Token' => token },
@@ -133,9 +164,9 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
       expect(response).to have_http_status(:success)
       json_response = response.parsed_body
       expect(json_response['id']).not_to be_nil
-      expect(json_response['contact']['email']).to eq existing_contact.email
-      expect(json_response['contact']['name']).not_to eq 'contact-name'
-      expect(json_response['contact']['phone_number']).to eq '+919745313456'
+      expect(contact_inbox.reload.contact_id).to eq existing_contact.id
+      expect(existing_contact.reload.name).not_to eq 'contact-name'
+      expect(existing_contact.phone_number).to eq '+919745313456'
       expect(json_response['custom_attributes']['order_id']).to eq '12345'
       expect(json_response['messages'][0]['content']).to eq 'This is a test message'
     end
@@ -162,6 +193,7 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
 
     it 'saves contact custom attributes on the surviving contact when merged into an existing contact' do
       existing_contact = create(:contact, account: account, email: 'contact-email@chatwoot.com', custom_attributes: { 'cpf' => 'old-value' })
+      create(:contact_inbox, contact: existing_contact, inbox: web_widget.inbox)
 
       post '/api/v1/widget/conversations',
            headers: { 'X-Auth-Token' => token },
@@ -204,8 +236,35 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
            as: :json
 
       expect(response).to have_http_status(:success)
-      json_response = response.parsed_body
-      expect(json_response['contact']['phone_number']).to be_nil
+      expect(contact_inbox.reload.contact.phone_number).to be_nil
+    end
+
+    context 'when the inbox uses like/dislike csat' do
+      before { web_widget.inbox.update!(csat_survey_enabled: true, csat_config: { 'display_type' => 'like_dislike' }) }
+
+      it 'posts the rating hint before the first contact message' do
+        post '/api/v1/widget/conversations',
+             headers: { 'X-Auth-Token' => token },
+             params: conversation_params,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        messages = Conversation.find_by(display_id: response.parsed_body['id'], account: account).messages.order(:id)
+        expect(messages.map(&:message_type)).to eq(%w[template incoming])
+        expect(messages.first.content).to eq(I18n.t('conversations.templates.csat_like_dislike_hint'))
+      end
+
+      it 'does not post the hint when it is disabled' do
+        web_widget.inbox.update!(csat_config: { 'display_type' => 'like_dislike', 'like_dislike_hint_enabled' => false })
+
+        post '/api/v1/widget/conversations',
+             headers: { 'X-Auth-Token' => token },
+             params: conversation_params,
+             as: :json
+
+        messages = Conversation.find_by(display_id: response.parsed_body['id'], account: account).messages
+        expect(messages.map(&:message_type)).to eq(%w[incoming])
+      end
     end
   end
 
@@ -370,7 +429,8 @@ RSpec.describe '/api/v1/widget/conversations/toggle_typing', type: :request do
              params: params,
              as: :json
 
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:no_content)
+        expect(response.body).to be_empty
         conversation.reload
         # conversation custom attributes should not have "product_name" key with value "Chatwoot"
         expect(conversation.custom_attributes).not_to include('product_name' => 'Chatwoot')

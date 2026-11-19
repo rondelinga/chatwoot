@@ -1,5 +1,6 @@
 class ActionCableListener < BaseListener
   include Events::Types
+  include ActionCableBroadcastTokens
 
   def notification_created(event)
     notification, account, unread_count, count = extract_notification_and_account(event)
@@ -39,34 +40,23 @@ class ActionCableListener < BaseListener
   end
 
   def message_created(event)
-    message, account = extract_message_and_account(event)
-    conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
-
-    broadcast(account, tokens, MESSAGE_CREATED, message.push_event_data)
+    broadcast_message_event(event.data[:message], MESSAGE_CREATED)
   end
 
   def message_updated(event)
-    message, account = extract_message_and_account(event)
-    conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
-
-    broadcast(account, tokens, MESSAGE_UPDATED, message.push_event_data.merge(previous_changes: event.data[:previous_changes]))
+    broadcast_message_event(event.data[:message], MESSAGE_UPDATED, previous_changes: event.data[:previous_changes])
   end
 
   def first_reply_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_listener_tokens(account, conversation)
 
     broadcast(account, tokens, FIRST_REPLY_CREATED, message.push_event_data)
   end
 
   def conversation_created(event)
-    conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
-
-    broadcast(account, tokens, CONVERSATION_CREATED, conversation.push_event_data)
+    broadcast_conversation_event(event.data[:conversation], CONVERSATION_CREATED)
   end
 
   def conversation_bot_handoff(event)
@@ -78,17 +68,11 @@ class ActionCableListener < BaseListener
   end
 
   def conversation_status_changed(event)
-    conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
-
-    broadcast(account, tokens, CONVERSATION_STATUS_CHANGED, conversation.push_event_data)
+    broadcast_conversation_event(event.data[:conversation], CONVERSATION_STATUS_CHANGED)
   end
 
   def conversation_updated(event)
-    conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
-
-    broadcast(account, tokens, CONVERSATION_UPDATED, conversation.push_event_data)
+    broadcast_conversation_event(event.data[:conversation], CONVERSATION_UPDATED)
   end
 
   def conversation_unread_count_changed(event)
@@ -101,35 +85,11 @@ class ActionCableListener < BaseListener
   end
 
   def conversation_typing_on(event)
-    conversation = event.data[:conversation]
-    account = conversation.account
-    user = event.data[:user]
-    tokens = typing_event_listener_tokens(account, conversation, user)
-
-    broadcast(
-      account,
-      tokens,
-      CONVERSATION_TYPING_ON,
-      conversation: conversation.push_event_data,
-      user: user.push_event_data,
-      is_private: event.data[:is_private] || false
-    )
+    broadcast_typing_event(event, CONVERSATION_TYPING_ON)
   end
 
   def conversation_typing_off(event)
-    conversation = event.data[:conversation]
-    account = conversation.account
-    user = event.data[:user]
-    tokens = typing_event_listener_tokens(account, conversation, user)
-
-    broadcast(
-      account,
-      tokens,
-      CONVERSATION_TYPING_OFF,
-      conversation: conversation.push_event_data,
-      user: user.push_event_data,
-      is_private: event.data[:is_private] || false
-    )
+    broadcast_typing_event(event, CONVERSATION_TYPING_OFF)
   end
 
   def assignee_changed(event)
@@ -138,7 +98,17 @@ class ActionCableListener < BaseListener
     # user (the assigned agent, NOT the performer). Neither requires inferring
     # automation from a missing Current.user.
     automatic_assignment = [Inbox, AssignmentPolicy, AutomationRule].include?(event.data[:performed_by].class) || event.data[:user].present?
-    broadcast_to_inbox_members(event, ASSIGNEE_CHANGED, automatic_assignment: automatic_assignment)
+    conversation, account = extract_conversation_and_account(event)
+    tokens = conversation_listener_tokens(account, conversation)
+    tokens << conversation.assignee.pubsub_token if conversation.assignee&.pubsub_token
+    tokens += previous_assignee_tokens(event)
+
+    broadcast(
+      account,
+      tokens,
+      ASSIGNEE_CHANGED,
+      conversation.push_event_data.merge(automatic_assignment: automatic_assignment)
+    )
   end
 
   def team_changed(event)
@@ -151,17 +121,17 @@ class ActionCableListener < BaseListener
 
   def contact_created(event)
     contact, account = extract_contact_and_account(event)
-    broadcast(account, [account_token(account)], CONTACT_CREATED, contact.push_event_data)
+    broadcast(account, administrator_tokens(account), CONTACT_CREATED, contact.push_event_data)
   end
 
   def contact_updated(event)
     contact, account = extract_contact_and_account(event)
-    broadcast(account, [account_token(account)], CONTACT_UPDATED, contact.push_event_data)
+    broadcast(account, administrator_tokens(account), CONTACT_UPDATED, contact.push_event_data)
   end
 
   def contact_merged(event)
     contact, account = extract_contact_and_account(event)
-    broadcast(account, [account_token(account)], CONTACT_MERGED, contact.push_event_data)
+    broadcast(account, administrator_tokens(account), CONTACT_MERGED, contact.push_event_data)
   end
 
   def contact_deleted(event)
@@ -169,7 +139,7 @@ class ActionCableListener < BaseListener
     account = Account.find_by(id: contact_data[:account_id])
     return if account.blank?
 
-    broadcast(account, [account_token(account)], CONTACT_DELETED, contact_data)
+    broadcast(account, administrator_tokens(account), CONTACT_DELETED, contact_data)
   end
 
   def conversation_mentioned(event)
@@ -179,58 +149,25 @@ class ActionCableListener < BaseListener
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
+  def agent_updated(event)
+    user = event.data[:user]
+    account = Account.find_by(id: event.data[:account_id])
+    return if user.blank? || account.blank?
+
+    broadcast(account, [user.pubsub_token], AGENT_UPDATED, { id: user.id })
+  end
+
   private
 
   def broadcast_to_inbox_members(event, event_name, **metadata)
     conversation, account = extract_conversation_and_account(event)
 
-    broadcast(account, user_tokens(account, conversation.inbox.members), event_name, conversation.push_event_data.merge(metadata))
-  end
-
-  def account_token(account)
-    "account_#{account.id}"
-  end
-
-  def typing_event_listener_tokens(account, conversation, user)
-    current_user_token = if user.is_a?(Contact)
-                           conversation.contact_inbox.pubsub_token
-                         elsif user.respond_to?(:pubsub_token)
-                           user.pubsub_token
-                         end
-
-    tokens = user_tokens(account, conversation.inbox.members) + [conversation.contact_inbox.pubsub_token]
-    current_user_token.present? ? tokens - [current_user_token] : tokens
-  end
-
-  def user_tokens(account, agents)
-    agent_tokens = agents.pluck(:pubsub_token)
-    admin_tokens = account.administrators.pluck(:pubsub_token)
-    (agent_tokens + admin_tokens).uniq
-  end
-
-  def contact_tokens(contact_inbox, message)
-    return [] if message.private?
-    return [] if message.activity?
-    return [] if contact_inbox.nil?
-
-    contact_inbox_tokens(contact_inbox)
-  end
-
-  def contact_inbox_tokens(contact_inbox)
-    contact = contact_inbox.contact
-
-    contact_inbox.hmac_verified? ? contact.contact_inboxes.where(hmac_verified: true).filter_map(&:pubsub_token) : [contact_inbox.pubsub_token]
-  end
-
-  def broadcast(account, tokens, event_name, data)
-    return if tokens.blank?
-
-    payload = data.merge(account_id: account.id)
-    # So the frondend knows who performed the action.
-    # Useful in cases like conversation assignment for generating a notification with assigner name.
-    payload[:performer] = Current.user&.push_event_data if Current.user.present?
-
-    ::ActionCableBroadcastJob.perform_later(tokens.uniq, event_name, payload)
+    broadcast(
+      account,
+      conversation_listener_tokens(account, conversation),
+      event_name,
+      conversation.push_event_data.merge(metadata)
+    )
   end
 end
 

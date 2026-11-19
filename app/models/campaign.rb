@@ -6,16 +6,17 @@
 #  audience                           :jsonb
 #  campaign_status                    :integer          default("active"), not null
 #  campaign_type                      :integer          default("ongoing"), not null
+#  completed_at                       :datetime
 #  description                        :text
 #  enabled                            :boolean          default(TRUE)
 #  message                            :text             not null
 #  scheduled_at                       :datetime
 #  started_at                         :datetime
-#  completed_at                       :datetime
 #  template_params                    :jsonb
 #  title                              :string           not null
 #  trigger_only_during_business_hours :boolean          default(FALSE)
 #  trigger_rules                      :jsonb
+#  whatsapp_cursor                    :bigint
 #  created_at                         :datetime         not null
 #  updated_at                         :datetime         not null
 #  account_id                         :bigint           not null
@@ -47,9 +48,9 @@ class Campaign < ApplicationRecord
   belongs_to :inbox
   belongs_to :sender, class_name: 'User', optional: true
 
-  enum campaign_type: { ongoing: 0, one_off: 1 }
+  enum :campaign_type, { ongoing: 0, one_off: 1 }
   # TODO : enabled attribute is unneccessary . lets move that to the campaign status with additional statuses like draft, disabled etc.
-  enum campaign_status: { active: 0, completed: 1, processing: 2 }
+  enum :campaign_status, { active: 0, completed: 1, processing: 2 }
 
   has_many :conversations, dependent: :nullify, autosave: true
 

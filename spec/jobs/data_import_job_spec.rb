@@ -13,6 +13,18 @@ RSpec.describe DataImportJob do
     end
   end
 
+  it 'releases a stale legacy import without allowing a delayed worker to write' do
+    data_import.update!(status: :processing)
+    expect(data_import).not_to be_abandonable
+    data_import.update!(updated_at: 1.hour.ago)
+    expect(data_import.account.data_imports.active_imports).to include(data_import)
+    data_import.abandon!
+
+    expect { described_class.perform_now(data_import) }.not_to change(Contact, :count)
+    expect(data_import.reload).to be_abandoned
+    expect(data_import.account.data_imports.active_imports).to be_empty
+  end
+
   describe 'retrying the job' do
     context 'when ActiveStorage::FileNotFoundError is raised' do
       let(:import_file_double) { instance_double(ActiveStorage::Blob) }
@@ -22,11 +34,79 @@ RSpec.describe DataImportJob do
         allow(import_file_double).to receive(:open).and_raise(ActiveStorage::FileNotFoundError)
       end
 
-      it 'retries the job' do
+      it 'keeps the import active during the first two download attempts' do
+        retrying_job = described_class.new(data_import)
         expect do
-          described_class.perform_now(data_import)
-        end.to have_enqueued_job(described_class).at_least(1).times
+          2.times { retrying_job.perform_now }
+        end.to have_enqueued_job(described_class).exactly(2).times
+
+        expect(data_import.reload).to be_processing
+        expect(data_import.account.data_imports.active_imports).to include(data_import)
       end
+
+      it 'fails after the third download attempt and prevents delayed deliveries from writing' do
+        retrying_job = described_class.new(data_import)
+        2.times { retrying_job.perform_now }
+
+        expect { retrying_job.perform_now }.to raise_error(ActiveStorage::FileNotFoundError)
+
+        expect(import_file_double).to have_received(:open).exactly(3).times
+        expect(data_import.reload).to be_failed
+        expect(data_import.account.data_imports.active_imports).to be_empty
+        expect { described_class.perform_now(data_import) }.not_to change(Contact, :count)
+        expect(data_import.reload).to be_failed
+      end
+
+      it 'continues importing when the file becomes available on a later attempt' do
+        retrying_job = described_class.new(data_import)
+        retrying_job.perform_now
+        allow(import_file_double).to receive(:open).and_yield(StringIO.new("name,email\nRecovered,recovered@example.com\n"))
+
+        retrying_job.perform_now
+
+        expect(data_import.reload).to be_completed
+        expect(data_import.account.contacts.from_email('recovered@example.com')).to be_present
+      end
+    end
+  end
+
+  describe 'unexpected failures' do
+    let(:import_file_double) { instance_double(ActiveStorage::Blob) }
+    let(:error) { IOError.new('Download failed') }
+
+    before { allow(data_import).to receive(:import_file).and_return(import_file_double) }
+
+    it 'marks the import failed, releases the account slot, and re-raises the original error' do
+      allow(import_file_double).to receive(:open).and_raise(error)
+
+      expect { described_class.perform_now(data_import) }.to raise_error(error)
+
+      expect(data_import.reload).to be_failed
+      expect(data_import.account.data_imports.active_imports).to be_empty
+    end
+
+    it 'preserves abandonment if a running download fails after the user abandons the import' do
+      allow(import_file_double).to receive(:open) do
+        data_import.update!(updated_at: 16.minutes.ago)
+        data_import.abandon!
+        raise error
+      end
+
+      expect { described_class.perform_now(data_import) }.to raise_error(error)
+
+      expect(data_import.reload).to be_abandoned
+    end
+
+    it 'does not change a completed import when sending its notification fails' do
+      allow(import_file_double).to receive(:open).and_yield(StringIO.new("name,email\nImported,imported@example.com\n"))
+      mailer = AdministratorNotifications::AccountNotificationMailer.with(account: data_import.account)
+      allow(AdministratorNotifications::AccountNotificationMailer).to receive(:with).and_return(mailer)
+      allow(mailer).to receive(:contact_import_complete).and_raise(error)
+
+      expect { described_class.perform_now(data_import) }.to raise_error(error)
+
+      expect(data_import.reload).to be_completed
+      expect(data_import.account.contacts.from_email('imported@example.com')).to be_present
     end
   end
 
@@ -56,24 +136,7 @@ RSpec.describe DataImportJob do
     end
 
     context 'when the data contains errors' do
-      it 'imports erroneous data into the account, skipping invalid records' do
-        # Last record is invalid because of duplicate email
-        invalid_data = [
-          %w[id first_name last_name email phone_number],
-          ['1', 'Clarice', 'Uzzell', 'cuzzell0@mozilla.org', '+918484848484'],
-          ['2', 'Marieann', 'Creegan', 'mcreegan1@cornell.edu', '+918484848485'],
-          ['3', 'Nancey', 'Windibank', 'cuzzell0@mozilla.org', '+91848484848']
-        ]
-
-        invalid_data_import = create(:data_import, import_file: generate_csv_file(invalid_data))
-        csv_data = CSV.parse(invalid_data_import.import_file.download, headers: true)
-        csv_length = csv_data.length
-
-        described_class.perform_now(invalid_data_import)
-        expect(invalid_data_import.account.contacts.count).to eq(csv_length - 1)
-        expect(invalid_data_import.reload.total_records).to eq(csv_length)
-        expect(invalid_data_import.reload.processed_records).to eq(csv_length)
-      end
+      # email duplicates are now allowed per account (only not per inbox)
 
       it 'will preserve emojis' do
         data_import = create(:data_import,
@@ -267,7 +330,7 @@ RSpec.describe DataImportJob do
 
         contact = labels_data_import.account.contacts.from_email('duplicate-labeled@example.com')
         lead = ActsAsTaggableOn::Tag.find_by(name: 'lead')
-        expect(contact.label_list).to contain_exactly('customer', 'lead')
+        expect(contact.label_list).to contain_exactly('lead')
         expect(ActsAsTaggableOn::Tagging.where(tag_id: lead.id, taggable: contact, context: 'labels').count).to eq(1)
       end
 

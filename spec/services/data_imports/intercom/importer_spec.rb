@@ -299,14 +299,23 @@ RSpec.describe DataImports::Intercom::Importer do
       allow(importer).to receive(:bulk_write_message_entries).and_raise(ActiveRecord::StatementInvalid, 'bulk failed')
       allow(importer).to receive(:fallback_message_entries).and_wrap_original do |method, conversation, contact, batch_builder, entries|
         source_entry = entries.first
-        message = create(
-          :message,
-          account: account,
-          inbox: conversation.inbox,
-          conversation: conversation,
-          source_id: "intercom:#{source_entry.source_id}",
-          created_at: Time.zone.at(source_entry.part['created_at']),
-          updated_at: Time.zone.at(source_entry.part['created_at'])
+        created_at = Time.zone.at(source_entry.part['created_at'])
+        inserted = Message.insert_all!( # rubocop:disable Rails/SkipsModelValidations -- simulates another worker's bulk insert
+          [{
+            account_id: account.id,
+            inbox_id: conversation.inbox_id,
+            conversation_id: conversation.id,
+            message_type: Message.message_types[:incoming],
+            content_type: Message.content_types[:text],
+            content: 'repaired source',
+            processed_message_content: 'repaired source',
+            private: false,
+            status: Message.statuses[:sent],
+            source_id: "intercom:#{source_entry.source_id}",
+            created_at: created_at,
+            updated_at: created_at
+          }],
+          returning: %w[id]
         )
         DataImportMapping.create!(
           account: account,
@@ -315,7 +324,7 @@ RSpec.describe DataImports::Intercom::Importer do
           source_object_type: 'message',
           source_object_id: source_entry.source_id,
           chatwoot_record_type: 'Message',
-          chatwoot_record_id: message.id,
+          chatwoot_record_id: inserted.rows.first.first,
           metadata: {}
         )
         method.call(conversation, contact, batch_builder, entries)

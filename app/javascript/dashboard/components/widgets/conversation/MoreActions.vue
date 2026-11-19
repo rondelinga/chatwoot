@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onUnmounted } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
@@ -9,6 +9,7 @@ import EmailTranscriptModal from './EmailTranscriptModal.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import BanDurationModal from './BanDurationModal.vue';
 
 import {
   CMD_MUTE_CONVERSATION,
@@ -22,8 +23,10 @@ const { t } = useI18n();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
+const showBanModal = ref(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
+const autoTranslate = computed(() => store.getters.getAutoTranslate);
 
 const actionMenuItems = computed(() => {
   const items = [];
@@ -51,26 +54,46 @@ const actionMenuItems = computed(() => {
     value: 'send_transcript',
   });
 
+  const { enabled, disabledInConversation, language } = autoTranslate.value;
+  if (enabled) {
+    items.push({
+      icon: 'i-lucide-languages',
+      label: disabledInConversation
+        ? t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURN_ON')
+        : t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURN_OFF'),
+      hint: disabledInConversation ? '' : language,
+      action: 'auto_translate',
+      value: 'auto_translate',
+    });
+  }
+
   return items;
 });
 
-const handleActionClick = ({ action }) => {
-  toggleDropdown(false);
-
-  if (action === 'mute') {
-    store.dispatch('muteConversation', currentChat.value.id);
-    useAlert(t('CONTACT_PANEL.MUTED_SUCCESS'));
-  } else if (action === 'unmute') {
-    store.dispatch('unmuteConversation', currentChat.value.id);
-    useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
-  } else if (action === 'send_transcript') {
-    toggleEmailModal();
+const toggleAutoTranslate = async () => {
+  const disabled = !autoTranslate.value.disabledInConversation;
+  try {
+    await store.dispatch('setConversationAutoTranslate', {
+      conversationId: currentChat.value.id,
+      disabled,
+    });
+    useAlert(
+      disabled
+        ? t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURNED_OFF')
+        : t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURNED_ON')
+    );
+  } catch {
+    useAlert(t('CONVERSATION.HEADER.AUTO_TRANSLATE.UPDATE_FAILED'));
   }
 };
 
-// These functions are needed for the event listeners
-const mute = () => {
-  store.dispatch('muteConversation', currentChat.value.id);
+// Defined before handleActionClick to satisfy no-use-before-define
+const mute = bannedUntil => {
+  showBanModal.value = false;
+  store.dispatch('muteConversation', {
+    conversationId: currentChat.value.id,
+    bannedUntil,
+  });
   useAlert(t('CONTACT_PANEL.MUTED_SUCCESS'));
 };
 
@@ -79,14 +102,45 @@ const unmute = () => {
   useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
 };
 
-emitter.on(CMD_MUTE_CONVERSATION, mute);
+const handleBanCancel = () => {
+  showBanModal.value = false;
+};
+
+const handleActionClick = ({ action }) => {
+  toggleDropdown(false);
+
+  switch (action) {
+    case 'mute':
+      showBanModal.value = true;
+      break;
+    case 'unmute':
+      unmute();
+      break;
+    case 'send_transcript':
+      toggleEmailModal();
+      break;
+    case 'auto_translate':
+      toggleAutoTranslate();
+      break;
+    default:
+      break;
+  }
+};
+
+const openBanModal = () => {
+  showBanModal.value = true;
+};
+
+emitter.on(CMD_MUTE_CONVERSATION, openBanModal);
 emitter.on(CMD_UNMUTE_CONVERSATION, unmute);
-emitter.on(CMD_SEND_TRANSCRIPT, toggleEmailModal);
+
+const openEmailModal = () => toggleEmailModal(true);
+emitter.on(CMD_SEND_TRANSCRIPT, openEmailModal);
 
 onUnmounted(() => {
-  emitter.off(CMD_MUTE_CONVERSATION, mute);
+  emitter.off(CMD_MUTE_CONVERSATION, openBanModal);
   emitter.off(CMD_UNMUTE_CONVERSATION, unmute);
-  emitter.off(CMD_SEND_TRANSCRIPT, toggleEmailModal);
+  emitter.off(CMD_SEND_TRANSCRIPT, openEmailModal);
 });
 </script>
 
@@ -114,13 +168,27 @@ onUnmounted(() => {
         :menu-items="actionMenuItems"
         class="mt-1 ltr:right-0 rtl:left-0 top-full"
         @action="handleActionClick"
-      />
+      >
+        <template #trailing-icon="{ item }">
+          <span
+            v-if="item.hint"
+            class="flex-shrink-0 ms-auto ps-4 text-sm text-n-slate-11"
+          >
+            {{ item.hint }}
+          </span>
+        </template>
+      </DropdownMenu>
     </div>
     <EmailTranscriptModal
       v-if="showEmailActionsModal"
       :show="showEmailActionsModal"
       :current-chat="currentChat"
       @cancel="toggleEmailModal"
+    />
+    <BanDurationModal
+      v-if="showBanModal"
+      @confirm="mute"
+      @cancel="handleBanCancel"
     />
   </div>
 </template>

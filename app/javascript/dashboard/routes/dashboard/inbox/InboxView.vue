@@ -122,7 +122,7 @@ const setActiveChat = async () => {
 
   try {
     await store.dispatch('setActiveChat', { data: selectedConversation });
-    emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+    emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE, { force: true });
   } catch {
     // error
   }

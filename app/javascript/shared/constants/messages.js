@@ -18,6 +18,7 @@ export const CONVERSATION_STATUS = {
   RESOLVED: 'resolved',
   PENDING: 'pending',
   SNOOZED: 'snoozed',
+  QUEUED: 'queued',
 };
 
 export const CONVERSATION_PRIORITY = {
@@ -89,7 +90,23 @@ export const CSAT_RATINGS = [
 export const CSAT_DISPLAY_TYPES = {
   EMOJI: 'emoji',
   STAR: 'star',
+  LIKE_DISLIKE: 'like_dislike',
 };
+
+export const CSAT_LIKE_DISLIKE_RATINGS = [
+  {
+    key: 'like',
+    emoji: '👍',
+    value: 5,
+    translationKey: 'CSAT.LIKE_DISLIKE.GOOD',
+  },
+  {
+    key: 'dislike',
+    emoji: '👎',
+    value: 1,
+    translationKey: 'CSAT.LIKE_DISLIKE.BAD',
+  },
+];
 
 export const AUDIO_FORMATS = {
   WEBM: 'audio/webm',

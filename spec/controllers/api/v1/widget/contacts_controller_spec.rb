@@ -33,7 +33,7 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
               as: :json
 
         expect(response).to have_http_status(:success)
-        expected_params = { contact: contact, params: params, discard_invalid_attrs: true }
+        expected_params = { contact: contact, params: params, discard_invalid_attrs: true, inbox_id: web_widget.inbox.id }
         expect(ContactIdentifyAction).to have_received(:new).with(expected_params)
         expect(identify_action).to have_received(:perform)
       end
@@ -164,6 +164,8 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
       end
 
       it 'succeeds when a valid identifier_hash is provided' do
+        create(:contact_inbox, contact: victim, inbox: web_widget.inbox)
+
         patch '/api/v1/widget/contact',
               params: { website_token: web_widget.website_token, identifier: 'victim-identifier',
                         identifier_hash: correct_identifier_hash, name: 'Legit' },
@@ -275,6 +277,20 @@ RSpec.describe '/api/v1/widget/contacts', type: :request do
              headers: { 'X-Auth-Token' => token },
              as: :json
         expect(contact.reload.custom_attributes).to eq({})
+      end
+
+      it 'returns presence flags instead of the stored contact details' do
+        contact.update!(email: 'stored@example.com', phone_number: '+15555550100', custom_attributes: { test: 'test', plan: 'pro' })
+
+        post '/api/v1/widget/contact/destroy_custom_attributes',
+             params: params,
+             headers: { 'X-Auth-Token' => token },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(contact.reload.custom_attributes).to eq({ 'plan' => 'pro' })
+        expect(response.parsed_body).to include('has_email' => true, 'has_name' => true, 'has_phone_number' => true)
+        expect(response.parsed_body.keys).not_to include('email', 'name', 'phone_number', 'custom_attributes', 'additional_attributes')
       end
     end
   end

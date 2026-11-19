@@ -13,6 +13,13 @@
 #  conversation_id    :bigint           not null
 #  faq_suggestion_id  :bigint
 #
+# Indexes
+#
+#  idx_captain_faq_observations_on_conversation_and_suggestion  (conversation_id,faq_suggestion_id) UNIQUE WHERE (faq_suggestion_id IS NOT NULL)
+#  index_captain_faq_observations_on_account_id                 (account_id)
+#  index_captain_faq_observations_on_conversation_id            (conversation_id)
+#  index_captain_faq_observations_on_faq_suggestion_id          (faq_suggestion_id)
+#
 class Captain::FaqObservation < ApplicationRecord
   self.table_name = 'captain_faq_observations'
 
@@ -20,7 +27,7 @@ class Captain::FaqObservation < ApplicationRecord
   belongs_to :conversation, class_name: '::Conversation'
   belongs_to :faq_suggestion, class_name: 'Captain::FaqSuggestion', optional: true, inverse_of: :observations
 
-  enum status: { attached: 0, discarded: 1 }
+  enum :status, { attached: 0, discarded: 1 }
 
   validates :generated_question, :generated_answer, :language, presence: true
   validates :faq_suggestion, presence: true, if: :attached?

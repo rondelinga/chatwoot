@@ -30,6 +30,7 @@ export default {
         CONVERSATION_STATUS.OPEN,
         CONVERSATION_STATUS.SNOOZED,
         CONVERSATION_STATUS.PENDING,
+        CONVERSATION_STATUS.QUEUED,
       ].includes(this.conversationStatus);
     },
     isIframe() {
@@ -45,7 +46,10 @@ export default {
       return this.conversationAttributes.status;
     },
     hasWidgetOptions() {
-      return this.showPopoutButton || this.conversationStatus === 'open';
+      return (
+        this.showPopoutButton ||
+        ['open', 'queued', 'pending'].includes(this.conversationStatus)
+      );
     },
   },
   methods: {
@@ -81,6 +85,15 @@ export default {
 <template>
   <div v-if="showHeaderActions" class="actions flex items-center gap-3">
     <button
+      class="button transparent compact close-button"
+      :class="{
+        'rn-close-button': isRNWebView,
+      }"
+      @click="closeWindow"
+    >
+      <FluentIcon icon="subtract" size="24" class="text-n-slate-12" />
+    </button>
+    <button
       v-if="
         canLeaveConversation &&
         canUserEndConversation &&
@@ -91,7 +104,7 @@ export default {
       :title="$t('END_CONVERSATION')"
       @click="resolveConversation"
     >
-      <FluentIcon icon="sign-out" size="22" class="text-n-slate-12" />
+      <FluentIcon icon="dismiss" size="22" class="text-n-slate-12" />
     </button>
     <button
       v-if="showPopoutButton"
@@ -99,15 +112,6 @@ export default {
       @click="popoutWindow"
     >
       <FluentIcon icon="open" size="22" class="text-n-slate-12" />
-    </button>
-    <button
-      class="button transparent compact close-button"
-      :class="{
-        'rn-close-button': isRNWebView,
-      }"
-      @click="closeWindow"
-    >
-      <FluentIcon icon="dismiss" size="24" class="text-n-slate-12" />
     </button>
   </div>
 </template>

@@ -44,14 +44,44 @@
         "TITLE": "ID аккаунта",
         "NOTE": "Этот ID требуется для построения интеграции, основанной на API"
       },
+      "TRANSLATION": {
+        "TITLE": "Translation",
+        "NOTE": "Speak every customer's language, whatever languages your team knows.",
+        "CAPTAIN": {
+          "TITLE": "Captain",
+          "NOTE": "AI translations that sound natural and keep your tone."
+        },
+        "GOOGLE": {
+          "TITLE": "Google Перевод",
+          "NOTE": "Quick, reliable translations from Google.",
+          "NOT_CONNECTED": "Not connected",
+          "CONNECT": "Подключить",
+          "NOT_CONNECTED_HINT": "Google Translate isn't connected yet."
+        },
+        "UPGRADE": {
+          "NOTE": "Upgrade to a paid plan to translate conversations with Captain or Google Translate.",
+          "BUTTON": "Обновить"
+        },
+        "AUTO_TRANSLATE": {
+          "TITLE": "Auto-translate conversations",
+          "NOTE": "Read every message in your language. Customers get replies in theirs.",
+          "LOCKED": "Choose a service to turn this on.",
+          "NOT_AVAILABLE": "Auto-translate isn't enabled for this account yet."
+        },
+        "API": {
+          "SUCCESS": "Translation settings updated successfully",
+          "ERROR": "Failed to update translation settings"
+        }
+      },
       "AUTO_RESOLVE": {
         "TITLE": "Автоматически завершать диалоги",
         "NOTE": "Эта опция позволит вам завершать диалоги после определенного периода бездействия.",
+        "SPLIT_REASONS": "Разделять сообщения по причине завершения",
         "DURATION": {
           "LABEL": "Время бездействия",
           "HELP": "Время бездействия, после которого диалог будет завершен",
           "PLACEHOLDER": "30",
-          "ERROR": "Время автозавершения должно быть между 10 минутами и 999 днями",
+          "ERROR": "Auto resolve duration should be between {minDuration} minutes and 999 days",
           "API": {
             "SUCCESS": "Настройки автозавершения успешно обновлены",
             "ERROR": "Не удалось обновить настройки автозавершения"
@@ -60,7 +90,16 @@
         "MESSAGE": {
           "LABEL": "Сообщение об автозавершении диалога",
           "PLACEHOLDER": "Диалог помечен завершенным автоматически из-за бездействия в течение 15 дней",
-          "HELP": "Сообщение будет отправлено после автозавершения диалога"
+          "HELP": "Сообщение будет отправлено после автозавершения диалога",
+          "AGENT_LABEL": "Если не отвечает агент",
+          "CLIENT_LABEL": "Если не отвечает клиент",
+
+          "AGENT": {
+            "PLACEHOLDER": "Сообщение, которое отправится при автозавершении"
+          },
+          "CLIENT": {
+            "PLACEHOLDER": "Сообщение, которое отправится при автозавершении"
+          }
         },
         "PREFERENCES": "Настройки",
         "LABEL": {
@@ -71,6 +110,11 @@
           "LABEL": "Пропустить диалоги ожидающие ответа агента"
         },
         "UPDATE_BUTTON": "Сохранить"
+      },
+      "QUEUE_MESSAGE": {
+        "LABEL": "Сообщение при постановке в очередь",
+        "HELP": "Отправляется пользователю, когда чат попадает в очередь",
+        "PLACEHOLDER": "Все операторы сейчас заняты. Мы подключим вас к свободному оператору, как только он освободится"
       },
       "NAME": {
         "LABEL": "Имя аккаунта",
@@ -92,6 +136,8 @@
         "PLACEHOLDER": "Email службы поддержки вашей компании",
         "ERROR": ""
       },
+      "BUSY_TO_OFFLINE_ENABLED": "Включить сброс в оффлайн",
+      "BUSY_TO_OFFLINE_TIMEOUT": "Введите время в минутах",
       "AUTO_RESOLVE_IGNORE_WAITING": {
         "LABEL": "Исключить неотвеченные диалоги",
         "HELP": "Если включено, система пропускает разрешение диалогов, которые все еще ждут ответа агента."
@@ -102,6 +148,14 @@
         "API": {
           "SUCCESS": "Настройки расшифровки аудио сообщений успешно обновлены",
           "ERROR": "Не удалось обновить настройки расшифровки аудио сообщений"
+        }
+      },
+      "ENFORCE_MFA": {
+        "TITLE": "Enforce two-factor authentication",
+        "NOTE": "Require every member of this account to set up two-factor authentication. Members without it will be asked to set it up at their next password sign-in. Sign-ins through Google or SAML are exempt. API access tokens of members who have not set up two-factor authentication stop working for this account until they enrol.",
+        "API": {
+          "SUCCESS": "Two-factor authentication enforcement updated successfully",
+          "ERROR": "Failed to update two-factor authentication enforcement"
         }
       },
       "AUTO_RESOLVE_DURATION": {
@@ -118,6 +172,22 @@
         "MESSAGE_PLACEHOLDER": "Диалог помечен завершенным автоматически из-за бездействия в течение 15 дней",
         "MESSAGE_HELP": "Это сообщение отправляется клиенту, когда разговор автоматически решен системой из-за бездействия."
       },
+      "AUTO_RESOLVE_PENDING": {
+        "TITLE": "Автоматически завершать ожидающие диалоги",
+        "NOTE": "Эта опция позволит вам завершать ожидающие диалоги после определенного периода бездействия.",
+        "DURATION": {
+          "LABEL": "Время бездействия для автозавершения ожидающих диалогов",
+          "HELP": "Время бездействия для автозавершения ожидающих диалогов, если не было активности",
+          "PLACEHOLDER": "30",
+          "ERROR": "Время автозавершения должно быть между 10 минутами и 999 днями"
+        },
+        "MESSAGE": {
+          "LABEL": "Сообщение при автозавершении ожидающих диалогов",
+          "HELP": "Сообщение будет отправлено после автозавершения ожидающих диалогов",
+          "PLACEHOLDER": "Диалог помечен завершенным автоматически из-за бездействия в течение 15 дней"
+        },
+        "UPDATE_BUTTON": "Сохранить"
+      },
       "FEATURES": {
         "INBOUND_EMAIL_ENABLED": "Для вашего аккаунта включено продолжение диалогов по электронной почте.",
         "CUSTOM_EMAIL_DOMAIN_ENABLED": "Теперь вы можете получать письма на свой домен."
@@ -125,7 +195,8 @@
     },
     "UPDATE_CHATWOOT": "Доступно обновление {latestChatwootVersion} для Chatwoot. Пожалуйста, обновите свою версию.",
     "LEARN_MORE": "Узнайте больше",
-    "PAYMENT_PENDING": "Ваш платеж в ожидании. Пожалуйста, обновите платежную информацию, чтобы продолжить использовать Chatwoot",
+    "PAYMENT_PENDING": "Your account payment is past due. Please update your payment information to avoid subscription cancellation.",
+    "PAYMENT_PENDING_AGENT": "Your account payment is past due. Please contact your administrator to resolve it.",
     "UPGRADE": "Обновитесь, чтобы продолжить использовать Chatwoot",
     "LIMITS_UPGRADE": "Превышен лимит использования вашего тарифного плана, пожалуйста, обновите тарифный план, чтобы продолжить использовать Chatwoot",
     "OPEN_BILLING": "Открыть платеж"

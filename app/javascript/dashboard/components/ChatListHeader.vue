@@ -15,6 +15,7 @@ const props = defineProps({
   hasActiveFolders: { type: Boolean, required: true },
   activeStatus: { type: String, required: true },
   isOnExpandedLayout: { type: Boolean, required: true },
+  alignMenuToEnd: { type: Boolean, default: false },
   conversationStats: { type: Object, required: true },
   isListLoading: { type: Boolean, required: true },
 });
@@ -25,6 +26,7 @@ const emit = defineEmits([
   'resetFilters',
   'basicFilterChange',
   'filtersModal',
+  'showAgentsOverview',
 ]);
 
 const { uiSettings, updateUISettings } = useUISettings();
@@ -108,7 +110,17 @@ const toggleConversationLayout = () => {
         {{ $t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${activeStatus}.TEXT`) }}
       </span>
     </div>
-    <div class="flex items-center gap-1">
+    <NextButton
+      v-tooltip.top-end="$t('CHAT_LIST.AGENTS_OVERVIEW.TOOLTIP')"
+      :label="$t('CHAT_LIST.AGENTS_OVERVIEW.BUTTON')"
+      icon="i-lucide-users"
+      slate
+      xs
+      faded
+      class="shrink-0"
+      @click="emit('showAgentsOverview')"
+    />
+    <div class="flex items-center gap-1 shrink-0">
       <template v-if="hasAppliedFilters && !hasActiveFolders">
         <div class="relative">
           <NextButton
@@ -122,7 +134,9 @@ const toggleConversationLayout = () => {
           <div
             id="saveFilterTeleportTarget"
             class="absolute z-50 mt-2"
-            :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            :class="{
+              'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+            }"
           />
         </div>
       </template>
@@ -140,7 +154,9 @@ const toggleConversationLayout = () => {
           <div
             id="conversationFilterTeleportTarget"
             class="absolute z-50 mt-2"
-            :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            :class="{
+              'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+            }"
           />
         </div>
         <NextButton
@@ -166,12 +182,15 @@ const toggleConversationLayout = () => {
         <div
           id="conversationFilterTeleportTarget"
           class="absolute z-50 mt-2"
-          :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+          :class="{
+            'ltr:right-0 rtl:left-0': isOnExpandedLayout || alignMenuToEnd,
+          }"
         />
       </div>
       <ConversationBasicFilter
         v-if="!isContactScoped"
         :is-on-expanded-layout="isOnExpandedLayout"
+        :align-menu-to-end="alignMenuToEnd"
         :show-status-filter="!hasAppliedFiltersOrActiveFolders"
         @change-filter="onBasicFilterChange"
       />

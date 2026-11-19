@@ -17,6 +17,7 @@ import DeleteCustomViews from 'dashboard/routes/dashboard/customviews/DeleteCust
 import ConversationBulkActions from './widgets/conversation/conversationBulkActions/Index.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
+import AgentsOverviewModal from './widgets/conversation/AgentsOverviewModal.vue';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
@@ -29,6 +30,10 @@ import {
   useSnakeCase,
 } from 'dashboard/composables/useTransformKeys';
 import { useEmitter } from 'dashboard/composables/emitter';
+import {
+  CMD_MARK_UNREAD,
+  CMD_SWITCH_TAB,
+} from 'dashboard/helper/commandbar/events';
 import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
 
 import { emitter } from 'shared/helpers/mitt';
@@ -56,8 +61,10 @@ const props = defineProps({
   label: { type: String, default: '' },
   conversationType: { type: String, default: '' },
   foldersId: { type: [String, Number], default: 0 },
+  agentId: { type: [String, Number], default: 0 },
   showConversationList: { default: true, type: Boolean },
   isOnExpandedLayout: { default: false, type: Boolean },
+  fluid: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['conversationLoad']);
@@ -71,7 +78,11 @@ const { buildConversationPath, buildConversationListPath } =
 
 const resolveAttributesModalRef = ref(null);
 
-const activeAssigneeTab = ref(wootConstants.ASSIGNEE_TYPE.ME);
+const activeAssigneeTab = ref(
+  props.agentId
+    ? wootConstants.ASSIGNEE_TYPE.ALL
+    : wootConstants.ASSIGNEE_TYPE.ME
+);
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -81,6 +92,7 @@ const chatsOnView = ref([]);
 const foldersQuery = useMapGetter('getAppliedConversationFiltersQuery');
 const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
+const showAgentsOverviewModal = ref(false);
 const appliedFilter = ref([]);
 const advancedFilterTypes = ref(
   advancedFilterOptions.map(filter => ({
@@ -256,6 +268,7 @@ const conversationFilters = computed(() => {
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+    agentId: props.agentId ? Number(props.agentId) : undefined,
   };
 });
 
@@ -420,8 +433,28 @@ function fetchSavedFilteredConversations(payload) {
     .finally(emitConversationLoaded);
 }
 
+function withAgentAssignee(filters) {
+  if (!props.agentId) return filters;
+
+  const agentId = Number(props.agentId);
+  const agent = agentList.value.find(item => item.id === agentId);
+  const rest = filters.filter(filter => filter.attribute_key !== 'assignee_id');
+
+  return [
+    ...rest,
+    {
+      attribute_key: 'assignee_id',
+      attribute_model: 'standard',
+      filter_operator: 'equal_to',
+      values: [{ id: agentId, name: agent?.name || '' }],
+      query_operator: 'and',
+      custom_attribute_type: '',
+    },
+  ];
+}
+
 function onApplyFilter(payload) {
-  payload = useSnakeCase(payload);
+  payload = withAgentAssignee(useSnakeCase(payload));
   showAdvancedFilters.value = false;
   store
     .dispatch('applyConversationFilters', { filters: payload })
@@ -828,6 +861,8 @@ useEmitter('fetch_conversation_stats', () => {
   if (hasAppliedFiltersOrActiveFolders.value) return;
   store.dispatch('conversationStats/get', conversationFilters.value);
 });
+useEmitter(CMD_SWITCH_TAB, updateAssigneeTab);
+useEmitter(CMD_MARK_UNREAD, markAsUnread);
 
 onMounted(() => {
   store.dispatch('setChatListFilters', conversationFilters.value);
@@ -887,6 +922,15 @@ watch(
   computed(() => props.conversationType),
   () => resetAndFetchData()
 );
+watch(
+  () => props.agentId,
+  () => {
+    if (props.agentId) {
+      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ALL;
+    }
+    resetAndFetchData();
+  }
+);
 
 watch(activeFolder, (newVal, oldVal) => {
   if (newVal !== oldVal) {
@@ -908,7 +952,11 @@ watch(appliedFilters, () => resetBulkActions());
     class="flex flex-col flex-shrink-0 conversations-list-wrap bg-n-surface-1 relative"
     :class="[
       { hidden: !showConversationList },
-      isOnExpandedLayout ? 'basis-full' : 'w-[340px] 2xl:w-[412px]',
+      isOnExpandedLayout
+        ? 'basis-full'
+        : fluid
+          ? 'h-full w-full min-w-0 flex-1'
+          : 'w-[340px] 2xl:w-[412px]',
     ]"
   >
     <slot />
@@ -919,6 +967,7 @@ watch(appliedFilters, () => resetBulkActions());
       :has-active-folders="hasActiveFolders"
       :active-status="activeStatus"
       :is-on-expanded-layout="isOnExpandedLayout"
+      :align-menu-to-end="fluid"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
       @add-folders="onClickOpenAddFoldersModal"
@@ -926,7 +975,10 @@ watch(appliedFilters, () => resetBulkActions());
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetFilters"
       @basic-filter-change="onBasicFilterChange"
+      @show-agents-overview="showAgentsOverviewModal = true"
     />
+
+    <AgentsOverviewModal v-model:show="showAgentsOverviewModal" />
 
     <TeleportWithDirection
       v-if="showAddFoldersModal"
@@ -950,7 +1002,7 @@ watch(appliedFilters, () => resetBulkActions());
     />
 
     <ChatTypeTabs
-      v-if="!hasAppliedFiltersOrActiveFolders"
+      v-if="!hasAppliedFiltersOrActiveFolders && !agentId"
       :items="assigneeTabItems"
       :active-tab="activeAssigneeTab"
       is-compact
@@ -977,12 +1029,9 @@ watch(appliedFilters, () => resetBulkActions());
       :conversation-list="conversationList"
       :is-loading="chatListLoading"
       :show-end-of-list-message="showEndOfListMessage"
-      :label="label"
-      :team-id="teamId"
-      :folders-id="foldersId"
-      :conversation-type="conversationType"
       :show-assignee="showAssigneeInConversationCard"
       :is-on-expanded-layout="isOnExpandedLayout"
+      :active-status="activeStatus"
       @load-more="loadMoreConversations"
     />
     <Dialog

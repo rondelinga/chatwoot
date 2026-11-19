@@ -1,5 +1,4 @@
 json.id @contact.id
-json.has_email @contact.email.present?
-json.has_name @contact.name.present?
-json.has_phone_number @contact.phone_number.present?
+json.merge! @contact.widget_presence_data
 json.identifier @contact.identifier
+json.blocked_until @contact.blocked_until&.iso8601

@@ -1,6 +1,4 @@
-import parse from 'date-fns/parse';
-import getHours from 'date-fns/getHours';
-import getMinutes from 'date-fns/getMinutes';
+import { getHours, getMinutes, parse } from 'date-fns';
 import timeZoneData from './timezones.json';
 
 export const defaultTimeSlot = [

@@ -6,8 +6,8 @@ RSpec.describe 'Contacts API', type: :request do
     {
       attribute_key: 'email',
       filter_operator: 'contains',
-      values: 'looped',
-      query_operator: 'and',
+      values: ['looped'],
+      query_operator: nil,
       attribute_model: 'standard',
       custom_attribute_type: ''
     }
@@ -241,7 +241,7 @@ RSpec.describe 'Contacts API', type: :request do
       let(:admin) { create(:user, account: account, role: :administrator) }
 
       it 'enqueues a contact export job' do
-        expect(Account::ContactsExportJob).to receive(:perform_later).with(account.id, admin.id, nil, { :payload => nil, :label => nil }).once
+        expect(DataExports::ContactsJob).to receive(:perform_later).with(instance_of(DataExport), kind_of(String)).once
 
         post "/api/v1/accounts/#{account.id}/contacts/export",
              headers: admin.create_new_auth_token
@@ -250,28 +250,25 @@ RSpec.describe 'Contacts API', type: :request do
       end
 
       it 'enqueues a contact export job with sent_columns' do
-        expect(Account::ContactsExportJob).to receive(:perform_later).with(account.id, admin.id, %w[phone_number email],
-                                                                           { :payload => nil, :label => nil }).once
+        expect(DataExports::ContactsJob).to receive(:perform_later).with(instance_of(DataExport), kind_of(String)).once
 
         post "/api/v1/accounts/#{account.id}/contacts/export",
              headers: admin.create_new_auth_token,
              params: { column_names: %w[phone_number email] }
 
         expect(response).to have_http_status(:success)
+        expect(account.data_exports.last.export_options['column_names']).to eq(%w[phone_number email])
       end
 
       it 'enqueues a contact export job with payload' do
-        expect(Account::ContactsExportJob).to receive(:perform_later).with(account.id, admin.id, nil,
-                                                                           {
-                                                                             :payload => [ActionController::Parameters.new(email_filter).permit!],
-                                                                             :label => nil
-                                                                           }).once
+        expect(DataExports::ContactsJob).to receive(:perform_later).with(instance_of(DataExport), kind_of(String)).once
 
         post "/api/v1/accounts/#{account.id}/contacts/export",
              headers: admin.create_new_auth_token,
              params: { payload: [email_filter] }
 
         expect(response).to have_http_status(:success)
+        expect(account.data_exports.last.export_options['payload']).to eq([email_filter.stringify_keys])
       end
     end
   end
@@ -464,6 +461,21 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response.body).to include('Invalid operator. The allowed operators for country_code are [equal_to,not_equal_to]')
       end
 
+      %w[contains does_not_contain].each do |operator|
+        it "rejects #{operator} for a numeric custom attribute" do
+          create(:custom_attribute_definition, account: account, attribute_model: :contact_attribute,
+                                               attribute_display_type: :number, attribute_key: 'contract_count')
+
+          post "/api/v1/accounts/#{account.id}/contacts/filter",
+               params: { payload: [{ attribute_key: 'contract_count', filter_operator: operator, values: ['12'] }] },
+               headers: admin.create_new_auth_token,
+               as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          expect(response.parsed_body['error']).to start_with('Invalid operator. The allowed operators for contract_count are')
+        end
+      end
+
       it 'returns error the query value is invalid' do
         post "/api/v1/accounts/#{account.id}/contacts/filter",
              params: { payload: [
@@ -519,28 +531,17 @@ RSpec.describe 'Contacts API', type: :request do
 
     context 'when it is an authenticated user' do
       let(:agent) { create(:user, account: account, role: :agent) }
-      let!(:twilio_sms) { create(:channel_twilio_sms, account: account) }
-      let!(:twilio_sms_inbox) { create(:inbox, channel: twilio_sms, account: account) }
       let!(:twilio_whatsapp) { create(:channel_twilio_sms, medium: :whatsapp, account: account) }
       let!(:twilio_whatsapp_inbox) { create(:inbox, channel: twilio_whatsapp, account: account) }
 
-      it 'shows the contactable inboxes which the user has access to' do
+      it 'does not allow agents to view contactable inboxes' do
         create(:inbox_member, user: agent, inbox: twilio_whatsapp_inbox)
 
-        inbox_service = double
-        allow(Contacts::ContactableInboxesService).to receive(:new).and_return(inbox_service)
-        allow(inbox_service).to receive(:get).and_return([
-                                                           { source_id: '1123', inbox: twilio_sms_inbox },
-                                                           { source_id: '1123', inbox: twilio_whatsapp_inbox }
-                                                         ])
-        expect(inbox_service).to receive(:get)
         get "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/contactable_inboxes",
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:success)
-        # only the inboxes which agent has access to are shown
-        expect(response.parsed_body['payload'].pluck('inbox').pluck('id')).to eq([twilio_whatsapp_inbox.id])
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
@@ -650,8 +651,14 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response).to have_http_status(:not_found)
       end
 
-      it 'prevents updating with an existing email' do
+      it 'prevents updating with an existing email in the same inbox' do
+        inbox = create(:inbox, account: account)
+
+        create(:contact_inbox, contact: contact, inbox: inbox)
+
         other_contact = create(:contact, account: account, email: 'test1@example.com')
+
+        create(:contact_inbox, contact: other_contact, inbox: inbox)
 
         patch "/api/v1/accounts/#{account.id}/contacts/#{contact.id}",
               headers: admin.create_new_auth_token,
@@ -659,7 +666,7 @@ RSpec.describe 'Contacts API', type: :request do
               as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.parsed_body['attributes']).to include('email')
+        expect(response.parsed_body['message']).to include('Contact with this email already exists in this inbox')
       end
 
       it 'prevents updating with an existing phone number' do
@@ -814,13 +821,13 @@ RSpec.describe 'Contacts API', type: :request do
         contact.avatar.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
       end
 
-      it 'delete contact avatar' do
+      it 'does not allow agents to delete contact avatar' do
         delete "/api/v1/accounts/#{account.id}/contacts/#{contact.id}/avatar",
                headers: agent.create_new_auth_token,
                as: :json
 
-        expect { contact.avatar.attachment.reload }.to raise_error(ActiveRecord::RecordNotFound)
-        expect(response).to have_http_status(:success)
+        expect(response).to have_http_status(:unauthorized)
+        expect(contact.reload.avatar.attached?).to be(true)
       end
     end
   end

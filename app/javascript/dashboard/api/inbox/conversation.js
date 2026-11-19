@@ -17,22 +17,26 @@ class ConversationApi extends ApiClient {
       conversationType,
       sortBy,
       updatedWithin,
+      agentId,
     },
     options = {}
   ) {
+    const params = {
+      inbox_id: inboxId,
+      team_id: teamId,
+      status,
+      assignee_type: assigneeType,
+      page,
+      labels,
+      conversation_type: conversationType,
+      sort_by: sortBy,
+      updated_within: updatedWithin,
+    };
+    if (agentId) params.agent_id = agentId;
+
     return axios.get(this.url, {
       signal: options.signal,
-      params: {
-        inbox_id: inboxId,
-        team_id: teamId,
-        status,
-        assignee_type: assigneeType,
-        page,
-        labels,
-        conversation_type: conversationType,
-        sort_by: sortBy,
-        updated_within: updatedWithin,
-      },
+      params,
     });
   }
 
@@ -48,10 +52,7 @@ class ConversationApi extends ApiClient {
 
   search({ q }) {
     return axios.get(`${this.url}/search`, {
-      params: {
-        q,
-        page: 1,
-      },
+      params: { q, page: 1 },
     });
   }
 
@@ -76,8 +77,9 @@ class ConversationApi extends ApiClient {
   }
 
   assignTeam({ conversationId, teamId }) {
-    const params = { team_id: teamId };
-    return axios.post(`${this.url}/${conversationId}/assignments`, params);
+    return axios.post(`${this.url}/${conversationId}/assignments`, {
+      team_id: teamId,
+    });
   }
 
   markMessageRead({ id }) {
@@ -95,8 +97,11 @@ class ConversationApi extends ApiClient {
     });
   }
 
-  mute(conversationId) {
-    return axios.post(`${this.url}/${conversationId}/mute`);
+  mute(conversationId, bannedUntil = null) {
+    return axios.post(`${this.url}/${conversationId}/mute`, {
+      banned_until: bannedUntil,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
   }
 
   unmute(conversationId) {

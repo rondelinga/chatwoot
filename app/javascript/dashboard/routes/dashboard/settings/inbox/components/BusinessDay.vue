@@ -1,6 +1,5 @@
 <script>
-import parse from 'date-fns/parse';
-import differenceInMinutes from 'date-fns/differenceInMinutes';
+import { differenceInMinutes, parse } from 'date-fns';
 import { generateTimeSlots } from '../helpers/businessHour';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import NextSelect from 'dashboard/components-next/select/Select.vue';

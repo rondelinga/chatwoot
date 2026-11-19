@@ -3,6 +3,7 @@ import { createStore } from 'vuex';
 import accounts from './modules/accounts';
 import agentBots from './modules/agentBots';
 import agentCapacityPolicies from './modules/agentCapacityPolicies';
+import agentActivity from './modules/agentActivity';
 import agents from './modules/agents';
 import assignmentPolicies from './modules/assignmentPolicies';
 import articles from './modules/helpCenterArticles';
@@ -36,15 +37,18 @@ import globalConfig from 'shared/store/globalConfig';
 import inboxAssignableAgents from './modules/inboxAssignableAgents';
 import inboxes from './modules/inboxes';
 import inboxMembers from './modules/inboxMembers';
+import inboxTeams from './modules/inboxTeams';
 import integrations from './modules/integrations';
 import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
 import reports from './modules/reports';
+import routingTypes from './modules/routingTypes';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
 import sidebarSortPreferences from './modules/sidebarSortPreferences';
+import supervision from './modules/supervision';
 import summaryReports from './modules/summaryReports';
 import teamMembers from './modules/teamMembers';
 import teams from './modules/teams';
@@ -70,6 +74,7 @@ export default createStore({
     accounts,
     agentBots,
     agentCapacityPolicies,
+    agentActivity,
     agents,
     assignmentPolicies,
     articles,
@@ -103,15 +108,18 @@ export default createStore({
     inboxAssignableAgents,
     inboxes,
     inboxMembers,
+    inboxTeams,
     integrations,
     labels,
     macros,
     notifications,
     portals,
     reports,
+    routingTypes,
     sla,
     slaReports,
     sidebarSortPreferences,
+    supervision,
     summaryReports,
     teamMembers,
     teams,

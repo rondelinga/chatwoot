@@ -37,13 +37,13 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'returns timeseries metrics for agents' do
         get "/api/v2/accounts/#{account.id}/reports",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'return timeseries metrics' do
@@ -119,6 +119,8 @@ RSpec.describe 'Reports API', type: :request do
         create(:inbox_member, user: agent2, inbox: inbox)
         conversation = create(:conversation, account: account,
                                              inbox: inbox, assignee: agent2)
+        create(:conversation_participant, conversation: conversation,  user: agent2,
+                                          created_at: 1.hour.ago)
 
         create(:message, message_type: 'incoming', content: 'Hi',
                          account: account, inbox: inbox,
@@ -168,13 +170,13 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'returns summary metrics for agents' do
         get "/api/v2/accounts/#{account.id}/reports/summary",
             params: params,
             headers: agent.create_new_auth_token,
             as: :json
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary metrics' do
@@ -351,12 +353,12 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for agents' do
+      it 'returns agent reports for agents' do
         get "/api/v2/accounts/#{account.id}/reports/agents.csv",
             params: params,
             headers: agent.create_new_auth_token
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary' do
@@ -455,12 +457,12 @@ RSpec.describe 'Reports API', type: :request do
         )
       end
 
-      it 'returns unauthorized for labels' do
+      it 'returns label reports for agents' do
         get "/api/v2/accounts/#{account.id}/reports/labels.csv",
             params: params,
             headers: agent.create_new_auth_token
 
-        expect(response).to have_http_status(:unauthorized)
+        expect(response).to have_http_status(:success)
       end
 
       it 'returns summary' do
@@ -575,7 +577,7 @@ RSpec.describe 'Reports API', type: :request do
             headers: admin.create_new_auth_token
 
         expect(response).to have_http_status(:success)
-        expect(response.parsed_body.keys).to match_array(%w[conversation_count message_count resolution_rate handoff_rate])
+        expect(response.parsed_body.keys).to match_array(%w[avg_resolution_time conversation_count message_count resolution_rate handoff_rate])
       end
     end
   end

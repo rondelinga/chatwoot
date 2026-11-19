@@ -36,6 +36,17 @@ class ContactAPI extends ApiClient {
     return axios.get(`${this.url}/${contactId}/conversations`, { params });
   }
 
+  getOutboundInboxes(contactId) {
+    return axios.get(`${this.url}/${contactId}/outbound_inboxes`);
+  }
+
+  sendOutboundMessage(contactId, { inboxId, content }) {
+    return axios.post(`${this.url}/${contactId}/outbound_message`, {
+      inbox_id: inboxId,
+      content,
+    });
+  }
+
   getAttachments(contactId, page = 1) {
     return axios.get(`${this.url}/${contactId}/attachments`, {
       params: { page },
@@ -82,14 +93,6 @@ class ContactAPI extends ApiClient {
     });
   }
 
-  importContacts(file) {
-    const formData = new FormData();
-    formData.append('import_file', file);
-    return axios.post(`${this.url}/import`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  }
-
   destroyCustomAttributes(contactId, customAttributes) {
     return axios.post(`${this.url}/${contactId}/destroy_custom_attributes`, {
       custom_attributes: customAttributes,
@@ -98,10 +101,6 @@ class ContactAPI extends ApiClient {
 
   destroyAvatar(contactId) {
     return axios.delete(`${this.url}/${contactId}/avatar`);
-  }
-
-  exportContacts(queryPayload) {
-    return axios.post(`${this.url}/export`, queryPayload);
   }
 }
 

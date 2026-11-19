@@ -73,7 +73,14 @@ const handleFormUpdate = updatedData => {
 const updateContact = async () => {
   try {
     const { customAttributes, ...basicContactData } = contactData.value;
-    await store.dispatch('contacts/update', basicContactData);
+    await store.dispatch('contacts/update', {
+      ...basicContactData,
+      resolveLegacyCompany: true,
+    });
+    Object.assign(
+      contactData.value,
+      store.getters['contacts/getContactById'](props.selectedContact.id)
+    );
     await store.dispatch(
       'contacts/fetchContactableInbox',
       props.selectedContact.id
@@ -84,6 +91,24 @@ const updateContact = async () => {
   }
 };
 
+const blockedUntilText = computed(() => {
+  if (!props.selectedContact?.blocked) return '';
+
+  const until =
+    props.selectedContact?.blocked_until || props.selectedContact?.blockedUntil;
+
+  if (!until) {
+    return t('CONTACT_PANEL.BLOCKED_PERMANENTLY');
+  }
+  const date = new Date(until).toLocaleString([], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${t('CONTACT_PANEL.BLOCKED_UNTIL')} ${date}`;
+});
 const openConfirmDeleteContactDialog = () => {
   confirmDeleteContactDialogRef.value?.dialogRef.open();
 };
@@ -178,6 +203,13 @@ const handleAvatarDelete = async () => {
         </div>
       </div>
       <ContactLabels :contact-id="selectedContact?.id" />
+      <div
+        v-if="selectedContact?.blocked"
+        class="inline-flex items-center gap-1.5 px-2 py-1 text-sm text-red-500 rounded-md bg-red-50 dark:bg-red-900/20"
+      >
+        <span class="i-lucide-ban size-4" />
+        {{ blockedUntilText }}
+      </div>
     </div>
     <div class="flex flex-col items-start gap-6">
       <ContactsForm

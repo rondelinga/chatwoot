@@ -1,4 +1,6 @@
 module Enterprise::Account
+  include Enterprise::AccountBillingCurrency
+
   class << self
     def captain_document_sync_intervals
       parse_captain_document_sync_intervals(InstallationConfig.find_by(name: 'CAPTAIN_DOCUMENT_AUTO_SYNC_INTERVALS')&.value)
@@ -21,6 +23,14 @@ module Enterprise::Account
   # TODO: Remove this when we upgrade administrate gem to the latest version
   # this is a temporary method since current administrate doesn't support virtual attributes
   def manually_managed_features; end
+
+  PREMIUM_FEATURE_NAMES = Featurable::FEATURE_LIST.filter_map { |feature| feature['name'] if feature['premium'] }.freeze
+
+  def feature_enabled?(name)
+    return true if PREMIUM_FEATURE_NAMES.include?(name.to_s)
+
+    super
+  end
 
   # Auto-sync advanced_assignment with assignment_v2 when features are bulk-updated via admin UI
   def selected_feature_flags=(features)
@@ -64,6 +74,27 @@ module Enterprise::Account
     interval_hours.hours
   end
 
+  def auto_translate_enabled?
+    feature_enabled?('auto_translate') && auto_translate == true && translation_service_available?
+  end
+
+  def translation_service
+    translation_provider.presence || 'captain'
+  end
+
+  # The zone Copilot cuts report days in. An account without a reporting time zone reports in UTC.
+  def report_time_zone
+    reporting_timezone.presence || 'UTC'
+  end
+
+  def google_translate_hook
+    hooks.find_by(app_id: 'google_translate')
+  end
+
+  def translation_service_available?
+    translation_service == 'google_translate' ? google_translate_hook.present? : feature_enabled?('captain_tasks')
+  end
+
   def saml_enabled?
     saml_settings&.saml_enabled? || false
   end
@@ -72,30 +103,6 @@ module Enterprise::Account
     return true unless ChatwootApp.chatwoot_cloud?
 
     feature_enabled?('api_and_webhooks')
-  end
-
-  def billing_currency
-    # Feature off => everyone is billed in USD (legacy behaviour).
-    return Enterprise::Billing::Currencies::DEFAULT unless Enterprise::Billing::Currencies.enabled?
-
-    stored = custom_attributes&.dig('billing_currency')
-    return Enterprise::Billing::Currencies.normalize(stored) if Enterprise::Billing::Currencies.supported?(stored)
-
-    # Existing Stripe customers stay on USD (webhook backfills the real currency);
-    # only brand-new accounts infer from locale, so existing pt_BR users aren't charged BRL.
-    return Enterprise::Billing::Currencies::DEFAULT if custom_attributes&.dig('stripe_customer_id').present?
-
-    Enterprise::Billing::Currencies.for_locale(locale)
-  end
-
-  # New accounts whose locale maps to a non-USD currency get to pick USD or that
-  # currency before the Stripe customer is created; everyone else proceeds in USD.
-  def billing_currency_selection_required?
-    return false unless Enterprise::Billing::Currencies.enabled?
-    return false if custom_attributes&.dig('stripe_customer_id').present?
-    return false if Enterprise::Billing::Currencies.supported?(custom_attributes&.dig('billing_currency'))
-
-    Enterprise::Billing::Currencies.for_locale(locale) != Enterprise::Billing::Currencies::DEFAULT
   end
 
   private

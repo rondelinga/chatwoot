@@ -6,6 +6,13 @@ class CaptainToolsManifest extends ApiClient {
     super('captain/tools_manifest', { accountScoped: true });
   }
 
+  installed({ assistantId }, { signal } = {}) {
+    return axios.get(`${this.url}/installed`, {
+      params: { assistant_id: assistantId },
+      signal,
+    });
+  }
+
   preview({ assistantId, source }, { signal } = {}) {
     return axios.post(
       `${this.url}/preview`,
@@ -20,6 +27,12 @@ class CaptainToolsManifest extends ApiClient {
       source,
       revision,
       configuration,
+    });
+  }
+
+  uninstall({ assistantId, source }) {
+    return axios.delete(`${this.url}/uninstall`, {
+      params: { assistant_id: assistantId, source },
     });
   }
 }

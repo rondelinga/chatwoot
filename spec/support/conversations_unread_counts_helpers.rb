@@ -1,5 +1,6 @@
 module ConversationsUnreadCountsHelpers
   def create_unread_conversation(account:, inbox:, labels: [], assignee: nil, team: nil)
+    create(:inbox_member, inbox: inbox, user: assignee) if assignee.present? && inbox.members.exclude?(assignee)
     create(:team_member, user: assignee, team: team) if assignee.present? && team.present? && !team.members.exists?(assignee.id)
 
     conversation = create(:conversation, account: account, inbox: inbox, assignee: assignee, team: team, agent_last_seen_at: 1.hour.ago)

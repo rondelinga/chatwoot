@@ -22,6 +22,11 @@ import {
   handleVoiceCallUpdated,
   syncConversationCallVisibility,
 } from 'dashboard/helper/voice';
+import { applyRoleFilter } from './helpers';
+import {
+  getUserPermissions,
+  getUserRole,
+} from 'dashboard/helper/permissionsHelper';
 
 // Page size MessageFinder uses when walking backwards through a conversation.
 const MESSAGES_PER_PAGE = 20;
@@ -169,7 +174,7 @@ const actions = {
     commit(types.CLEAR_CURRENT_CHAT_WINDOW);
   },
 
-  fetchPreviousMessages: ({ commit }, data) => {
+  fetchPreviousMessages: ({ commit, dispatch }, data) => {
     const requestKey = JSON.stringify([
       MessageApi.url,
       data.conversationId,
@@ -190,6 +195,7 @@ const actions = {
           id: data.conversationId,
           data: payload,
         });
+        dispatch('autoTranslateMessages', data.conversationId);
         // A short backward page means the start is reached; `after` requests only prove it when empty.
         const hasReachedFirstMessage = data.after
           ? !payload.length
@@ -231,13 +237,14 @@ const actions = {
     { conversationId }
   ) => {
     const { allConversations, syncConversationsMessages } = state;
-    const lastMessageId = syncConversationsMessages[conversationId];
     const selectedChat = allConversations.find(
       conversation => conversation.id === conversationId
     );
     if (!selectedChat) return;
     try {
       const { messages } = selectedChat;
+      const lastMessageId =
+        syncConversationsMessages[conversationId] ?? messages.last()?.id;
       // Fetch all the messages after the last message id
       const {
         data: { meta, payload },
@@ -266,6 +273,7 @@ const actions = {
         conversationId,
         messageId: null,
       });
+      dispatch('autoTranslateMessages', conversationId);
       dispatch('markMessagesRead', { id: conversationId }, { root: true });
     } catch (error) {
       // Handle error
@@ -290,6 +298,36 @@ const actions = {
     });
   },
 
+  reloadConversationMessages: async (
+    { commit, dispatch, state },
+    { conversationId, seedMessages }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    if (!chat) return;
+
+    let seed = [];
+    if (seedMessages?.length > 0) {
+      seed = seedMessages;
+    } else if (chat.messages?.length) {
+      seed = [chat.messages[chat.messages.length - 1]];
+    }
+    if (!seed[0]?.id) return;
+
+    chat.messages = seed;
+    delete chat.dataFetched;
+    chat.allMessagesLoaded = false;
+
+    try {
+      await dispatch('fetchPreviousMessages', {
+        conversationId,
+        before: seed[0].id,
+      });
+      commit(types.SET_CHAT_DATA_FETCHED, conversationId);
+    } catch (error) {
+      // Ignore error
+    }
+  },
+
   async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
     if (data.dataFetched === undefined) {
@@ -306,6 +344,8 @@ const actions = {
       } catch (error) {
         // Ignore error
       }
+    } else {
+      await dispatch('reloadConversationMessages', { conversationId: data.id });
     }
   },
 
@@ -445,7 +485,7 @@ const actions = {
     return data;
   },
 
-  addMessage({ commit, rootGetters }, message) {
+  addMessage({ commit, dispatch, rootGetters }, message) {
     commit(types.ADD_MESSAGE, message);
     if (message.message_type === MESSAGE_TYPE.INCOMING) {
       commit(types.SET_CONVERSATION_CAN_REPLY, {
@@ -453,15 +493,24 @@ const actions = {
         canReply: true,
       });
       commit(types.ADD_CONVERSATION_ATTACHMENTS, message);
+      dispatch('autoTranslateMessages', message.conversation_id);
     }
     handleVoiceCallCreated(
       message,
       rootGetters?.getCurrentUserID,
-      rootGetters?.getCurrentUserAvailability
+      rootGetters?.getCurrentUserReceivesCalls
     );
   },
 
   updateMessage({ commit, dispatch, rootGetters, state }, message) {
+    if (message.content_attributes?.deleted) {
+      commit(types.DELETE_MESSAGE, {
+        conversationId: message.conversation_id,
+        id: message.id,
+      });
+      return;
+    }
+
     commit(types.ADD_MESSAGE, message);
 
     const contactInfoRequest =
@@ -484,7 +533,7 @@ const actions = {
       commit,
       message,
       rootGetters?.getCurrentUserID,
-      rootGetters?.getCurrentUserAvailability
+      rootGetters?.getCurrentUserReceivesCalls
     );
   },
 
@@ -493,9 +542,13 @@ const actions = {
     { conversationId, messageId }
   ) {
     try {
-      const { data } = await MessageApi.delete(conversationId, messageId);
-      commit(types.ADD_MESSAGE, data);
-      commit(types.DELETE_CONVERSATION_ATTACHMENTS, data);
+      await MessageApi.delete(conversationId, messageId);
+      commit(types.DELETE_MESSAGE, { conversationId, id: messageId });
+      commit(types.DELETE_CONVERSATION_ATTACHMENTS, {
+        id: messageId,
+        conversation_id: conversationId,
+        status: MESSAGE_STATUS.SENT,
+      });
     } catch (error) {
       throw new Error(error);
     }
@@ -549,7 +602,28 @@ const actions = {
     const sender = conversation.meta?.sender;
 
     commit(types.UPDATE_CONVERSATION, conversation);
-    syncConversationCallVisibility(conversation, rootGetters?.getCurrentUserID);
+    syncConversationCallVisibility(
+      conversation,
+      rootGetters?.getCurrentUserID,
+      () => {
+        const currentUser = rootGetters.getCurrentUser;
+        const accountId = rootGetters.getCurrentAccountId;
+        const permissions = getUserPermissions(currentUser, accountId);
+        // Participants keep access once assigned away, and the client does not know who they
+        // are, so the card stays; joining or dismissing it drops it if the server refuses
+        return (
+          permissions.includes('conversation_participating_manage') ||
+          applyRoleFilter(
+            conversation,
+            getUserRole(currentUser, accountId),
+            permissions,
+            rootGetters.getCurrentUserID
+          )
+        );
+      }
+    );
+    // The contact language can change after a message arrived; the action skips anything already handled.
+    dispatch('autoTranslateMessages', conversation.id);
 
     dispatch('conversationLabels/setConversationLabel', {
       id: conversation.id,
@@ -592,9 +666,12 @@ const actions = {
     commit(types.SET_ACTIVE_INBOX, inboxId);
   },
 
-  muteConversation: async ({ commit }, conversationId) => {
+  muteConversation: async (
+    { commit },
+    { conversationId, bannedUntil = null }
+  ) => {
     try {
-      await ConversationApi.mute(conversationId);
+      await ConversationApi.mute(conversationId, bannedUntil);
       commit(types.MUTE_CONVERSATION);
     } catch (error) {
       //

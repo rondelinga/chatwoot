@@ -3,7 +3,7 @@
 # Table name: platform_banners
 #
 #  id             :bigint           not null, primary key
-#  active         :boolean          default(TRUE)
+#  active         :boolean          default(TRUE), not null
 #  banner_message :text             not null
 #  banner_type    :integer          default("info"), not null
 #  title          :string
@@ -13,7 +13,7 @@
 #
 class PlatformBanner < ApplicationRecord
   # The dashboard plays the embed template's src in an iframe; script-based embeds have none.
-  VIDEO_URL_REGEX = /\A#{Regexp.union(CustomMarkdownRenderer.embed_regexes.except('github_gist', 'wistia').values)}/
+  VIDEO_URL_REGEX = /\A#{Regexp.union(PortalArticleMarkdownRenderer.embed_regexes.except('github_gist', 'wistia').values)}/
 
   enum :banner_type, { info: 0, warning: 1, error: 2, feature_announcement: 3 }
 

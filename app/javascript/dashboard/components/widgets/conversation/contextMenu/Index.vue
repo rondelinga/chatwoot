@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { useMutedConversations } from 'dashboard/composables/useMutedConversations';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAlert } from 'dashboard/composables';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
@@ -14,10 +15,13 @@ import wootConstants from 'dashboard/constants/globals';
 import AgentLoadingPlaceholder from './agentLoadingPlaceholder.vue';
 import NextInput from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { openCommandBar } from 'dashboard/modules/command-bar/openCommandBar';
+import { SNOOZE_CONVERSATION_PAGE } from 'dashboard/modules/command-bar/commands';
 
 const MENU = {
   MARK_AS_READ: 'mark-as-read',
   MARK_AS_UNREAD: 'mark-as-unread',
+  MUTE: 'mute',
   PRIORITY: 'priority',
   STATUS: 'status',
   SNOOZE: 'snooze',
@@ -85,8 +89,11 @@ export default {
   ],
   setup() {
     const { isAdmin } = useAdmin();
+    const { isMuted, toggleMute } = useMutedConversations();
     return {
       isAdmin,
+      isMuted,
+      toggleMute,
     };
   },
   data() {
@@ -230,6 +237,15 @@ export default {
       const isAssigned = label => this.conversationLabels.includes(label.title);
       return [...labels].sort((a, b) => isAssigned(b) - isAssigned(a));
     },
+    muteOption() {
+      const muted = this.isMuted(this.chatId);
+      return {
+        label: muted
+          ? this.$t('CONVERSATION.CARD_CONTEXT_MENU.UNMUTE')
+          : this.$t('CONVERSATION.CARD_CONTEXT_MENU.MUTE'),
+        icon: muted ? 'alert-off' : 'alert',
+      };
+    },
   },
   mounted() {
     this.$store.dispatch('inboxAssignableAgents/fetch', [this.inboxId]);
@@ -244,8 +260,7 @@ export default {
     },
     async snoozeConversation() {
       await this.$store.dispatch('setContextMenuChatId', this.chatId);
-      const ninja = document.querySelector('ninja-keys');
-      ninja.open({ parent: 'snooze_conversation' });
+      openCommandBar({ page: SNOOZE_CONVERSATION_PAGE });
     },
     assignPriority(priority) {
       this.$emit('assignPriority', priority);
@@ -270,6 +285,10 @@ export default {
       } catch (error) {
         // error
       }
+    },
+    onToggleMute() {
+      this.toggleMute(this.chatId);
+      this.$emit('close');
     },
     show(key) {
       // If the conversation status is same as the action, then don't display the option
@@ -309,6 +328,14 @@ export default {
         :option="readOption"
         variant="icon"
         @click.stop="$emit('markAsRead')"
+      />
+      <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
+    </template>
+    <template v-if="isAllowed([MENU.MUTE])">
+      <MenuItem
+        :option="muteOption"
+        variant="icon"
+        @click.stop="onToggleMute"
       />
       <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
     </template>

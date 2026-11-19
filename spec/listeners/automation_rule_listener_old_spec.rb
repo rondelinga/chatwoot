@@ -112,6 +112,7 @@ describe AutomationRuleListener do
       end
 
       it 'triggers automation rule to add label and assign best agents' do
+        conversation.update!(assignee: nil)
         expect(conversation.labels).to eq([])
         expect(conversation.assignee).to be_nil
 
@@ -236,6 +237,7 @@ describe AutomationRuleListener do
       end
 
       it 'triggers automation rule to assign best agents' do
+        conversation.update!(assignee: nil)
         expect(conversation.assignee).to be_nil
         listener.conversation_updated(event)
         conversation.reload
@@ -431,6 +433,7 @@ describe AutomationRuleListener do
       end
 
       it 'triggers automation rule to assign best agents' do
+        conversation.update!(assignee: nil)
         expect(conversation.assignee).to be_nil
         listener.conversation_opened(event)
         conversation.reload

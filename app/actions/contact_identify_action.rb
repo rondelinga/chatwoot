@@ -7,10 +7,14 @@
 
 class ContactIdentifyAction
   include UrlHelper
-  pattr_initialize [:contact!, :params!, { retain_original_contact_name: false, discard_invalid_attrs: false }]
+  pattr_initialize [:contact!, :params!, :inbox_id!, { retain_original_contact_name: false, discard_invalid_attrs: false }]
+
+  # Details the request sent that matched another identified contact, so they were not saved
+  attr_reader :unverified_matches
 
   def perform
     @attributes_to_update = [:identifier, :name, :email, :phone_number]
+    @unverified_matches = []
 
     ActiveRecord::Base.transaction do
       merge_if_existing_identified_contact
@@ -25,6 +29,10 @@ class ContactIdentifyAction
 
   def account
     @account ||= @contact.account
+  end
+
+  def contacts_in_inbox
+    @contacts_in_inbox ||= account.contacts.in_inbox(inbox_id)
   end
 
   def merge_if_existing_identified_contact
@@ -54,30 +62,38 @@ class ContactIdentifyAction
   def existing_identified_contact
     return if params[:identifier].blank?
 
-    @existing_identified_contact ||= account.contacts.find_by(identifier: params[:identifier])
+    @existing_identified_contact ||= contacts_in_inbox.find_by(identifier: params[:identifier])
   end
 
   def existing_email_contact
     return if params[:email].blank?
 
-    @existing_email_contact ||= account.contacts.from_email(params[:email])
+    @existing_email_contact ||= contacts_in_inbox.from_email(params[:email])
   end
 
   def existing_phone_number_contact
     return if params[:phone_number].blank?
 
-    @existing_phone_number_contact ||= account.contacts.find_by(phone_number: params[:phone_number])
+    @existing_phone_number_contact ||= contacts_in_inbox.find_by(phone_number: params[:phone_number])
   end
 
   def merge_contacts?(existing_contact, key)
     return if existing_contact.blank?
+    return false if existing_contact.id == @contact.id
 
-    return true if params[:identifier].blank?
-
-    # we want to prevent merging contacts with different identifiers
+    # Never merge into a contact that already owns an identifier unless the request
+    # supplies the matching one. This also covers the blank-identifier case: an
+    # unverified/anonymous request must not take over an identified contact just by
+    # matching its email or phone_number. Merges into non-identified contacts
+    # (anonymous dedup) are still allowed.
     if existing_contact.identifier.present? && existing_contact.identifier != params[:identifier]
       # we will remove attribute from update list
       @attributes_to_update.delete(key)
+      unless existing_contact == @contact
+        @unverified_matches << { key: key, value: params[key], contact: existing_contact }
+        Rails.logger.info "[CONTACT_IDENTIFY] Held off merge on #{key}: contact #{@contact.id} matched identified contact #{existing_contact.id} " \
+                          "in account #{account.id}"
+      end
       return false
     end
 
@@ -118,6 +134,7 @@ class ContactIdentifyAction
   def merge_contact(base_contact, merge_contact)
     return base_contact if base_contact.id == merge_contact.id
 
+    Rails.logger.info "[CONTACT_IDENTIFY] Merging contact #{merge_contact.id} into contact #{base_contact.id} in account #{account.id}"
     ContactMergeAction.new(
       account: account,
       base_contact: base_contact,
