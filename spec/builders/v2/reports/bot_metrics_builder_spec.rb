@@ -48,19 +48,19 @@ RSpec.describe V2::Reports::BotMetricsBuilder do
         expect(bot_metrics_builder.metrics[:message_count]).to eq(1)
       end
 
-      it 'does not count replies sent by a human agent' do
+      it 'counts replies sent by a human agent in a bot inbox' do
         create(:message, account: inbox.account, conversation: conversation, created_at: 2.days.ago, message_type: 'outgoing', sender: agent)
 
-        expect(bot_metrics_builder.metrics[:message_count]).to eq(0)
+        expect(bot_metrics_builder.metrics[:message_count]).to eq(1)
       end
 
-      it 'does not count private notes' do
+      it 'counts private notes in a bot inbox' do
         create(:message, account: inbox.account, conversation: conversation, created_at: 2.days.ago, message_type: 'outgoing', sender: agent,
                          private: true)
         create(:message, account: inbox.account, conversation: conversation, created_at: 2.days.ago, message_type: 'outgoing', sender: agent_bot,
                          private: true)
 
-        expect(bot_metrics_builder.metrics[:message_count]).to eq(0)
+        expect(bot_metrics_builder.metrics[:message_count]).to eq(2)
       end
     end
 

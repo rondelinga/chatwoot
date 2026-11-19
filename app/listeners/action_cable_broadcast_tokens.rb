@@ -5,17 +5,6 @@ module ActionCableBroadcastTokens
     "account_#{account.id}"
   end
 
-  def typing_event_listener_tokens(account, conversation, user)
-    current_user_token = if user.is_a?(Contact)
-                           conversation.contact_inbox.pubsub_token
-                         elsif user.respond_to?(:pubsub_token)
-                           user.pubsub_token
-                         end
-
-    tokens = conversation_listener_tokens(account, conversation) + [conversation.contact_inbox.pubsub_token]
-    current_user_token.present? ? tokens - [current_user_token] : tokens
-  end
-
   def conversation_listener_tokens(account, conversation)
     members = conversation.inbox.members
     account_users_by_user_id = AccountUser.where(account_id: account.id, user_id: members.map(&:id)).index_by(&:user_id)
@@ -46,22 +35,88 @@ module ActionCableBroadcastTokens
     account.administrators.pluck(:pubsub_token)
   end
 
-  def contact_tokens(contact_inbox, message)
-    return [] if message.private? || message.activity? || contact_inbox.nil?
+  def broadcast_message_event(message, event_name, **extra)
+    conversation = message.conversation
+    widget_tokens, client_tokens = split_contact_tokens(message_contact_inboxes(conversation, message))
+    data = message.push_event_data.merge(extra)
 
-    contact_inbox_tokens(contact_inbox)
+    broadcast(
+      conversation.account,
+      conversation_listener_tokens(conversation.account, conversation) + client_tokens,
+      event_name,
+      data,
+      widget: { tokens: widget_tokens, data: message.widget_push_event_data(data) }
+    )
   end
 
-  def contact_inbox_tokens(contact_inbox)
-    contact = contact_inbox.contact
-    contact_inbox.hmac_verified? ? contact.contact_inboxes.where(hmac_verified: true).filter_map(&:pubsub_token) : [contact_inbox.pubsub_token]
+  def broadcast_conversation_event(conversation, event_name)
+    widget_tokens, client_tokens = split_contact_tokens(session_contact_inboxes(conversation.contact_inbox))
+    # The web widget has no handler for conversation.updated, and the full payload includes contact details.
+    widget_tokens = [] if event_name == 'conversation.updated'
+
+    broadcast(
+      conversation.account,
+      conversation_listener_tokens(conversation.account, conversation) + client_tokens,
+      event_name,
+      conversation.push_event_data,
+      widget: { tokens: widget_tokens, data: conversation.widget_push_event_data }
+    )
   end
 
-  def broadcast(account, tokens, event_name, data)
-    return if tokens.blank?
+  def broadcast_typing_event(event, event_name)
+    conversation = event.data[:conversation]
+    user = event.data[:user]
+    widget_tokens, client_tokens = split_contact_tokens(typing_contact_inboxes(conversation, user))
+    data = { conversation: conversation.push_event_data, user: user.push_event_data, is_private: event.data[:is_private] || false }
+    tokens = conversation_listener_tokens(conversation.account, conversation)
+    tokens -= [user.pubsub_token] if user.respond_to?(:pubsub_token)
 
+    broadcast(
+      conversation.account,
+      tokens + client_tokens,
+      event_name,
+      data,
+      widget: { tokens: widget_tokens, data: data.merge(conversation: conversation.widget_push_event_data) }
+    )
+  end
+
+  # Web widget sessions get the reduced widget payload. Client API sessions get the same payload as agents.
+  def split_contact_tokens(contact_inboxes)
+    widget_inboxes, client_inboxes = contact_inboxes.partition { |contact_inbox| contact_inbox.inbox.web_widget? }
+    [widget_inboxes.filter_map(&:pubsub_token), client_inboxes.filter_map(&:pubsub_token)]
+  end
+
+  def typing_contact_inboxes(conversation, user)
+    user.is_a?(Contact) ? [] : [conversation.contact_inbox]
+  end
+
+  def message_contact_inboxes(conversation, message)
+    return [] if message.private? || message.activity? || conversation.contact_inbox.nil?
+
+    session_contact_inboxes(conversation.contact_inbox)
+  end
+
+  # A verified session also reaches the contact's other verified sessions, except inboxes that no longer exist.
+  def session_contact_inboxes(contact_inbox)
+    return [] if contact_inbox.nil?
+    return [contact_inbox] unless contact_inbox.hmac_verified?
+
+    contact_inbox.contact.contact_inboxes.where(hmac_verified: true).where.associated(:inbox).includes(:inbox).to_a
+  end
+
+  # widget: { tokens:, data: } sends web widget sessions their payload in the same job, without the agent payload.
+  def broadcast(account, tokens, event_name, data, widget: {})
+    widget_tokens = widget[:tokens].to_a
+    return if tokens.blank? && widget_tokens.blank?
+
+    widget_options = {}
+    widget_options = { widget_members: widget_tokens.uniq, widget_data: broadcast_payload(account, widget[:data]) } if widget_tokens.present?
+    ::ActionCableBroadcastJob.perform_later(tokens.uniq, event_name, broadcast_payload(account, data), **widget_options)
+  end
+
+  def broadcast_payload(account, data)
     payload = data.merge(account_id: account.id)
     payload[:performer] = Current.user&.push_event_data if Current.user.present?
-    ::ActionCableBroadcastJob.perform_later(tokens.uniq, event_name, payload)
+    payload
   end
 end
