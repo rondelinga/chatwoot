@@ -1126,7 +1126,6 @@ DEPENDENCIES
   pg_search
   pgvector
   procore-sift
-  pry-rails
   puma (~> 7.2, >= 7.2.2)
   pundit
   rack-attack (>= 6.7.0)
@@ -1191,4 +1190,4 @@ RUBY VERSION
    ruby 3.4.4p34
 
 BUNDLED WITH
-   2.7.2
+   2.5.16

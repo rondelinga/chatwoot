@@ -31,7 +31,7 @@ class ConversationQueue < ApplicationRecord
   belongs_to :account
   belongs_to :inbox
 
-  enum status: { waiting: 0, assigned: 1, left: 2 }
+  enum :status, { waiting: 0, assigned: 1, left: 2 }
 
   scope :waiting, -> { where(status: :waiting).order(:position, :queued_at) }
   scope :for_account, ->(account_id) { where(account_id: account_id) }

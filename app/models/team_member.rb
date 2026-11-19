@@ -19,7 +19,7 @@ class TeamMember < ApplicationRecord
   belongs_to :user
   belongs_to :team
 
-  enum assignment_tier: { primary: 0, backup: 1 }
+  enum :assignment_tier, { primary: 0, backup: 1 }
 
   validates :user_id, uniqueness: { scope: :team_id }
 
