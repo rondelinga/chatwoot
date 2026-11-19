@@ -105,6 +105,7 @@ describe ActionCableListener do
     end
 
     it 'sends each verified session the payload of its own inbox' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
       conversation.contact_inbox.update(hmac_verified: true)
       api_inbox = create(:inbox, account: account, channel: create(:channel_api, account: account))
       api_session = create(:contact_inbox, contact: conversation.contact, inbox: api_inbox, hmac_verified: true)
@@ -331,6 +332,7 @@ describe ActionCableListener do
     end
 
     it 'does not send the update to the web widget session, which has no handler for it' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
       expect(ActionCableBroadcastJob).to receive(:perform_later).once.with(
         [agent.pubsub_token, admin.pubsub_token], 'conversation.updated', anything
       )
@@ -343,6 +345,7 @@ describe ActionCableListener do
     let!(:event) { Events::Base.new(:'conversation.status_changed', Time.zone.now, conversation: conversation) }
 
     it 'sends the full conversation to agents and the widget payload to the web widget session in one job' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
       allow(ActionCableBroadcastJob).to receive(:perform_later)
 
       listener.conversation_status_changed(event)

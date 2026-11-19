@@ -8,6 +8,15 @@ class Conversations::EventDataPresenter < SimpleDelegator
     push_data.merge(account: account.webhook_data, messages: webhook_push_messages)
   end
 
+  def widget_data
+    {
+      id: display_id,
+      inbox_id: inbox_id,
+      contact_last_seen_at: contact_last_seen_at.to_i,
+      status: status
+    }
+  end
+
   private
 
   def push_identity

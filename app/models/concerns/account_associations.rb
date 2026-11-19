@@ -22,6 +22,7 @@ module AccountAssociations
     has_many :report_filter_presets, dependent: :destroy_async
     has_many :dashboard_apps, dependent: :destroy_async
     has_many :data_imports, dependent: :destroy_async
+    has_many :data_exports, dependent: :destroy
     has_one :shopify_custom_app, dependent: :destroy, class_name: 'Shopify::CustomApp'
     has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
     has_many :inboxes, dependent: :destroy_async

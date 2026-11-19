@@ -70,6 +70,23 @@ const actionMenuItems = computed(() => {
   return items;
 });
 
+const toggleAutoTranslate = async () => {
+  const disabled = !autoTranslate.value.disabledInConversation;
+  try {
+    await store.dispatch('setConversationAutoTranslate', {
+      conversationId: currentChat.value.id,
+      disabled,
+    });
+    useAlert(
+      disabled
+        ? t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURNED_OFF')
+        : t('CONVERSATION.HEADER.AUTO_TRANSLATE.TURNED_ON')
+    );
+  } catch {
+    useAlert(t('CONVERSATION.HEADER.AUTO_TRANSLATE.UPDATE_FAILED'));
+  }
+};
+
 // Defined before handleActionClick to satisfy no-use-before-define
 const mute = bannedUntil => {
   showBanModal.value = false;
@@ -101,6 +118,9 @@ const handleActionClick = ({ action }) => {
       break;
     case 'send_transcript':
       toggleEmailModal();
+      break;
+    case 'auto_translate':
+      toggleAutoTranslate();
       break;
     default:
       break;
