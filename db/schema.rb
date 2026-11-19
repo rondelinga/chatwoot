@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_11_12_152610) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_16_211055) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -750,6 +750,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_12_152610) do
     t.jsonb "provider_config", default: {}
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.string "secret"
+    t.boolean "callback_auth_enforced", default: true, null: false
     t.index ["phone_number"], name: "index_channel_sms_on_phone_number", unique: true
   end
 
@@ -1135,6 +1137,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_12_152610) do
     t.index ["priority"], name: "index_conversations_on_priority"
     t.index ["proxied_at"], name: "index_conversations_on_proxied_at"
     t.index ["resolved_at"], name: "index_conversations_on_resolved_at"
+    t.index ["sla_policy_id"], name: "index_conversations_on_sla_policy_id", where: "(sla_policy_id IS NOT NULL)"
     t.index ["status", "account_id"], name: "index_conversations_on_status_and_account_id"
     t.index ["status", "priority"], name: "index_conversations_on_status_and_priority"
     t.index ["team_id"], name: "index_conversations_on_team_id"
@@ -2066,6 +2069,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_11_12_152610) do
   add_foreign_key "conversation_queues", "accounts"
   add_foreign_key "conversation_queues", "conversations"
   add_foreign_key "conversation_queues", "inboxes"
+  add_foreign_key "data_exports", "accounts"
+  add_foreign_key "data_exports", "users", column: "initiated_by_id", on_delete: :nullify
   add_foreign_key "inbox_teams", "agent_bots"
   add_foreign_key "inbox_teams", "inboxes"
   add_foreign_key "inbox_teams", "routing_types"
