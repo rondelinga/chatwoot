@@ -160,19 +160,19 @@ class Message < ApplicationRecord
     @token ||= inbox.channel.try(:page_access_token)
   end
 
-  def push_event_data
+  def push_event_data(unread_count: nil)
     data = attributes.symbolize_keys.merge(
       created_at: created_at.to_i,
       message_type: message_type_before_type_cast,
       conversation_id: conversation&.display_id,
-      conversation: conversation.present? ? conversation_push_event_data : nil
+      conversation: conversation.present? ? conversation_push_event_data(unread_count) : nil
     )
     data[:echo_id] = echo_id if echo_id.present?
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
     merge_sender_attributes(data)
   end
 
-  def conversation_push_event_data
+  def conversation_push_event_data(unread_count)
     {
       assignee_id: conversation.assignee_id,
       assignee_agent_bot_id: conversation.assignee_agent_bot_id,

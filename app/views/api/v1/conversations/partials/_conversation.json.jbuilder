@@ -42,7 +42,10 @@ if params[:include_messages] == 'true'
     end
   end
 else
-  json.messages [conversation.message_summary.last_message_data].compact
+  last_message = conversation.messages.where(account_id: conversation.account_id)
+                             .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+                             .reorder(created_at: :desc, id: :desc).first
+  json.messages(last_message.blank? ? [] : [last_message.push_event_data])
 end
 
 json.csat_response do
@@ -71,7 +74,7 @@ json.created_at conversation.created_at.to_i
 json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
-json.unread_count conversation.message_summary.unread_count
+json.unread_count conversation.unread_incoming_messages.count
 json.last_non_activity_message conversation.messages.where(account_id: conversation.account_id)
                                            .non_activity_messages.where(private: false).first
                                            .try(:push_event_data)
