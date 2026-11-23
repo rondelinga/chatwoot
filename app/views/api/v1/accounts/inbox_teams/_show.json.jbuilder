@@ -15,6 +15,7 @@ json.payload do
   json.agents do
     json.array! @agents do |agent|
       json.partial! 'api/v1/models/agent', formats: [:json], resource: agent
+      json.urgent Array(@urgent_user_ids).include?(agent.id)
     end
   end
 end

@@ -16,6 +16,7 @@ import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.v
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 import assignmentPoliciesAPI from 'dashboard/api/assignmentPolicies';
+import InboxPriorityCollaborators from './InboxPriorityCollaborators.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -40,7 +41,7 @@ const isLicensedSelfHosted = computed(
 );
 
 const selectedTeamIds = ref([]);
-const derivedAgentNames = ref([]);
+const derivedAgents = ref([]);
 const isTeamListUpdating = ref(false);
 const enableAutoAssignment = ref(false);
 const maxAssignmentLimit = ref(null);
@@ -193,7 +194,12 @@ const fetchAttachedTeams = async () => {
     } = response;
 
     selectedTeamIds.value = teams.map(team => team.id);
-    derivedAgentNames.value = agents.map(agent => agent.name);
+    derivedAgents.value = agents.map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      email: agent.email,
+      urgent: Boolean(agent.urgent),
+    }));
 
     // reset & repopulate configs from server state
     Object.keys(teamConfigs).forEach(key => delete teamConfigs[key]);
@@ -578,22 +584,11 @@ onMounted(async () => {
         </div>
       </template>
     </SettingsFieldSection>
-    <SettingsFieldSection
-      v-if="derivedAgentNames.length"
-      :label="$t('INBOX_MGMT.TEAMS.DERIVED_AGENTS')"
-      :help-text="$t('INBOX_MGMT.TEAMS.DERIVED_AGENTS_SUB_TEXT')"
-      class="mt-6 [&>div]:!items-start"
-    >
-      <div class="flex flex-wrap gap-2">
-        <span
-          v-for="agentName in derivedAgentNames"
-          :key="agentName"
-          class="px-2 py-1 text-sm rounded-lg bg-n-alpha-2 text-n-slate-12"
-        >
-          {{ agentName }}
-        </span>
-      </div>
-    </SettingsFieldSection>
+    <InboxPriorityCollaborators
+      :inbox="inbox"
+      :agents="derivedAgents"
+      @updated="derivedAgents = $event"
+    />
     <SettingsAccordion
       :title="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_ASSIGNMENT')"
       class="mt-6"

@@ -733,6 +733,18 @@
       "UPDATE_ERROR": "Could not update inbox teams. Please try again.",
       "DERIVED_AGENTS": "Collaborators",
       "DERIVED_AGENTS_SUB_TEXT": "Agents from linked teams. To add or remove agents, update team membership in Settings → Teams.",
+      "URGENT": {
+        "BUTTON": "Set priority",
+        "TITLE": "Priority collaborators",
+        "DESCRIPTION": "Chats from this inbox are assigned to the selected collaborators first, ahead of older chats in the queue. If none of them are available, the chat follows the normal queue.",
+        "PRIORITY_FOR": "Priority for",
+        "SEARCH_PLACEHOLDER": "Search by name or email...",
+        "NO_RESULTS": "No agents found matching your search",
+        "SAVE": "Save",
+        "CANCEL": "Cancel",
+        "SUCCESS": "Inbox priority updated",
+        "ERROR": "Could not update inbox priority"
+      },
       "ROUTING": {
         "BOT": "Bot",
         "NO_BOT": "No Bot",
