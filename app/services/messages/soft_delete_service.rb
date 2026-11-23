@@ -5,6 +5,8 @@ class Messages::SoftDeleteService
   end
 
   def perform
+    Telegram::DeleteMessageService.new(message: message).perform
+
     ActiveRecord::Base.transaction do
       audit_note = create_audit_note
       message.attachments.update_all(message_id: audit_note.id) # rubocop:disable Rails/SkipsModelValidations

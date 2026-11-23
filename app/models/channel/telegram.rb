@@ -41,6 +41,17 @@ class Channel::Telegram < ApplicationRecord
     message_id
   end
 
+  def delete_message(message)
+    body = {
+      chat_id: chat_id(message),
+      message_id: message.source_id
+    }
+    connection_id = business_connection_id(message)
+    body[:business_connection_id] = connection_id if connection_id.present?
+
+    HTTParty.post("#{telegram_api_url}/deleteMessage", body: body)
+  end
+
   def get_telegram_profile_image(user_id)
     # get profile image from telegram
     response = HTTParty.get("#{telegram_api_url}/getUserProfilePhotos", query: { user_id: user_id })

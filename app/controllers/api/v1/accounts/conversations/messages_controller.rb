@@ -20,6 +20,8 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def destroy
     @message = Messages::SoftDeleteService.new(message: message, deleted_by: Current.user).perform
+  rescue Telegram::DeleteMessageService::Error => e
+    render_could_not_create_error(e.message)
   end
 
   def retry
