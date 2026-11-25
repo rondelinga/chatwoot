@@ -229,6 +229,7 @@ Rails.application.routes.draw do
                 get :priority
               end
               resource :queue, only: [:show, :destroy], controller: 'queues'
+              draw :conversation_extensions
             end
             member do
               post :mute

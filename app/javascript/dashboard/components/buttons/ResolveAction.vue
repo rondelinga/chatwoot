@@ -11,6 +11,7 @@ import { useConversationRequiredAttributes } from 'dashboard/composables/useConv
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
 import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
 import wootConstants from 'dashboard/constants/globals';
+import ForceTransferButton from './ForceTransferButton.vue';
 import {
   CMD_REOPEN_CONVERSATION,
   CMD_RESOLVE_CONVERSATION,
@@ -184,6 +185,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
       class="flex-shrink-0 rounded-lg shadow outline-1 outline"
       :class="!showOpenButton ? 'outline-n-container' : 'outline-transparent'"
     >
+      <ForceTransferButton />
       <Button
         v-if="isOpen"
         :label="t('CONVERSATION.HEADER.RESOLVE_ACTION')"
