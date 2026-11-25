@@ -22,6 +22,7 @@ import {
   MESSAGE_STATUS,
   CONTENT_TYPES,
 } from './constants';
+import { canEditOutgoingMessage } from 'dashboard/helper/messageEdit';
 
 import Avatar from 'next/avatar/Avatar.vue';
 
@@ -418,9 +419,23 @@ const payloadForContextMenu = computed(() => {
     id: props.id,
     content_attributes: props.contentAttributes,
     content: displayedContent.value,
+    originalContent: props.content,
     conversation_id: props.conversationId,
   };
 });
+
+const canEditMessage = computed(() =>
+  canEditOutgoingMessage({
+    private: props.private,
+    content: props.content,
+    messageType: props.messageType,
+    contentType: props.contentType,
+    contentAttributes: props.contentAttributes,
+    createdAt: props.createdAt,
+    outgoingType: MESSAGE_TYPES.OUTGOING,
+    textContentType: CONTENT_TYPES.TEXT,
+  })
+);
 
 const contextMenuEnabledOptions = computed(() => {
   const hasText = !!props.content;
@@ -433,6 +448,7 @@ const contextMenuEnabledOptions = computed(() => {
 
   return {
     copy: hasText,
+    edit: canEditMessage.value,
     delete:
       (hasText || hasAttachments) &&
       !isFailedOrProcessing &&
