@@ -420,6 +420,7 @@ Rails.application.routes.draw do
           resource :notification_settings, only: [:show, :update]
 
           resource :inbox_teams, only: [:show, :update]
+          draw :account_extensions
           resource :inbox_priority_members, only: [:update]
           resources :routing_types, only: [:index, :create, :update, :destroy]
           resources :teams do

@@ -15,6 +15,7 @@ import ChannelName from './components/ChannelName.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { getInboxIdentifier, searchInboxes } from 'dashboard/helper/inbox';
+import AssignTeamsDialog from './components/AssignTeamsDialog.vue';
 
 const IDENTIFIER_SEPARATOR = '·';
 
@@ -26,6 +27,7 @@ const { isAdmin } = useAdmin();
 const showDeletePopup = ref(false);
 const selectedInbox = ref({});
 const searchQuery = ref('');
+const assignmentDialogRef = ref(null);
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 
@@ -112,9 +114,19 @@ const openDelete = inbox => {
           </span>
         </template>
         <template #actions>
-          <router-link v-if="isAdmin" :to="{ name: 'settings_inbox_new' }">
-            <Button :label="$t('SETTINGS.INBOXES.NEW_INBOX')" size="sm" />
-          </router-link>
+          <div v-if="isAdmin" class="flex items-center gap-2">
+            <Button
+              :label="$t('INBOX_TEAM_ASSIGNMENT.BUTTON')"
+              size="sm"
+              variant="faded"
+              color="slate"
+              :disabled="!inboxesList?.length"
+              @click="assignmentDialogRef?.open()"
+            />
+            <router-link :to="{ name: 'settings_inbox_new' }">
+              <Button :label="$t('SETTINGS.INBOXES.NEW_INBOX')" size="sm" />
+            </router-link>
+          </div>
         </template>
       </BaseSettingsHeader>
     </template>
@@ -220,6 +232,8 @@ const openDelete = inbox => {
         </div>
       </div>
     </template>
+
+    <AssignTeamsDialog ref="assignmentDialogRef" :inboxes="inboxesList || []" />
 
     <woot-confirm-delete-modal
       v-if="showDeletePopup"
