@@ -1,0 +1,7 @@
+{
+  "FORCE_TRANSFER": {
+    "ERROR": "Could not transfer the chat",
+    "SUCCESS": "Chat transferred",
+    "ACTION": "Transfer"
+  }
+}

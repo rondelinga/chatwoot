@@ -14,6 +14,7 @@ import {
 } from '../../../helper/AnalyticsHelper/events';
 import MenuItem from '../../../components/widgets/conversation/contextMenu/menuItem.vue';
 import { useTrack } from 'dashboard/composables';
+import { openMessageEdit } from 'dashboard/helper/messageEdit';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import ReportCaptainMessageDialog from './ReportCaptainMessageDialog.vue';
 
@@ -144,6 +145,10 @@ export default {
       this.$emit('forwardEmail');
       this.handleClose();
     },
+    openEdit() {
+      openMessageEdit(this.message);
+      this.handleClose();
+    },
     openDeleteModal() {
       this.handleClose();
       this.showDeleteModal = true;
@@ -229,6 +234,15 @@ export default {
           }"
           variant="icon"
           @click.stop="handleReplyTo"
+        />
+        <MenuItem
+          v-if="enabledOptions['edit']"
+          :option="{
+            icon: 'edit',
+            label: $t('EDIT_MESSAGE.ACTION'),
+          }"
+          variant="icon"
+          @click.stop="openEdit"
         />
         <MenuItem
           v-if="enabledOptions['copy']"

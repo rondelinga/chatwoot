@@ -3,10 +3,12 @@ import { defineAsyncComponent, getCurrentInstance, useTemplateRef } from 'vue';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import messageEditMixin from 'dashboard/mixins/messageEditMixin';
 import { useTrack } from 'dashboard/composables';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 
 import ReplyToMessage from './ReplyToMessage.vue';
+import EditMessageBanner from './EditMessageBanner.vue';
 import AttachmentPreview from 'dashboard/components/widgets/AttachmentsPreview.vue';
 import ReplyTopPanel from 'dashboard/components/widgets/WootWriter/ReplyTopPanel.vue';
 import ReplyEmailHead from './ReplyEmailHead.vue';
@@ -81,6 +83,7 @@ export default {
     ReplyBottomPanel,
     ReplyEmailHead,
     ReplyToMessage,
+    EditMessageBanner,
     ReplyTopPanel,
     ContentTemplates,
     WhatsappTemplates,
@@ -90,7 +93,7 @@ export default {
     CopilotReplyBottomPanel,
     ConversationResolveAttributesModal,
   },
-  mixins: [inboxMixin, fileUploadMixin],
+  mixins: [inboxMixin, fileUploadMixin, messageEditMixin],
   emits: ['toggleEditorSize'],
   setup() {
     const {
@@ -346,7 +349,8 @@ export default {
       return this.maxLength - this.message.length;
     },
     isReplyButtonDisabled() {
-      if (this.isEditorDisabled) return true;
+      if (this.isSavingEdit) return true;
+      if (this.isEditorDisabled && !this.isEditingMessage) return true;
       if (this.isATwitterInbox) return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
 
@@ -422,6 +426,9 @@ export default {
       );
     },
     replyButtonLabel() {
+      if (this.isEditingMessage) {
+        return this.editSaveButtonLabel;
+      }
       let sendMessageText = this.$t('CONVERSATION.REPLYBOX.SEND');
       if (this.isSuperviseView) {
         sendMessageText = this.$t('SUPERVISION.SEND_NOTE');
@@ -758,6 +765,7 @@ export default {
       this.attachedFiles = [];
     },
     saveDraft(conversationId, replyType) {
+      if (this.isEditingMessage) return;
       if (this.message || this.message === '') {
         const key = this.getDraftKey(conversationId, replyType);
         const draftToSave = trimContent(this.message || '', this.maxLength);
@@ -773,6 +781,7 @@ export default {
       this.message = '';
     },
     switchDraftContext(conversationId, replyMode) {
+      this.clearEditingBeforeDraftSwitch();
       if (
         this.draftConversationId === conversationId &&
         this.draftReplyMode === replyMode
@@ -907,6 +916,9 @@ export default {
     },
     confirmOnSendReply() {
       if (this.isReplyButtonDisabled) {
+        return;
+      }
+      if (this.interceptSendWhileEditing()) {
         return;
       }
       if (!this.showMentions) {
@@ -1467,8 +1479,13 @@ export default {
       leave-to-class="opacity-0 translate-y-2 scale-[0.98]"
     >
       <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
+        <EditMessageBanner
+          v-if="editingMessage"
+          :message="editingMessage.originalContent || editingMessage.content"
+          @dismiss="finishEditing"
+        />
         <ReplyToMessage
-          v-if="shouldShowReplyToMessage"
+          v-if="shouldShowReplyToMessage && !editingMessage"
           :message="inReplyTo"
           @dismiss="resetReplyToMessage"
         />
@@ -1524,7 +1541,7 @@ export default {
           :placeholder="messagePlaceHolder"
           :update-selection-with="updateEditorSelectionWith"
           :min-height="4"
-          :disabled="isEditorDisabled"
+          :disabled="isEditorDisabled && !isEditingMessage"
           enable-insert-events
           :enable-macros="isMacrosEnabled"
           enable-variables
@@ -1606,7 +1623,7 @@ export default {
         :is-recording-audio="isRecordingAudio"
         :is-send-disabled="isReplyButtonDisabled"
         :is-note="isPrivate"
-        :is-editor-disabled="isEditorDisabled"
+        :is-editor-disabled="isEditorDisabled && !isEditingMessage"
         :on-file-upload="onFileUpload"
         :on-send="onSendReply"
         :conversation-type="conversationType"

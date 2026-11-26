@@ -153,6 +153,9 @@ const statusToShow = computed(() => {
         {{ readableTime }}
       </time>
     </div>
+    <span v-if="contentAttributes?.edited" class="text-n-slate-11">
+      {{ $t('EDIT_MESSAGE.EDITED') }}
+    </span>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
     <span
       v-if="isDeletedAuditNote"

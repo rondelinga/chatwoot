@@ -1,0 +1,11 @@
+en:
+  conversations:
+    messages:
+      edit:
+        not_outgoing: Only a sent reply can be edited
+        private: Private notes are not sent to the contact
+        deleted: This message was deleted
+        blank: Message text cannot be empty
+        unsupported_type: Only text messages can be edited
+        window: This message can only be edited within %{minutes} minutes of sending
+        channel_unsupported: This channel cannot change a message the contact already received

@@ -1,0 +1,10 @@
+{
+  "EDIT_MESSAGE": {
+    "ACTION": "Edit",
+    "EDITED": "edited",
+    "TITLE": "Edit message",
+    "SAVE": "Save",
+    "SUCCESS": "Message updated",
+    "ERROR": "Could not edit this message"
+  }
+}

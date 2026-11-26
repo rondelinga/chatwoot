@@ -2,14 +2,13 @@ class Api::V1::Accounts::InboxTeamsController < Api::V1::Accounts::BaseControlle
   before_action :fetch_inbox
 
   def show
-    @teams = @inbox.teams
-    @agents = @inbox.members.uniq
+    load_inbox_team_state
   end
 
   def update
     ActiveRecord::Base.transaction { sync_inbox_teams }
-    @teams = @inbox.teams.reload
-    @agents = @inbox.members.reload.uniq
+    @inbox.reload
+    load_inbox_team_state
     render :show
   end
 
@@ -17,6 +16,12 @@ class Api::V1::Accounts::InboxTeamsController < Api::V1::Accounts::BaseControlle
 
   def fetch_inbox
     @inbox = Current.account.inboxes.find(permitted_params[:inbox_id])
+  end
+
+  def load_inbox_team_state
+    @teams = @inbox.teams
+    @agents = @inbox.members.uniq
+    @urgent_user_ids = @inbox.inbox_members.where(urgent: true).pluck(:user_id)
   end
 
   def sync_inbox_teams

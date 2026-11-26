@@ -323,6 +323,46 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(message.reload.content_attributes).to eq('forwarded_message_id' => 1, 'deleted' => true)
       end
 
+      it 'removes the message from the Telegram chat before marking it deleted' do
+        channel = create(:channel_telegram, account: account)
+        telegram_conversation = create(:conversation, inbox: channel.inbox, account: account,
+                                                      additional_attributes: { 'chat_id' => '123' })
+        telegram_message = create(:message, message_type: :outgoing, content: 'hello', account: account,
+                                            conversation: telegram_conversation, source_id: '55')
+        create(:inbox_member, inbox: channel.inbox, user: agent)
+        stub_request(:post, "https://api.telegram.org/bot#{channel.bot_token}/deleteMessage")
+          .to_return(status: 200, body: { ok: true, result: true }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{telegram_conversation.display_id}/messages/#{telegram_message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(telegram_message.reload.deleted).to be true
+        expect(a_request(:post, "https://api.telegram.org/bot#{channel.bot_token}/deleteMessage")
+          .with(body: hash_including('chat_id' => '123', 'message_id' => '55'))).to have_been_made
+      end
+
+      it 'keeps the message when Telegram refuses to delete it' do
+        channel = create(:channel_telegram, account: account)
+        telegram_conversation = create(:conversation, inbox: channel.inbox, account: account,
+                                                      additional_attributes: { 'chat_id' => '123' })
+        telegram_message = create(:message, message_type: :outgoing, content: 'hello', account: account,
+                                            conversation: telegram_conversation, source_id: '55')
+        create(:inbox_member, inbox: channel.inbox, user: agent)
+        stub_request(:post, "https://api.telegram.org/bot#{channel.bot_token}/deleteMessage")
+          .to_return(status: 400, body: { ok: false, description: "Bad Request: message can't be deleted" }.to_json,
+                     headers: { 'Content-Type' => 'application/json' })
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{telegram_conversation.display_id}/messages/#{telegram_message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(telegram_message.reload.content).to eq('hello')
+        expect(telegram_message.deleted_at).to be_nil
+      end
+
       it 'deletes interactive messages' do
         interactive_message = create(
           :message, message_type: :outgoing, content: 'test', content_type: 'input_select',

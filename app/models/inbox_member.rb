@@ -3,6 +3,7 @@
 # Table name: inbox_members
 #
 #  id         :integer          not null, primary key
+#  urgent     :boolean          default(FALSE), not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #  inbox_id   :integer          not null

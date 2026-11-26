@@ -1,0 +1,7 @@
+en:
+  conversations:
+    activity:
+      force_transfer:
+        unavailable: No available agent in this team to transfer the conversation
+        unavailable_inbox: No available agent to transfer the conversation
+        transferred: Conversation was transferred from %{from_name} to %{to_name}

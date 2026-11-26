@@ -6,9 +6,8 @@ class ChatQueue::Queue::FetchService
   end
 
   def oldest_assignable_head(skipped_lane_keys)
-    lane_heads
-      .reject { |entry| skipped_lane_keys.include?(lane_key(entry)) }
-      .min_by { |entry| [entry.queued_at, entry.id] }
+    ChatQueue::Queue::UrgentHeadService.new(account: account, skipped_lane_keys: skipped_lane_keys).perform ||
+      oldest_lane_head(skipped_lane_keys)
   end
 
   def lane_key(entry)
@@ -50,6 +49,12 @@ class ChatQueue::Queue::FetchService
   end
 
   private
+
+  def oldest_lane_head(skipped_lane_keys)
+    lane_heads
+      .reject { |entry| skipped_lane_keys.include?(lane_key(entry)) }
+      .min_by { |entry| [entry.queued_at, entry.id] }
+  end
 
   def next_assignable_entry
     waiting_entries.each do |entry|

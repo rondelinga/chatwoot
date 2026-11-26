@@ -15,6 +15,7 @@ import {
 } from './helpers/actionHelpers';
 import messageReadActions from './actions/messageReadActions';
 import messageTranslateActions from './actions/messageTranslateActions';
+import messageEditActions from './actions/messageEditActions';
 import * as Sentry from '@sentry/vue';
 import { useAbortableRequest } from 'dashboard/composables/useAbortableRequest';
 import {
@@ -783,6 +784,7 @@ const actions = {
 
   ...messageReadActions,
   ...messageTranslateActions,
+  ...messageEditActions,
 };
 
 export default actions;

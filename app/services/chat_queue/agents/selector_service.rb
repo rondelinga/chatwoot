@@ -6,10 +6,21 @@ class ChatQueue::Agents::SelectorService
     members = eligible_members(conversation)
     return if members.blank?
 
-    AutoAssignment::AgentSelector.new(inbox: conversation.inbox, conversation: conversation).select(members)
+    AutoAssignment::AgentSelector.new(inbox: conversation.inbox, conversation: conversation)
+                                 .select(preferred_members(conversation, members))
   end
 
   private
+
+  # Collaborators marked urgent for this inbox take its chats before the rest of the pool.
+  def preferred_members(conversation, members)
+    urgent_members(conversation, members).presence || members
+  end
+
+  def urgent_members(conversation, members)
+    urgent_ids = conversation.inbox.inbox_members.where(urgent: true, user_id: members.map(&:user_id)).pluck(:user_id)
+    members.select { |member| urgent_ids.include?(member.user_id) }
+  end
 
   def eligible_members(conversation)
     inbox = conversation.inbox

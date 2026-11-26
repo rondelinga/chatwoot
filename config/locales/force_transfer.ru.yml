@@ -1,0 +1,7 @@
+ru:
+  conversations:
+    activity:
+      force_transfer:
+        unavailable: В этой команде нет свободного оператора для перевода диалога
+        unavailable_inbox: Нет свободного оператора для перевода диалога
+        transferred: Чат переведён на оператора %{to_name} с оператора %{from_name}
